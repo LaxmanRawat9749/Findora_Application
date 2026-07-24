@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Findora</string>
+    <string name="welcome_title">Welcome to Findora</string>
+    <string name="welcome_subtitle">Lost something? Found something? We\'re here to help.</string>
+</resources>

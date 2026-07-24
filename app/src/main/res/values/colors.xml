@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Findora Brand Colors from Master Prompt -->
+    <color name="primary_purple">#534AB7</color>
+    <color name="light_purple">#EEEDFE</color>
+    <color name="dark_purple">#3C3489</color>
+
+    <color name="success_green">#1D9E75</color>
+    <color name="light_green">#E1F5EE</color>
+
+    <color name="error_red">#D85A30</color>
+    <color name="light_red">#FAECE7</color>
+
+    <color name="screen_background">#F8F7FF</color>
+    <color name="text_dark">#1A1A2E</color>
+    <color name="text_gray">#6B6B8A</color>
+    <color name="card_border">#E2E2F0</color>
+    <color name="warning_orange">#F59E0B</color>
+
+    <!-- Standard Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+    
+    <!-- Material Design Overrides -->
+    <color name="md_theme_primary">#534AB7</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_secondary">#EEEDFE</color>
+    <color name="md_theme_onSecondary">#3C3489</color>
+    <color name="md_theme_error">#D85A30</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_background">#F8F7FF</color>
+    <color name="md_theme_onBackground">#1A1A2E</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_onSurface">#1A1A2E</color>
+</resources>
