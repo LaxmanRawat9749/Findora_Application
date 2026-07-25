@@ -51,6 +51,21 @@ public class HomeActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         sessionManager = new SessionManager(this);
+
+        // Defense-in-depth: validate the session before any UI setup or API
+        // calls. SplashActivity performs the primary routing check, but this
+        // guard ensures HomeActivity is self-protecting in case the Activity
+        // is somehow reached without a valid session (e.g., deep link, future
+        // navigation changes, or session expiry after the app was backgrounded).
+        if (!sessionManager.isSessionValid()) {
+            sessionManager.logout(); // clear any stale data
+            Intent loginIntent = new Intent(HomeActivity.this, LoginActivity.class);
+            loginIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(loginIntent);
+            finish();
+            return;
+        }
+
         apiService = RetrofitClient.getInstance(this).getApi();
 
         setupRecyclerView();

@@ -5,6 +5,9 @@ public class Constants {
     // For USB physical device testing on same Wi-Fi: "http://192.168.1.96:8000/api/"
     // For ADB port forwarding over USB (run: adb reverse tcp:8000 tcp:8000): "http://127.0.0.1:8000/api/"
     // For Android Emulator: "http://10.0.2.2:8000/api/"
+    // ✅ Wireless debugging / Physical phone on same Wi-Fi
+    //private static final String BASE_URL = "http://192.168.1.96:8000/api/";
+    
     public static final String BASE_URL = "http://192.168.1.96:8000/api/";
 
     // Intent extras

@@ -4,13 +4,16 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.findora.app.databinding.ActivityLoginBinding;
 import com.findora.app.models.AuthResponse;
 import com.findora.app.models.LoginRequest;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.SessionManager;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -28,23 +31,25 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         sessionManager = new SessionManager(this);
-        apiService = RetrofitClient.getInstance(this).getApi();
+        apiService     = RetrofitClient.getInstance(this).getApi();
 
-        // If already logged in, go to Home
-        if (sessionManager.isLoggedIn()) {
-            navigateToHome();
-            return;
-        }
+        // NOTE: The auto-login check (isLoggedIn → navigateToHome) that existed
+        // here has been intentionally removed. SplashActivity is now the single
+        // authoritative routing point and performs a proper isSessionValid() check
+        // (including JWT expiry) before routing here. Repeating a simpler check
+        // in LoginActivity was the root cause of unauthenticated users bypassing
+        // the Login screen when stale SharedPreferences existed.
+        //
+        // If SplashActivity routed the user here, it is because there is no valid
+        // session — we must always show the Login UI.
 
         binding.btnLogin.setOnClickListener(v -> attemptLogin());
 
-        binding.tvForgotPassword.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class));
-        });
+        binding.tvForgotPassword.setOnClickListener(v ->
+                startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class)));
 
-        binding.tvRegister.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
-        });
+        binding.tvRegister.setOnClickListener(v ->
+                startActivity(new Intent(LoginActivity.this, RegisterActivity.class)));
     }
 
     private void attemptLogin() {
@@ -63,8 +68,22 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
                 setLoading(false);
+
                 if (response.isSuccessful() && response.body() != null) {
                     AuthResponse authResponse = response.body();
+
+                    // Validate the response before saving — guard against a server
+                    // returning 200 with null tokens or a null user object.
+                    if (authResponse.access == null || authResponse.access.isEmpty()
+                            || authResponse.refresh == null || authResponse.refresh.isEmpty()
+                            || authResponse.user == null) {
+                        showError("Login failed: incomplete server response. Please try again.");
+                        return;
+                    }
+
+                    // saveSession() uses commit() — the data is durably on disk
+                    // before navigateToHome() is called, so HomeActivity and its
+                    // API calls always find a valid token in SharedPreferences.
                     sessionManager.saveSession(
                             authResponse.access,
                             authResponse.refresh,
@@ -74,7 +93,9 @@ public class LoginActivity extends AppCompatActivity {
                             authResponse.user.getEmail(),
                             authResponse.user.getId()
                     );
+
                     navigateToHome();
+
                 } else {
                     showError("Invalid credentials. Please try again.");
                 }

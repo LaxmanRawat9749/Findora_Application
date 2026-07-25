@@ -30,17 +30,21 @@ public class ProfileActivity extends AppCompatActivity {
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        apiService = RetrofitClient.getInstance(this).getApi();
+        apiService     = RetrofitClient.getInstance(this).getApi();
         sessionManager = new SessionManager(this);
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Display cached info immediately
-        binding.tvFullName.setText(sessionManager.getFullName());
-        binding.tvEmail.setText(sessionManager.getEmail());
-        binding.tvRole.setText("Role: " + capitalize(sessionManager.getRole()));
+        // Do NOT pre-populate UI from SharedPreferences cache here.
+        // The cache belongs to the previously authenticated user — showing it
+        // before the API confirms the current session is what caused another
+        // user's name/email to be displayed to a new unauthenticated user.
+        // The API call below is authoritative; cached data is only a fallback.
+        binding.tvFullName.setText("");
+        binding.tvEmail.setText("");
+        binding.tvRole.setText("");
 
-        // Load fresh profile from API
+        // Load fresh profile from API — UI is populated only when this returns
         loadProfile();
 
         // Change password toggle
@@ -67,14 +71,33 @@ public class ProfileActivity extends AppCompatActivity {
                     binding.tvFullName.setText(user.getFullName());
                     binding.tvEmail.setText(user.getEmail());
                     binding.tvRole.setText("Role: " + capitalize(user.getRole()));
+                } else {
+                    // Unexpected server error — fall back to cache as last resort
+                    showCachedProfile();
                 }
             }
 
             @Override
             public void onFailure(Call<User> call, Throwable t) {
-                // Use cached data — already displayed
+                // Network unavailable — fall back to cached data so the user
+                // is not left with a blank profile screen when offline.
+                showCachedProfile();
             }
         });
+    }
+
+    /**
+     * Shows cached session data as a fallback when the API is unavailable.
+     * This is only called after the API attempt fails — never before it.
+     */
+    private void showCachedProfile() {
+        String cachedName = sessionManager.getFullName();
+        String cachedEmail = sessionManager.getEmail();
+        String cachedRole = sessionManager.getRole();
+
+        if (!cachedName.isEmpty()) binding.tvFullName.setText(cachedName);
+        if (!cachedEmail.isEmpty()) binding.tvEmail.setText(cachedEmail);
+        if (!cachedRole.isEmpty()) binding.tvRole.setText("Role: " + capitalize(cachedRole));
     }
 
     private void changePassword() {

@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.findora.app.R;
+import com.findora.app.utils.SessionManager;
 
 public class SplashActivity extends AppCompatActivity {
 
@@ -25,9 +26,9 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        ImageView logo = findViewById(R.id.splash_logo);
-        TextView name = findViewById(R.id.splash_name);
-        TextView tagline = findViewById(R.id.splash_tagline);
+        ImageView logo    = findViewById(R.id.splash_logo);
+        TextView  name    = findViewById(R.id.splash_name);
+        TextView  tagline = findViewById(R.id.splash_tagline);
 
         // Logo Scale and Fade In
         ScaleAnimation scaleAnim = new ScaleAnimation(0.5f, 1.0f, 0.5f, 1.0f,
@@ -62,9 +63,25 @@ public class SplashActivity extends AppCompatActivity {
             tagline.setAlpha(1.0f);
         }, 500);
 
-        // Transition to Login
+        // Navigate based on session validity — this is the single authoritative
+        // routing decision point for the application on startup.
         new Handler().postDelayed(() -> {
-            Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
+            SessionManager sessionManager = new SessionManager(SplashActivity.this);
+
+            Class<?> destination;
+            if (sessionManager.isSessionValid()) {
+                // A valid, non-expired session exists — go directly to Home
+                destination = HomeActivity.class;
+            } else {
+                // No valid session (first launch, logout, expired token, stale
+                // SharedPreferences from another user, etc.) — go to Login.
+                // Clear any stale data so the next user starts with a clean slate.
+                sessionManager.logout();
+                destination = LoginActivity.class;
+            }
+
+            Intent intent = new Intent(SplashActivity.this, destination);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
