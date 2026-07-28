@@ -63,17 +63,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+import os
+import dj_database_url
+
 # ─── Database ────────────────────────────────────────────────────────────────
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        # CONN_MAX_AGE=0: each request opens and closes its own DB connection.
-        # Keeps SQLite connections explicit and prevents stale connection errors
-        # when the dev server is restarted or the process is under load.
-        'CONN_MAX_AGE': 0,
+if 'DATABASE_URL' in os.environ:
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'), conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            # CONN_MAX_AGE=0: each request opens and closes its own DB connection.
+            # Keeps SQLite connections explicit and prevents stale connection errors
+            # when the dev server is restarted or the process is under load.
+            'CONN_MAX_AGE': 0,
+        }
+    }
 
 # ─── Custom User Model ───────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'api.User'
