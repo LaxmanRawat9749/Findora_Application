@@ -196,13 +196,32 @@ def send_otp_email(user, otp_code, purpose):
 
     def _send():
         # Read API key and sender email inside thread to handle dynamic settings reload
+        import os
         from django.conf import settings
         
+        # Try retrieving API key from settings first, then directly from environment variable
         api_key = getattr(settings, 'RESEND_API_KEY', None)
+        if not api_key:
+            api_key = os.environ.get('RESEND_API_KEY', None)
+
+        # Sanitize API key (remove surrounding quotes or whitespaces that might be added during copy-paste in Render UI)
+        if api_key:
+            api_key = api_key.strip().strip('"').strip("'")
+
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Findora <onboarding@resend.dev>')
+        if not from_email:
+            from_email = 'Findora <onboarding@resend.dev>'
 
         if not api_key:
-            logger.error("Failed to send OTP email to %s: RESEND_API_KEY is not configured in settings/env.", recipient)
+            # Gather safe metadata to help the developer debug the configuration mismatch on Render
+            env_keys = list(os.environ.keys())
+            matched_keys = [k for k in env_keys if "RESEND" in k or "API" in k or "KEY" in k]
+            logger.error(
+                "Failed to send OTP email: RESEND_API_KEY is not configured in settings/env. "
+                "Detected environment keys with matching patterns: %s. "
+                "Please verify that 'RESEND_API_KEY' is added as an Environment Variable in the Render Dashboard.",
+                matched_keys
+            )
             return
 
         try:
@@ -215,7 +234,8 @@ def send_otp_email(user, otp_code, purpose):
                 "html": html_body
             })
             logger.info("OTP email successfully sent via Resend API to %s for %s", recipient, purpose)
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to send OTP email: Resend API request failed. Reason: %s", str(e))
             logger.exception("Exception occurred sending OTP email via Resend API to %s for %s", recipient, purpose)
 
     thread = threading.Thread(target=_send, daemon=True)
