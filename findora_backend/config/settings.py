@@ -67,9 +67,14 @@ import os
 import dj_database_url
 
 # ─── Database ────────────────────────────────────────────────────────────────
-if 'DATABASE_URL' in os.environ:
+# You provided the Render internal database URL. We will use it if no other URL is set.
+# IMPORTANT: This internal URL (dpg-...) only works when the app is running ON Render.
+# If you run the project locally on your Windows PC, it will fail to connect.
+RENDER_DB_URL = os.environ.get('DATABASE_URL', 'postgresql://findora_database_user:JnQVoWaEjtEi5kjpAdP8kLChemeyADzv@dpg-d9kbqnjm8hqs73c4g540-a/findora_database')
+
+if RENDER_DB_URL:
     DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'), conn_max_age=600)
+        'default': dj_database_url.parse(RENDER_DB_URL, conn_max_age=600)
     }
 else:
     DATABASES = {
