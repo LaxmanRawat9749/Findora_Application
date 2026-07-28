@@ -12,8 +12,12 @@ Implements all business logic for:
   Notifications   : list notifications, mark as read
 """
 
+import logging
+import time
+
+import re
 from django.contrib.auth import authenticate
-from django.db.models import Q
+from django.db.models import Q, Max, Case, When, Value, IntegerField
 from django.utils import timezone
 
 from rest_framework import generics, permissions, status
@@ -22,18 +26,22 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import ChatMessage, Claim, Item, Notification, OTPToken, User
+from .models import ChatMessage, Claim, Conversation, Item, ItemImage, Notification, OTPToken, User
 from .permissions import IsAdminRole, IsOwnerOrReadOnly, IsVerifiedUser
 from .serializers import (
     ChatMessageSerializer,
+    ConversationSerializer,
     ClaimSerializer,
     ItemSerializer,
     NotificationSerializer,
     ProfileUpdateSerializer,
+    PublicProfileSerializer,
     RegisterSerializer,
     UserSerializer,
 )
 from .utils import create_otp, send_otp_email, verify_otp
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,12 +182,22 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        start_ns = time.perf_counter_ns()
         username = request.data.get('username', '').strip()
-        password = request.data.get('password', '')
+        # NOTE: password is intentionally NOT logged anywhere in this method.
+
+        logger.info("Login attempt | username=%r | client=%s",
+                    username, self._client_ip(request))
 
         try:
+            db_start = time.perf_counter_ns()
             user = User.objects.get(username=username)
+            db_ms = (time.perf_counter_ns() - db_start) / 1_000_000
+            logger.debug("User lookup OK | username=%r | db=%.1f ms", username, db_ms)
         except User.DoesNotExist:
+            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+            logger.warning("Login failed | reason=user_not_found | username=%r | elapsed=%.1f ms",
+                           username, elapsed_ms)
             return Response(
                 {'error': 'Invalid username or password.'},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -187,6 +205,9 @@ class LoginView(APIView):
 
         # Step 2: Email verification gate
         if not user.is_verified:
+            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+            logger.warning("Login failed | reason=unverified_email | username=%r | elapsed=%.1f ms",
+                           username, elapsed_ms)
             return Response(
                 {
                     'error': 'Please verify your email before logging in.',
@@ -199,16 +220,22 @@ class LoginView(APIView):
         # Step 3: Account lock gate
         if user.is_account_locked():
             time_left = max(1, int((user.locked_until - timezone.now()).total_seconds() / 60))
+            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+            logger.warning("Login failed | reason=account_locked | username=%r | locked_for=%d min | elapsed=%.1f ms",
+                           username, time_left, elapsed_ms)
             return Response(
                 {'error': f'Account locked. Try again after {time_left} minute(s).'},
                 status=status.HTTP_423_LOCKED,
             )
 
         # Step 4: Password verification
-        auth_user = authenticate(request, username=username, password=password)
+        auth_user = authenticate(request, username=username, password=request.data.get('password', ''))
         if not auth_user:
             user.increment_failed_attempts()
             remaining = max(0, 5 - user.failed_login_attempts)
+            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+            logger.warning("Login failed | reason=wrong_password | username=%r | attempts_left=%d | elapsed=%.1f ms",
+                           username, remaining, elapsed_ms)
             if remaining == 0:
                 return Response(
                     {'error': 'Account locked due to too many failed attempts. Try again after 30 minutes.'},
@@ -221,7 +248,13 @@ class LoginView(APIView):
 
         # Step 5: Success — reset counter, issue tokens
         auth_user.reset_failed_attempts()
+        token_start = time.perf_counter_ns()
         refresh = RefreshToken.for_user(auth_user)
+        token_ms = (time.perf_counter_ns() - token_start) / 1_000_000
+        elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+
+        logger.info("Login success | username=%r | user_id=%d | token_gen=%.1f ms | total=%.1f ms",
+                    auth_user.username, auth_user.pk, token_ms, elapsed_ms)
 
         return Response(
             {
@@ -231,6 +264,14 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+    @staticmethod
+    def _client_ip(request):
+        """Return the best-effort client IP from request headers."""
+        forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if forwarded_for:
+            return forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', 'unknown')
 
 
 class LogoutView(APIView):
@@ -362,6 +403,73 @@ class ChangePasswordView(APIView):
         )
 
 
+class ChangeUsernameView(APIView):
+    """
+    POST /api/change-username/
+    Change the authenticated user's username.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        new_username = request.data.get('new_username', '').strip()
+        confirm_username = request.data.get('confirm_username', '').strip()
+
+        if not new_username:
+            return Response(
+                {'error': 'Username cannot be empty.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(new_username) < 3:
+            return Response(
+                {'error': 'Username must be at least 3 characters long.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(new_username) > 30:
+            return Response(
+                {'error': 'Username must not exceed 30 characters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not re.match(r'^[a-zA-Z0-9_]+$', new_username):
+            return Response(
+                {'error': 'Username can only contain letters, numbers, and underscores.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_username != confirm_username:
+            return Response(
+                {'error': 'Usernames do not match.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_username == request.user.username:
+            return Response(
+                {'error': 'New username must be different from your current username.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if User.objects.filter(username=new_username).exists():
+            # Match the requested format for duplicate username
+            return Response(
+                {'username': ['This username is already taken.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.username = new_username
+        request.user.save(update_fields=['username'])
+
+        return Response(
+            {
+                'message': 'Username updated successfully.',
+                'username': new_username
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Profile Views
 # ─────────────────────────────────────────────────────────────────────────────
@@ -392,6 +500,51 @@ class ProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ProfileImageView(APIView):
+    """
+    PUT    /api/profile/image/ — Update the authenticated user's profile image.
+    DELETE /api/profile/image/ — Remove the authenticated user's profile image.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def put(self, request):
+        if 'profileImage' not in request.FILES:
+            return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user = request.user
+        user.profile_image = request.FILES['profileImage']
+        user.save()
+        return Response(UserSerializer(user, context={'request': request}).data)
+
+    def delete(self, request):
+        user = request.user
+        if user.profile_image:
+            user.profile_image.delete(save=False)
+            user.profile_image = None
+            user.save()
+        return Response(UserSerializer(user, context={'request': request}).data)
+
+
+class PublicProfileView(APIView):
+    """
+    GET /api/users/{id}/public-profile/
+    Retrieve the public profile of any user.
+    Only exposes non-sensitive data and calculated stats.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PublicProfileSerializer(user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Item Views
 # ─────────────────────────────────────────────────────────────────────────────
@@ -411,15 +564,26 @@ class ItemListCreateView(APIView):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
-        queryset = Item.objects.filter(status='approved').select_related('user')
+        queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
 
         search = request.query_params.get('search', '').strip()
         if search:
             queryset = queryset.filter(
-                Q(title__icontains=search)
+                Q(category__icontains=search)
+                | Q(title__icontains=search)
                 | Q(description__icontains=search)
-                | Q(location__icontains=search)
-            )
+            ).annotate(
+                match_score=Case(
+                    When(category__iexact=search, then=Value(4)),
+                    When(category__icontains=search, then=Value(3)),
+                    When(title__icontains=search, then=Value(2)),
+                    When(description__icontains=search, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ).order_by('-match_score', '-reported_at')
+        else:
+            queryset = queryset.order_by('-reported_at')
 
         item_type = request.query_params.get('type', '').strip()
         if item_type:
@@ -434,9 +598,27 @@ class ItemListCreateView(APIView):
 
     def post(self, request):
         serializer = ItemSerializer(data=request.data, context={'request': request})
+        
+        # Pre-validate images
+        images = request.FILES.getlist('images')
+        if len(images) > 5:
+            return Response({'error': 'You can only upload up to 5 images.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        for img in images:
+            if img.size > 5 * 1024 * 1024:
+                return Response({'error': 'Each image must be smaller than 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            ext = img.name.split('.')[-1].lower()
+            if ext not in ['jpg', 'jpeg', 'png', 'webp']:
+                return Response({'error': 'Unsupported format. Allowed: JPG, JPEG, PNG, WEBP.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         if serializer.is_valid():
-            serializer.save(user=request.user, status='pending')
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            item = serializer.save(user=request.user, status='pending')
+            
+            # Save images
+            for img in images:
+                ItemImage.objects.create(item=item, image=img)
+                
+            return Response(ItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -632,56 +814,276 @@ class ClaimCreateView(APIView):
 # Chat Views
 # ─────────────────────────────────────────────────────────────────────────────
 
-class ChatListView(APIView):
+class ConversationListView(APIView):
     """
-    GET  /api/chat/?item_id={id} — Retrieve all messages for an item conversation.
-    POST /api/chat/              — Send a message to another user about an item.
-
-    Only the sender and receiver (participants) of a conversation can read it.
-    Unread messages are marked as read when the receiver fetches the conversation.
+    GET /api/conversations/ — Retrieve all conversations for the authenticated user.
     """
-
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        item_id = request.query_params.get('item_id')
+        conversations = Conversation.objects.filter(
+            (Q(owner_id=request.user.id) & Q(hidden_by_owner=False)) | 
+            (Q(finder_id=request.user.id) & Q(hidden_by_finder=False))
+        ).annotate(
+            last_msg_time=Max('messages__sent_at')
+        ).select_related('item', 'owner', 'finder').prefetch_related('messages', 'messages__sender').order_by('-last_msg_time', '-created_at').distinct()
+
+        serializer = ConversationSerializer(conversations, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ConversationInitView(APIView):
+    """
+    POST /api/conversations/init/ — Get or create a conversation for an item.
+    Body: { "item_id": 123 }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        item_id = request.data.get('item_id')
         if not item_id:
+            return Response({'error': 'item_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            item = Item.objects.get(id=item_id)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if item.user == request.user:
+            return Response({'error': 'Owner cannot initiate conversation with themselves'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Always map owner and finder strictly based on item type
+        if item.type == 'lost':
+            # For lost items, the poster is the owner, replier is the finder
+            owner_user = item.user
+            finder_user = request.user
+        else:
+            # For found items, the poster is the finder, replier is the owner
+            owner_user = request.user
+            finder_user = item.user
+            
+        # Search for any existing conversation between these two users, regardless of item
+        conversation = Conversation.objects.filter(
+            (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
+            (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
+        ).first()
+        
+        if not conversation:
+            conversation = Conversation.objects.create(
+                item_id=item.id,
+                owner_id=owner_user.id,
+                finder_id=finder_user.id
+            )
+        
+        return Response({'conversation_id': conversation.id}, status=status.HTTP_200_OK)
+
+
+class ChatListView(APIView):
+    """
+    GET  /api/chat/?conversation_id={id} — Retrieve all messages for a conversation.
+    POST /api/chat/                      — Send a message to a conversation.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get(self, request):
+        conversation_id = request.query_params.get('conversation_id')
+        if not conversation_id:
             return Response(
-                {'error': 'item_id query parameter is required.'},
+                {'error': 'conversation_id query parameter is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        messages = ChatMessage.objects.filter(
-            item_id=item_id,
-        ).filter(
-            Q(sender=request.user) | Q(receiver=request.user)
-        ).select_related('sender', 'receiver', 'item')
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response({'error': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if request.user.id != conversation.owner_id and request.user.id != conversation.finder_id:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        messages = ChatMessage.objects.filter(conversation=conversation).exclude(
+            Q(deleted_by_sender=True, sender=request.user) | 
+            Q(deleted_by_receiver=True, sender_id=conversation.owner_id if request.user.id == conversation.finder_id else conversation.finder_id)
+        ).select_related('sender')
+
+        # Replace text for messages deleted for everyone
+        for msg in messages:
+            if msg.deleted_for_everyone:
+                msg.message = "🚫 This message was deleted"
 
         # Mark messages sent to this user as read
-        messages.filter(receiver=request.user, is_read=False).update(is_read=True)
+        messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
 
         serializer = ChatMessageSerializer(messages, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
+        conversation_id = request.data.get('conversation')
+        if not conversation_id:
+            return Response({'error': 'conversation is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response({'error': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if request.user.id != conversation.owner_id and request.user.id != conversation.finder_id:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = ChatMessageSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            message = serializer.save(sender=request.user)
+            message = serializer.save(sender=request.user, conversation=conversation)
+            
+            # Reset hidden flags if the conversation was removed but a new message arrives
+            if conversation.hidden_by_owner or conversation.hidden_by_finder:
+                conversation.hidden_by_owner = False
+                conversation.hidden_by_finder = False
+                conversation.save(update_fields=['hidden_by_owner', 'hidden_by_finder'])
+            
+            receiver = conversation.owner if request.user.id == conversation.finder_id else conversation.finder
 
             # Notify the receiver
             Notification.objects.create(
-                user=message.receiver,
+                user=receiver,
                 type='message',
                 message=(
                     f'New message from '
                     f'{request.user.get_full_name() or request.user.username}: '
                     f'{message.message[:60]}'
                 ),
-                related_item=message.item,
+                related_item=conversation.item,
             )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Modern Chat Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ChatProfileView(APIView):
+    """
+    GET /api/chat/profile/?conversation_id={id}
+    Returns the profile details of the OTHER user in the conversation.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        conversation_id = request.query_params.get('conversation_id')
+        if not conversation_id:
+            return Response({'error': 'conversation_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response({'error': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if request.user != conversation.owner and request.user != conversation.finder:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+            
+        other_user = conversation.owner if request.user.id == conversation.finder_id else conversation.finder
+        
+        serializer = PublicProfileSerializer(other_user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ChatMessageDetailView(APIView):
+    """
+    PUT /api/chat/message/{id}/
+    DELETE /api/chat/message/{id}/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            message = ChatMessage.objects.get(pk=pk)
+        except ChatMessage.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if message.sender != request.user:
+            return Response({'error': 'You can only edit your own messages'}, status=status.HTTP_403_FORBIDDEN)
+            
+        if message.deleted_for_everyone:
+            return Response({'error': 'Cannot edit a deleted message'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if message.message_type == 'image':
+            new_text = request.data.get('caption')
+            if new_text is None:  # In case frontend sends 'message' key instead
+                new_text = request.data.get('message')
+            if new_text is None:
+                return Response({'error': 'Caption text is required'}, status=status.HTTP_400_BAD_REQUEST)
+            message.caption = new_text
+        else:
+            new_text = request.data.get('message')
+            if not new_text:
+                return Response({'error': 'Message text is required'}, status=status.HTTP_400_BAD_REQUEST)
+            message.message = new_text
+            
+        message.is_edited = True
+        message.edited_at = timezone.now()
+        message.save(update_fields=['message', 'caption', 'is_edited', 'edited_at'])
+        
+        serializer = ChatMessageSerializer(message, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            message = ChatMessage.objects.get(pk=pk)
+        except ChatMessage.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        # Parse for_everyone boolean. It might come as a string 'true'/'false' or boolean
+        for_everyone_val = request.data.get('for_everyone') or request.query_params.get('for_everyone', False)
+        if isinstance(for_everyone_val, str):
+            for_everyone = for_everyone_val.lower() == 'true'
+        else:
+            for_everyone = bool(for_everyone_val)
+            
+        if for_everyone:
+            if message.sender != request.user:
+                return Response({'error': 'You can only delete your own messages for everyone'}, status=status.HTTP_403_FORBIDDEN)
+            message.deleted_for_everyone = True
+            message.save(update_fields=['deleted_for_everyone'])
+        else:
+            # Delete for me
+            if message.sender == request.user:
+                message.deleted_by_sender = True
+                message.save(update_fields=['deleted_by_sender'])
+            else:
+                # User is receiver
+                message.deleted_by_receiver = True
+                message.save(update_fields=['deleted_by_receiver'])
+                
+        return Response({'message': 'Message deleted successfully'}, status=status.HTTP_200_OK)
+
+
+class ConversationDetailView(APIView):
+    """
+    DELETE /api/chat/conversation/{id}/
+    Removes the conversation from the user's chat list.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            conversation = Conversation.objects.get(pk=pk)
+        except Conversation.DoesNotExist:
+            return Response({'error': 'Conversation not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if request.user != conversation.owner and request.user != conversation.finder:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+            
+        if request.user == conversation.owner:
+            conversation.hidden_by_owner = True
+            conversation.save(update_fields=['hidden_by_owner'])
+        else:
+            conversation.hidden_by_finder = True
+            conversation.save(update_fields=['hidden_by_finder'])
+            
+        return Response({'message': 'Conversation removed'}, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

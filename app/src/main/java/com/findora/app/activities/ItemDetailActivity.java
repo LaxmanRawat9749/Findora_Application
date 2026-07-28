@@ -16,16 +16,14 @@ import com.findora.app.R;
 import com.findora.app.databinding.ActivityItemDetailBinding;
 import com.findora.app.models.Claim;
 import com.findora.app.models.Item;
+import com.findora.app.models.ItemImage;
+import com.findora.app.models.ConversationInitRequest;
+import com.findora.app.models.ConversationInitResponse;
+import com.findora.app.adapters.ItemImagePagerAdapter;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
 import com.findora.app.utils.SessionManager;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
-import android.graphics.Bitmap;
-import android.graphics.Color;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -37,6 +35,9 @@ public class ItemDetailActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private Item currentItem;
     private int itemId;
+    private Call<Item> itemDetailCall;
+    private Call<ConversationInitResponse> conversationInitCall;
+    private Call<Claim> claimCall;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,15 +59,27 @@ public class ItemDetailActivity extends AppCompatActivity {
 
         binding.btnChat.setOnClickListener(v -> {
             if (currentItem != null) {
-                Intent intent = new Intent(this, ChatActivity.class);
-                intent.putExtra(Constants.EXTRA_ITEM_ID, currentItem.getId());
-                intent.putExtra(Constants.EXTRA_RECEIVER_ID, currentItem.getUser());
-                startActivity(intent);
+                if (currentItem.getUser() == sessionManager.getUserId()) {
+                    Intent intent = new Intent(this, ConversationListActivity.class);
+                    startActivity(intent);
+                } else {
+                    initConversation(currentItem.getId());
+                }
             }
         });
 
+        binding.btnContactFinder.setOnClickListener(v -> {
+            if (currentItem != null) {
+                initConversation(currentItem.getId());
+            }
+        });
+
+        binding.btnViewConversations.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ConversationListActivity.class);
+            startActivity(intent);
+        });
+
         binding.btnClaim.setOnClickListener(v -> showClaimDialog());
-        binding.btnViewQr.setOnClickListener(v -> showQrDialog());
         binding.btnViewMap.setOnClickListener(v -> openMap());
 
         loadItemDetail();
@@ -76,7 +89,9 @@ public class ItemDetailActivity extends AppCompatActivity {
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.scrollContent.setVisibility(View.GONE);
 
-        apiService.getItemDetail(itemId).enqueue(new Callback<Item>() {
+        if (itemDetailCall != null) itemDetailCall.cancel();
+        itemDetailCall = apiService.getItemDetail(itemId);
+        itemDetailCall.enqueue(new Callback<Item>() {
             @Override
             public void onResponse(Call<Item> call, Response<Item> response) {
                 binding.progressBar.setVisibility(View.GONE);
@@ -93,6 +108,7 @@ public class ItemDetailActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Item> call, Throwable t) {
+                if (call.isCanceled()) return;
                 binding.progressBar.setVisibility(View.GONE);
                 Toast.makeText(ItemDetailActivity.this,
                         "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
@@ -119,6 +135,17 @@ public class ItemDetailActivity extends AppCompatActivity {
                 (item.getUserName() != null ? item.getUserName() : "Unknown") +
                 " (" + (item.getUserRole() != null ? item.getUserRole() : "") + ")";
         binding.tvReporter.setText(reporterText);
+        
+        if (item.getUserProfileImage() != null && !item.getUserProfileImage().isEmpty()) {
+            Glide.with(this)
+                    .load(item.getUserProfileImage())
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_person)
+                    .error(R.drawable.ic_person)
+                    .into(binding.ivReporterAvatar);
+        } else {
+            binding.ivReporterAvatar.setImageResource(R.drawable.ic_person);
+        }
 
         if (item.getLocation() != null && !item.getLocation().isEmpty()) {
             binding.layoutLocation.setVisibility(View.VISIBLE);
@@ -134,16 +161,53 @@ public class ItemDetailActivity extends AppCompatActivity {
             binding.tvReward.setVisibility(View.GONE);
         }
 
-        String imageUrl = item.getImageUrl() != null ? item.getImageUrl() : item.getImage();
-        if (imageUrl != null && !imageUrl.isEmpty()) {
-            binding.ivItemImage.setVisibility(View.VISIBLE);
-            Glide.with(this).load(imageUrl).centerCrop().into(binding.ivItemImage);
+        if (item.getImages() != null && !item.getImages().isEmpty()) {
+            binding.vpImages.setVisibility(View.VISIBLE);
+            ItemImagePagerAdapter adapter = new ItemImagePagerAdapter(item.getImages(), url -> {
+                Intent intent = new Intent(this, FullScreenImageActivity.class);
+                intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, url);
+                startActivity(intent);
+            });
+            binding.vpImages.setAdapter(adapter);
+        } else {
+            // Backwards compatibility for old items with single image
+            String imageUrl = item.getImageUrl() != null ? item.getImageUrl() : item.getImage();
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                ItemImage oldImage = new ItemImage();
+                oldImage.setImageUrl(imageUrl);
+                java.util.List<ItemImage> list = new java.util.ArrayList<>();
+                list.add(oldImage);
+                
+                binding.vpImages.setVisibility(View.VISIBLE);
+                ItemImagePagerAdapter adapter = new ItemImagePagerAdapter(list, url -> {
+                    Intent intent = new Intent(this, FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, url);
+                    startActivity(intent);
+                });
+                binding.vpImages.setAdapter(adapter);
+            } else {
+                binding.vpImages.setVisibility(View.GONE);
+            }
         }
 
-        // Hide chat/claim if user is the owner
+        // Check if user is the poster of the item
         if (item.getUser() == sessionManager.getUserId()) {
-            binding.btnChat.setVisibility(View.GONE);
+            binding.layoutDefaultActions.setVisibility(View.VISIBLE);
+            binding.layoutFoundActions.setVisibility(View.GONE);
+            binding.btnChat.setVisibility(View.VISIBLE);
+            binding.btnChat.setText("View Conversations");
             binding.btnClaim.setVisibility(View.GONE);
+        } else {
+            if ("found".equalsIgnoreCase(item.getType())) {
+                binding.layoutDefaultActions.setVisibility(View.GONE);
+                binding.layoutFoundActions.setVisibility(View.VISIBLE);
+            } else {
+                binding.layoutDefaultActions.setVisibility(View.VISIBLE);
+                binding.layoutFoundActions.setVisibility(View.GONE);
+                binding.btnChat.setVisibility(View.VISIBLE);
+                binding.btnChat.setText("Contact Owner");
+                binding.btnClaim.setVisibility(View.VISIBLE);
+            }
         }
     }
 
@@ -151,7 +215,13 @@ public class ItemDetailActivity extends AppCompatActivity {
         if (currentItem == null) return;
 
         EditText etDescription = new EditText(this);
-        etDescription.setHint("Describe why you believe this is yours...");
+        String hintText;
+        if ("lost".equalsIgnoreCase(currentItem.getType())) {
+            hintText = "Describe where and when you found this item, and any details that may help the owner identify it.";
+        } else {
+            hintText = "Describe why you believe this item belongs to you. Include identifying details such as color, brand, unique marks, or where you lost it.";
+        }
+        etDescription.setHint(hintText);
         etDescription.setMinLines(3);
 
         LinearLayout layout = new LinearLayout(this);
@@ -178,7 +248,9 @@ public class ItemDetailActivity extends AppCompatActivity {
     private void submitClaim(String description) {
         Claim claim = new Claim(currentItem.getId(), description);
 
-        apiService.submitClaim(claim).enqueue(new Callback<Claim>() {
+        if (claimCall != null) claimCall.cancel();
+        claimCall = apiService.submitClaim(claim);
+        claimCall.enqueue(new Callback<Claim>() {
             @Override
             public void onResponse(Call<Claim> call, Response<Claim> response) {
                 if (response.isSuccessful()) {
@@ -192,45 +264,11 @@ public class ItemDetailActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Claim> call, Throwable t) {
+                if (call.isCanceled()) return;
                 Toast.makeText(ItemDetailActivity.this,
                         "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void showQrDialog() {
-        if (currentItem == null || currentItem.getQrCode() == null) {
-            Toast.makeText(this, "No QR code available for this item.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix matrix = writer.encode(currentItem.getQrCode(),
-                    BarcodeFormat.QR_CODE, 512, 512);
-
-            int width = matrix.getWidth();
-            int height = matrix.getHeight();
-            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
-            for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++) {
-                    bitmap.setPixel(x, y, matrix.get(x, y) ? Color.BLACK : Color.WHITE);
-                }
-            }
-
-            ImageView imageView = new ImageView(this);
-            imageView.setImageBitmap(bitmap);
-            int padding = (int) (24 * getResources().getDisplayMetrics().density);
-            imageView.setPadding(padding, padding, padding, padding);
-
-            new AlertDialog.Builder(this)
-                    .setTitle("QR Verification Code")
-                    .setView(imageView)
-                    .setPositiveButton("Close", null)
-                    .show();
-        } catch (WriterException e) {
-            Toast.makeText(this, "Error generating QR code.", Toast.LENGTH_SHORT).show();
-        }
     }
 
     private void openMap() {
@@ -254,5 +292,55 @@ public class ItemDetailActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "No location data available.", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    private void initConversation(int id) {
+        binding.progressBar.setVisibility(View.VISIBLE);
+        ConversationInitRequest request = new ConversationInitRequest(id);
+        
+        android.util.Log.e("ChatBug", "initConversation called from ItemDetailActivity! item_id=" + id + 
+                ", sessionUserId=" + sessionManager.getUserId() + 
+                ", currentItemOwner=" + (currentItem != null ? currentItem.getUser() : -1));
+
+        if (conversationInitCall != null) conversationInitCall.cancel();
+        conversationInitCall = apiService.initConversation(request);
+        conversationInitCall.enqueue(new Callback<ConversationInitResponse>() {
+            @Override
+            public void onResponse(Call<ConversationInitResponse> call, Response<ConversationInitResponse> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    int conversationId = response.body().getConversationId();
+                    
+                    android.util.Log.e("ChatBug", "initConversation SUCCESS! returned conversation_id=" + conversationId);
+                    
+                    Intent intent = new Intent(ItemDetailActivity.this, ChatActivity.class);
+                    intent.putExtra(Constants.EXTRA_CONVERSATION_ID, conversationId);
+                    String ownerName = currentItem.getUserName() != null ? currentItem.getUserName() : "Owner";
+                    intent.putExtra("other_user_name", ownerName);
+                    startActivity(intent);
+                } else {
+                    android.util.Log.e("ChatBug", "initConversation FAILED! response code=" + response.code());
+                    Toast.makeText(ItemDetailActivity.this,
+                            "Failed to initiate conversation.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ConversationInitResponse> call, Throwable t) {
+                if (call.isCanceled()) return;
+                binding.progressBar.setVisibility(View.GONE);
+                android.util.Log.e("ChatBug", "initConversation ERROR! " + t.getMessage());
+                Toast.makeText(ItemDetailActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (itemDetailCall != null) itemDetailCall.cancel();
+        if (conversationInitCall != null) conversationInitCall.cancel();
+        if (claimCall != null) claimCall.cancel();
     }
 }

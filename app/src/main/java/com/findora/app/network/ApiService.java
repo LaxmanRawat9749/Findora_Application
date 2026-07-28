@@ -6,6 +6,7 @@ import retrofit2.Call;
 import retrofit2.http.*;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
+import java.util.Map;
 
 public interface ApiService {
 
@@ -37,12 +38,25 @@ public interface ApiService {
     @POST("change-password/")
     Call<MessageResponse> changePassword(@Body ChangePasswordRequest request);
 
+    @POST("change-username/")
+    Call<ChangeUsernameResponse> changeUsername(@Body ChangeUsernameRequest request);
+
     // ─── Profile ─────────────────────────────────────────────
     @GET("profile/")
     Call<User> getProfile();
 
     @PUT("profile/")
     Call<User> updateProfile(@Body User user);
+
+    @Multipart
+    @PUT("profile/image/")
+    Call<User> updateProfileImage(@Part MultipartBody.Part profileImage);
+
+    @DELETE("profile/image/")
+    Call<User> deleteProfileImage();
+
+    @GET("users/{id}/public-profile/")
+    Call<PublicProfile> getPublicProfile(@Path("id") int userId);
 
     // ─── Items ───────────────────────────────────────────────
     @GET("items/")
@@ -69,18 +83,10 @@ public interface ApiService {
 
     @Multipart
     @POST("items/")
-    Call<Item> reportItemWithImage(
-        @Part("type") RequestBody type,
-        @Part("title") RequestBody title,
-        @Part("description") RequestBody description,
-        @Part("category") RequestBody category,
-        @Part("location") RequestBody location,
-        @Part("reward") RequestBody reward,
-        @Part MultipartBody.Part image
+    Call<Item> reportItemWithImages(
+            @PartMap Map<String, RequestBody> partMap,
+            @Part List<MultipartBody.Part> images
     );
-
-    @POST("items/")
-    Call<Item> reportItem(@Body Item item);
 
     @PUT("items/{id}/")
     Call<Item> updateItem(@Path("id") int id, @Body Item item);
@@ -99,12 +105,40 @@ public interface ApiService {
     @POST("claims/")
     Call<Claim> submitClaim(@Body Claim claim);
 
+    // ─── Conversations ───────────────────────────────────────
+    @GET("conversations/")
+    Call<List<Conversation>> getConversations();
+
+    @POST("conversations/init/")
+    Call<ConversationInitResponse> initConversation(@Body ConversationInitRequest request);
+
     // ─── Chat ────────────────────────────────────────────────
     @GET("chat/")
-    Call<List<ChatMessage>> getMessages(@Query("item_id") int itemId);
+    Call<List<ChatMessage>> getMessages(@Query("conversation_id") int conversationId);
 
     @POST("chat/")
     Call<ChatMessage> sendMessage(@Body ChatMessage message);
+
+    @Multipart
+    @POST("chat/")
+    Call<ChatMessage> sendImageMessage(
+        @Part("conversation") RequestBody conversation,
+        @Part("message_type") RequestBody messageType,
+        @Part("caption") RequestBody caption,
+        @Part MultipartBody.Part image
+    );
+
+    @GET("chat/profile/")
+    Call<User> getChatProfile(@Query("conversation_id") int conversationId);
+
+    @PUT("chat/message/{id}/")
+    Call<ChatMessage> editMessage(@Path("id") int id, @Body ChatMessage message);
+
+    @DELETE("chat/message/{id}/")
+    Call<MessageResponse> deleteMessage(@Path("id") int id, @Query("for_everyone") boolean forEveryone);
+
+    @DELETE("chat/conversation/{id}/")
+    Call<MessageResponse> removeConversation(@Path("id") int id);
 
     // ─── Notifications ───────────────────────────────────────
     @GET("notifications/")

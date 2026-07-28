@@ -14,6 +14,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.findora.app.adapters.ItemAdapter;
 import com.findora.app.databinding.ActivitySearchBinding;
@@ -30,11 +32,34 @@ import retrofit2.Response;
 
 public class SearchActivity extends AppCompatActivity {
 
-    private static final int RC_AUDIO_PERM = 2001;
-
     private ActivitySearchBinding binding;
     private ApiService apiService;
     private ItemAdapter adapter;
+
+    private final ActivityResultLauncher<Intent> voiceSearchLauncher = 
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    if (matches != null && !matches.isEmpty()) {
+                        String query = matches.get(0);
+                        binding.etSearchQuery.setText(query);
+                        performSearch(query);
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<String> requestAudioPermissionLauncher = 
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    launchVoiceIntent();
+                } else {
+                    if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                        showSettingsDialog();
+                    } else {
+                        Toast.makeText(this, "Microphone permission is required for voice search.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,60 +130,37 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void startVoiceSearch() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO}, RC_AUDIO_PERM);
-            return;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            launchVoiceIntent();
+        } else {
+            requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
         }
-
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "Speech recognition not available.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        SpeechRecognizer recognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-
-        recognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(Bundle params) {
-                Toast.makeText(SearchActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
-            }
-            @Override public void onBeginningOfSpeech() {}
-            @Override public void onRmsChanged(float rmsdB) {}
-            @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onError(int error) {
-                Toast.makeText(SearchActivity.this, "Voice recognition error.", Toast.LENGTH_SHORT).show();
-            }
-            @Override
-            public void onResults(Bundle results) {
-                ArrayList<String> matches = results.getStringArrayList(
-                        SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    String query = matches.get(0);
-                    binding.etSearchQuery.setText(query);
-                    performSearch(query);
-                }
-                recognizer.destroy();
-            }
-            @Override public void onPartialResults(Bundle partialResults) {}
-            @Override public void onEvent(int eventType, Bundle params) {}
-        });
-
-        recognizer.startListening(intent);
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == RC_AUDIO_PERM && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startVoiceSearch();
+    private void launchVoiceIntent() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now to search");
+        
+        try {
+            voiceSearchLauncher.launch(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Speech recognition is not supported on this device.", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void showSettingsDialog() {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Permission Required")
+            .setMessage("Microphone permission is required for voice search. Please enable it in app settings.")
+            .setPositiveButton("Settings", (dialog, which) -> {
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                android.net.Uri uri = android.net.Uri.fromParts("package", getPackageName(), null);
+                intent.setData(uri);
+                startActivity(intent);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 }

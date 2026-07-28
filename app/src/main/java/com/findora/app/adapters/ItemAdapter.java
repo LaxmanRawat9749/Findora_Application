@@ -83,7 +83,15 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                 binding.layoutReward.setVisibility(View.GONE);
             }
 
-            String imageUrl = item.getImageUrl() != null ? item.getImageUrl() : item.getImage();
+            String imageUrl = null;
+            if (item.getImages() != null && !item.getImages().isEmpty()) {
+                imageUrl = item.getImages().get(0).getImageUrl();
+            } else if (item.getImageUrl() != null) {
+                imageUrl = item.getImageUrl();
+            } else if (item.getImage() != null) {
+                imageUrl = item.getImage();
+            }
+
             if (imageUrl != null && !imageUrl.isEmpty()) {
                 binding.ivItemImage.setVisibility(View.VISIBLE);
                 binding.layoutIconPlaceholder.setVisibility(View.GONE);

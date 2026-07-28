@@ -51,8 +51,11 @@ dependencies {
     implementation(libs.glide)
     annotationProcessor(libs.glide.compiler)
 
-    // QR Scanning
-    implementation(libs.zxing.embedded)
+    // Exif interface
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+    
+    // uCrop
+    implementation(libs.ucrop)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="56dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+
+    <!-- Magnifying glass circle (lens) -->
+    <path
+        android:pathData="M23,9 A13,13 0 1 1 23,35 A13,13 0 1 1 23,9"
+        android:strokeColor="#534AB7"
+        android:strokeWidth="3.5"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round"/>
+
+    <!-- Handle -->
+    <path
+        android:pathData="M32.5,32.5 L44,44"
+        android:strokeColor="#534AB7"
+        android:strokeWidth="3.5"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round"/>
+
+    <!-- Pin dot (center of lens) -->
+    <path
+        android:pathData="M23,17.5 A4.5,4.5 0 1 1 23,26.5 A4.5,4.5 0 1 1 23,17.5"
+        android:fillColor="#534AB7"
+        android:fillAlpha="0.9"/>
+
+    <!-- Pin tail -->
+    <path
+        android:pathData="M23,26.5 L23,31"
+        android:strokeColor="#534AB7"
+        android:strokeWidth="3"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round"/>
+
+</vector>

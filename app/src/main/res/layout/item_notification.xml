@@ -1,33 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardNotification"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="1dp"
-    app:cardBackgroundColor="@color/white"
-    app:strokeWidth="0dp">
+    android:layout_marginVertical="5dp"
+    app:cardCornerRadius="@dimen/card_inner_radius"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/card_background"
+    app:strokeWidth="0dp"
+    app:rippleColor="#1A7C6CF8">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="@dimen/spacing_medium">
 
-        <ImageView
-            android:id="@+id/ivIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_notifications"
-            app:tint="@color/primary_purple" />
+        <!-- Unread Indicator -->
+        <View
+            android:id="@+id/vUnreadIndicator"
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:background="@color/primary_purple"
+            android:visibility="gone" />
+
+        <!-- Icon container -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="@color/light_purple">
+
+            <ImageView
+                android:id="@+id/ivIcon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_notifications"
+                app:tint="@color/primary_purple" />
+        </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="@dimen/spacing_medium"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -42,26 +64,27 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="NOTIFICATION"
-                    android:textColor="@color/primary_purple"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/text_dark"
+                    android:textSize="17sp"
+                    android:fontFamily="sans-serif-bold" />
 
                 <TextView
                     android:id="@+id/tvTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_gray"
-                    android:textSize="11sp" />
+                    android:textColor="#999999"
+                    android:textSize="13sp" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/tvMessage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:text="Notification details message content..."
-                android:textColor="@color/text_dark"
-                android:textSize="14sp" />
+                android:textColor="#E0E0E0"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif-medium" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

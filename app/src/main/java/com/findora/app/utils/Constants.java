@@ -7,12 +7,16 @@ public class Constants {
     // For Android Emulator: "http://10.0.2.2:8000/api/"
     // ✅ Wireless debugging / Physical phone on same Wi-Fi
     //private static final String BASE_URL = "http://192.168.1.96:8000/api/";
-    
-    public static final String BASE_URL = "http://192.168.1.96:8000/api/";
+
 
     // Intent extras
-    public static final String EXTRA_ITEM_ID      = "item_id";
-    public static final String EXTRA_RECEIVER_ID  = "receiver_id";
+//    public static final String BASE_URL =  "http://192.168.1.85:8000/api/"; Laxman
+    public static final String BASE_URL =  "http://192.168.1.96:8000/api/";
+
+    public static final String EXTRA_ITEM_ID = "extra_item_id";
+    public static final String EXTRA_RECEIVER_ID = "extra_receiver_id";
+    public static final String EXTRA_CONVERSATION_ID = "extra_conversation_id";
+
     public static final String EXTRA_EMAIL        = "email";
     public static final String EXTRA_OTP_PURPOSE  = "otp_purpose";
 

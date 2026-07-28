@@ -14,17 +14,21 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.findora.app.R;
 import com.findora.app.adapters.ItemAdapter;
 import com.findora.app.databinding.ActivityHomeBinding;
 import com.findora.app.models.Item;
+import com.findora.app.models.Notification;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
 import com.findora.app.utils.SessionManager;
 import com.google.android.material.chip.Chip;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import retrofit2.Call;
@@ -32,8 +36,6 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class HomeActivity extends AppCompatActivity {
-
-    private static final int RC_AUDIO_PERM = 1001;
 
     private ActivityHomeBinding binding;
     private ApiService apiService;
@@ -43,6 +45,34 @@ public class HomeActivity extends AppCompatActivity {
     private String currentType = null; // null = all
     private String currentCategory = null; // null = all
     private String currentSearch = "";
+    
+    private List<Item> originalItemList = new ArrayList<>();
+
+    private final ActivityResultLauncher<Intent> voiceSearchLauncher = 
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    if (matches != null && !matches.isEmpty()) {
+                        String query = matches.get(0);
+                        binding.etHomeSearch.setVisibility(View.VISIBLE);
+                        binding.etHomeSearch.setText(query);
+                        // currentSearch is updated by the TextWatcher automatically
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<String> requestAudioPermissionLauncher = 
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    launchVoiceIntent();
+                } else {
+                    if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                        showSettingsDialog();
+                    } else {
+                        Toast.makeText(this, "Microphone permission is required for voice search.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,26 +104,29 @@ public class HomeActivity extends AppCompatActivity {
         setupSearchBar();
         setupBottomNav();
 
-        binding.fabUpload.setOnClickListener(v ->
-                startActivity(new Intent(this, UploadItemActivity.class)));
-
         binding.btnHomeSearch.setOnClickListener(v -> {
-            binding.etHomeSearch.setVisibility(
-                    binding.etHomeSearch.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-            if (binding.etHomeSearch.getVisibility() == View.VISIBLE) {
-                binding.etHomeSearch.requestFocus();
-            }
+            startActivity(new Intent(this, SearchActivity.class));
+        });
+
+        binding.btnNotifications.setOnClickListener(v -> {
+            startActivity(new Intent(this, NotificationsActivity.class));
         });
 
         binding.btnVoiceSearch.setOnClickListener(v -> startVoiceSearch());
 
+        updateGreeting();
         loadItems();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        updateGreeting();
+        if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
+            binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);
+        }
         loadItems();
+        updateNotificationBadge();
     }
 
     private void setupRecyclerView() {
@@ -124,7 +157,10 @@ public class HomeActivity extends AppCompatActivity {
             } else if (checkedId == R.id.chipFound) {
                 currentType = "found";
             }
-            loadItems();
+            // Clear search when switching tabs
+            binding.etHomeSearch.setText("");
+            currentSearch = "";
+            applyFilters();
         });
     }
 
@@ -139,7 +175,9 @@ public class HomeActivity extends AppCompatActivity {
                 if (isChecked) {
                     currentCategory = categoryKey;
                     binding.chipCatAll.setChecked(false);
-                    loadItems();
+                    binding.etHomeSearch.setText("");
+                    currentSearch = "";
+                    applyFilters();
                 }
             });
             binding.cgCategory.addView(chip);
@@ -155,16 +193,31 @@ public class HomeActivity extends AppCompatActivity {
                         ((Chip) child).setChecked(false);
                     }
                 }
-                loadItems();
+                binding.etHomeSearch.setText("");
+                currentSearch = "";
+                applyFilters();
             }
         });
     }
 
     private void setupSearchBar() {
+        binding.etHomeSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                currentSearch = s.toString().trim();
+                applyFilters();
+            }
+        });
+
         binding.etHomeSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                currentSearch = binding.etHomeSearch.getText().toString().trim();
-                loadItems();
+                // Focus can be cleared or keyboard hidden here if desired
                 return true;
             }
             return false;
@@ -175,14 +228,15 @@ public class HomeActivity extends AppCompatActivity {
         binding.bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
-                // Already on home
                 return true;
-            } else if (id == R.id.nav_notifications) {
-                startActivity(new Intent(this, NotificationsActivity.class));
-                return true;
+            } else if (id == R.id.nav_report) {
+                startActivity(new Intent(this, UploadItemActivity.class));
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                return true; 
             } else if (id == R.id.nav_profile) {
                 startActivity(new Intent(this, ProfileActivity.class));
-                return true;
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                return true; 
             }
             return false;
         });
@@ -199,24 +253,11 @@ public class HomeActivity extends AppCompatActivity {
                 binding.swipeRefresh.setRefreshing(false);
 
                 if (response.isSuccessful() && response.body() != null) {
-                    List<Item> items = response.body();
-                    // Local filtering as a fallback
-                    List<Item> filtered = new ArrayList<>();
-                    for (Item item : items) {
-                        boolean matchType = currentType == null || currentType.equalsIgnoreCase(item.getType());
-                        boolean matchCat = currentCategory == null || currentCategory.equalsIgnoreCase(item.getCategory());
-                        boolean matchSearch = currentSearch.isEmpty() || 
-                                (item.getTitle() != null && item.getTitle().toLowerCase().contains(currentSearch.toLowerCase()));
-                        
-                        if (matchType && matchCat && matchSearch) {
-                            filtered.add(item);
-                        }
-                    }
-                    adapter.setItems(filtered);
-                    binding.tvEmptyState.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+                    originalItemList = response.body();
+                    applyFilters();
                 } else {
-                    adapter.setItems(new ArrayList<>());
-                    binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    originalItemList = new ArrayList<>();
+                    applyFilters();
                 }
             }
 
@@ -230,64 +271,134 @@ public class HomeActivity extends AppCompatActivity {
         });
     }
 
-    private void startVoiceSearch() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO}, RC_AUDIO_PERM);
-            return;
-        }
-
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "Speech recognition not available on this device.",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        SpeechRecognizer recognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-
-        recognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(Bundle params) {
-                Toast.makeText(HomeActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
-            }
-            @Override public void onBeginningOfSpeech() {}
-            @Override public void onRmsChanged(float rmsdB) {}
-            @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onError(int error) {
-                Toast.makeText(HomeActivity.this, "Voice recognition error.", Toast.LENGTH_SHORT).show();
-            }
-            @Override
-            public void onResults(Bundle results) {
-                ArrayList<String> matches = results.getStringArrayList(
-                        SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    String query = matches.get(0);
-                    binding.etHomeSearch.setVisibility(View.VISIBLE);
-                    binding.etHomeSearch.setText(query);
-                    currentSearch = query;
-                    loadItems();
+    private void applyFilters() {
+        if (originalItemList == null) return;
+        
+        List<Item> filtered = new ArrayList<>();
+        String searchLower = currentSearch.toLowerCase().trim();
+        
+        for (Item item : originalItemList) {
+            boolean matchType = currentType == null || currentType.equalsIgnoreCase(item.getType());
+            boolean matchCat = currentCategory == null || currentCategory.equalsIgnoreCase(item.getCategory());
+            
+            if (!matchType || !matchCat) continue;
+            
+            if (searchLower.isEmpty()) {
+                filtered.add(item);
+            } else {
+                String catLower = item.getCategory() != null ? item.getCategory().toLowerCase().trim() : "";
+                String titleLower = item.getTitle() != null ? item.getTitle().toLowerCase().trim() : "";
+                String descLower = item.getDescription() != null ? item.getDescription().toLowerCase().trim() : "";
+                
+                if (catLower.equals(searchLower) || catLower.contains(searchLower) || 
+                    titleLower.contains(searchLower) || descLower.contains(searchLower)) {
+                    filtered.add(item);
                 }
-                recognizer.destroy();
             }
-            @Override public void onPartialResults(Bundle partialResults) {}
-            @Override public void onEvent(int eventType, Bundle params) {}
-        });
-
-        recognizer.startListening(intent);
+        }
+        
+        if (!searchLower.isEmpty()) {
+            Collections.sort(filtered, (i1, i2) -> {
+                int score1 = getMatchScore(i1, searchLower);
+                int score2 = getMatchScore(i2, searchLower);
+                return Integer.compare(score2, score1); // Descending order
+            });
+        }
+        
+        adapter.setItems(filtered);
+        binding.tvEmptyState.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+    
+    private int getMatchScore(Item item, String searchLower) {
+        String catLower = item.getCategory() != null ? item.getCategory().toLowerCase().trim() : "";
+        String titleLower = item.getTitle() != null ? item.getTitle().toLowerCase().trim() : "";
+        String descLower = item.getDescription() != null ? item.getDescription().toLowerCase().trim() : "";
+        
+        if (catLower.equals(searchLower)) return 4;
+        if (catLower.contains(searchLower)) return 3;
+        if (titleLower.contains(searchLower)) return 2;
+        if (descLower.contains(searchLower)) return 1;
+        
+        return 0;
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == RC_AUDIO_PERM && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startVoiceSearch();
+    private void updateNotificationBadge() {
+        apiService.getNotifications().enqueue(new Callback<List<Notification>>() {
+            @Override
+            public void onResponse(Call<List<Notification>> call, Response<List<Notification>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    int unreadCount = 0;
+                    for (Notification n : response.body()) {
+                        if (!n.isRead()) {
+                            unreadCount++;
+                        }
+                    }
+                    if (unreadCount > 0) {
+                        binding.tvNotificationBadge.setVisibility(View.VISIBLE);
+                        binding.tvNotificationBadge.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+                    } else {
+                        binding.tvNotificationBadge.setVisibility(View.GONE);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Notification>> call, Throwable t) {
+                // Do nothing on failure for badge
+            }
+        });
+    }
+
+    private void updateGreeting() {
+        String fullName = sessionManager.getFullName();
+        String username = sessionManager.getUsername();
+        String nameToDisplay = null;
+
+        if (fullName != null && !fullName.trim().isEmpty()) {
+            nameToDisplay = fullName.trim();
+        } else if (username != null && !username.trim().isEmpty()) {
+            nameToDisplay = username.trim();
         }
+
+        if (nameToDisplay != null && !nameToDisplay.isEmpty()) {
+            binding.tvGreeting.setText("Hello, " + nameToDisplay + " 👋");
+        } else {
+            binding.tvGreeting.setText("Hello 👋");
+        }
+    }
+
+    private void startVoiceSearch() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            launchVoiceIntent();
+        } else {
+            requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+        }
+    }
+
+    private void launchVoiceIntent() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now to search");
+        
+        try {
+            voiceSearchLauncher.launch(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Speech recognition is not supported on this device.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showSettingsDialog() {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Permission Required")
+            .setMessage("Microphone permission is required for voice search. Please enable it in app settings.")
+            .setPositiveButton("Settings", (dialog, which) -> {
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                android.net.Uri uri = android.net.Uri.fromParts("package", getPackageName(), null);
+                intent.setData(uri);
+                startActivity(intent);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 }

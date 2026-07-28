@@ -2,6 +2,8 @@ package com.findora.app.models;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 public class Item {
     private int id;
     private int user;
@@ -9,6 +11,8 @@ public class Item {
     private String userName;
     @SerializedName("user_role")
     private String userRole;
+    @SerializedName("user_profile_image")
+    private String userProfileImage;
     private String type; // "lost" or "found"
     private String title;
     private String description;
@@ -20,13 +24,13 @@ public class Item {
     private String location;
     private Double latitude;
     private Double longitude;
-    @SerializedName("qr_code")
-    private String qrCode;
     private double reward;
     @SerializedName("reported_at")
     private String reportedAt;
     @SerializedName("updated_at")
     private String updatedAt;
+    
+    private List<ItemImage> images;
 
     public Item() {}
 
@@ -41,6 +45,9 @@ public class Item {
 
     public String getUserRole() { return userRole; }
     public void setUserRole(String userRole) { this.userRole = userRole; }
+    
+    public String getUserProfileImage() { return userProfileImage; }
+    public void setUserProfileImage(String userProfileImage) { this.userProfileImage = userProfileImage; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
@@ -72,9 +79,6 @@ public class Item {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public String getQrCode() { return qrCode; }
-    public void setQrCode(String qrCode) { this.qrCode = qrCode; }
-
     public double getReward() { return reward; }
     public void setReward(double reward) { this.reward = reward; }
 
@@ -83,4 +87,7 @@ public class Item {
 
     public String getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+
+    public List<ItemImage> getImages() { return images; }
+    public void setImages(List<ItemImage> images) { this.images = images; }
 }

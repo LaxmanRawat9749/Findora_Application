@@ -12,9 +12,56 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/screen_background"
         app:navigationIcon="?attr/homeAsUpIndicator"
-        app:title="Chat"
-        app:titleTextColor="@color/text_dark" />
+        app:navigationIconTint="@color/text_dark"
+        app:titleTextColor="@color/text_dark">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="16dp">
+            
+            <ImageView
+                android:id="@+id/iv_chat_avatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_person"
+                app:tint="@color/text_gray"
+                android:background="@drawable/bg_search_input"
+                android:padding="4dp" />
+                
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp">
+                
+                <TextView
+                    android:id="@+id/tv_chat_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Loading..."
+                    android:textColor="@color/text_dark"
+                    android:textSize="16sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+                    
+                <TextView
+                    android:id="@+id/tv_chat_role"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="@color/text_gray"
+                    android:textSize="12sp"
+                    android:maxLines="1" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <!-- Message List -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -25,7 +72,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="@dimen/spacing_medium"
+            android:paddingHorizontal="@dimen/screen_padding_horizontal"
             android:paddingVertical="@dimen/spacing_small" />
 
         <ProgressBar
@@ -33,6 +80,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:indeterminateTint="@color/primary_purple"
             android:visibility="gone" />
 
         <TextView
@@ -48,49 +96,52 @@
     </FrameLayout>
 
     <!-- Input Bar -->
-    <com.google.android.material.card.MaterialCardView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardElevation="12dp"
-        app:cardCornerRadius="0dp"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/white">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/screen_padding_horizontal"
+        android:paddingVertical="@dimen/spacing_small"
+        android:background="@color/surface_01">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <ImageButton
+            android:id="@+id/btnAttachment"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_camera"
+            app:tint="@color/text_gray"
+            android:contentDescription="Attach Image" />
+
+        <EditText
+            android:id="@+id/etMessage"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="@dimen/spacing_small">
+            android:layout_weight="1"
+            android:minHeight="48dp"
+            android:background="@drawable/bg_search_input"
+            android:hint="Type a message..."
+            android:imeOptions="actionSend"
+            android:inputType="textMultiLine"
+            android:maxLines="4"
+            android:paddingHorizontal="@dimen/spacing_medium"
+            android:paddingVertical="@dimen/spacing_small"
+            android:textColor="@color/text_dark"
+            android:textColorHint="@color/text_hint"
+            android:textSize="@dimen/text_caption" />
 
-            <EditText
-                android:id="@+id/etMessage"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="48dp"
-                android:background="@drawable/bg_search_input"
-                android:hint="Type a message..."
-                android:imeOptions="actionSend"
-                android:inputType="textMultiLine"
-                android:maxLines="4"
-                android:paddingHorizontal="@dimen/spacing_medium"
-                android:paddingVertical="@dimen/spacing_small"
-                android:textColor="@color/text_dark"
-                android:textColorHint="@color/text_gray"
-                android:textSize="@dimen/text_caption" />
-
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/btnSend"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/spacing_small"
-                app:fabSize="mini"
-                android:contentDescription="Send"
-                android:src="@drawable/ic_search"
-                app:backgroundTint="@color/primary_purple"
-                app:tint="@color/white"
-                app:elevation="0dp" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnSend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_small"
+            app:fabSize="mini"
+            android:contentDescription="Send"
+            android:src="@drawable/ic_send"
+            app:backgroundTint="@color/primary_purple"
+            app:tint="@color/white"
+            app:elevation="0dp" />
+    </LinearLayout>
 </LinearLayout>

@@ -1,21 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Standard Margins and Paddings -->
+
+    <!-- ═══════════════════════════════════════════════════
+         Spacing Scale
+         ═══════════════════════════════════════════════════ -->
+    <dimen name="spacing_xsmall">4dp</dimen>
     <dimen name="spacing_small">8dp</dimen>
     <dimen name="spacing_medium">16dp</dimen>
     <dimen name="spacing_large">24dp</dimen>
     <dimen name="spacing_xlarge">32dp</dimen>
+    <dimen name="spacing_xxlarge">48dp</dimen>
 
-    <!-- Component Dimensions -->
+    <!-- ═══════════════════════════════════════════════════
+         Screen Padding
+         ═══════════════════════════════════════════════════ -->
+    <dimen name="screen_padding_horizontal">20dp</dimen>
+    <dimen name="screen_padding_vertical">24dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════
+         Components
+         ═══════════════════════════════════════════════════ -->
     <dimen name="button_height">56dp</dimen>
-    <dimen name="card_corner_radius">16dp</dimen>
-    <dimen name="input_corner_radius">12dp</dimen>
-    <dimen name="fab_margin">16dp</dimen>
-    
-    <!-- Text Sizes -->
-    <dimen name="text_h1">32sp</dimen>
-    <dimen name="text_h2">24sp</dimen>
-    <dimen name="text_h3">20sp</dimen>
-    <dimen name="text_body">16sp</dimen>
-    <dimen name="text_caption">14sp</dimen>
+    <dimen name="button_corner_radius">16dp</dimen>
+    <dimen name="card_corner_radius">20dp</dimen>
+    <dimen name="card_inner_radius">16dp</dimen>
+    <dimen name="input_corner_radius">14dp</dimen>
+    <dimen name="chip_corner_radius">20dp</dimen>
+    <dimen name="search_bar_height">52dp</dimen>
+    <dimen name="search_bar_corner_radius">28dp</dimen>
+    <dimen name="fab_margin">20dp</dimen>
+    <dimen name="bottom_nav_height">64dp</dimen>
+    <dimen name="otp_box_size">52dp</dimen>
+    <dimen name="otp_box_corner">12dp</dimen>
+    <dimen name="avatar_size_large">88dp</dimen>
+    <dimen name="avatar_size_medium">56dp</dimen>
+    <dimen name="avatar_size_small">40dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════
+         Icon Sizes
+         ═══════════════════════════════════════════════════ -->
+    <dimen name="icon_size_small">18dp</dimen>
+    <dimen name="icon_size_medium">24dp</dimen>
+    <dimen name="icon_size_large">32dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════
+         Typography
+         ═══════════════════════════════════════════════════ -->
+    <dimen name="text_display">36sp</dimen>
+    <dimen name="text_h1">28sp</dimen>
+    <dimen name="text_h2">22sp</dimen>
+    <dimen name="text_h3">18sp</dimen>
+    <dimen name="text_body">15sp</dimen>
+    <dimen name="text_caption">13sp</dimen>
+    <dimen name="text_label">11sp</dimen>
+
 </resources>

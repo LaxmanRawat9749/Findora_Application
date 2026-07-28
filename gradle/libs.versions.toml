@@ -32,6 +32,7 @@ glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "gl
 glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
 
 zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing" }
+ucrop = { group = "com.github.yalantis", name = "ucrop", version = "2.2.9" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

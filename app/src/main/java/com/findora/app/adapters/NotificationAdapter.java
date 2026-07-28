@@ -65,19 +65,20 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             binding.tvMessage.setText(notification.getMessage());
 
             String time = notification.getCreatedAt();
-            if (time != null && time.contains("T")) {
-                String datePart = time.split("T")[0];
-                binding.tvTime.setText(datePart);
-            } else {
-                binding.tvTime.setText(time != null ? time : "");
-            }
+            binding.tvTime.setText(com.findora.app.utils.DateUtils.formatNotificationTime(time));
 
             if (!notification.isRead()) {
-                binding.getRoot().setBackgroundColor(
-                        ContextCompat.getColor(context, R.color.light_purple));
+                binding.cardNotification.setCardBackgroundColor(
+                        ContextCompat.getColor(context, R.color.surface_02));
+                binding.vUnreadIndicator.setVisibility(android.view.View.VISIBLE);
+                binding.tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+                binding.tvTitle.setTextColor(ContextCompat.getColor(context, R.color.text_dark));
             } else {
-                binding.getRoot().setBackgroundColor(
-                        ContextCompat.getColor(context, android.R.color.white));
+                binding.cardNotification.setCardBackgroundColor(
+                        ContextCompat.getColor(context, R.color.card_background));
+                binding.vUnreadIndicator.setVisibility(android.view.View.GONE);
+                binding.tvTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
+                binding.tvTitle.setTextColor(ContextCompat.getColor(context, R.color.text_gray));
             }
 
             itemView.setOnClickListener(v -> {

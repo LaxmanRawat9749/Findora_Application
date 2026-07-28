@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,9 +17,9 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
+            app:navigationIconTint="@color/text_dark"
             app:title="My Profile"
             app:titleTextColor="@color/text_dark" />
-
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -31,37 +32,69 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/spacing_medium">
+            android:paddingHorizontal="@dimen/screen_padding_horizontal"
+            android:paddingBottom="@dimen/spacing_xlarge">
 
-            <!-- User Info Card -->
+            <!-- Profile Header Card -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Findora.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_horizontal"
                     android:orientation="vertical"
-                    android:padding="@dimen/spacing_large">
+                    android:paddingVertical="@dimen/spacing_xlarge"
+                    android:paddingHorizontal="@dimen/spacing_large">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="80dp"
-                        android:layout_height="80dp"
-                        app:cardCornerRadius="40dp"
-                        app:cardElevation="0dp"
-                        app:strokeWidth="0dp"
-                        app:cardBackgroundColor="@color/light_purple">
+                    <!-- Avatar Container -->
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center">
 
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_person"
-                            app:tint="@color/primary_purple" />
-                    </com.google.android.material.card.MaterialCardView>
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cvProfilePicture"
+                            android:layout_width="88dp"
+                            android:layout_height="88dp"
+                            app:cardCornerRadius="44dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="3dp"
+                            app:strokeColor="@color/primary_purple"
+                            app:cardBackgroundColor="@color/light_purple">
 
+                            <ImageView
+                                android:id="@+id/ivProfilePicture"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/ic_person" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/btnEditProfilePicture"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_gravity="bottom|end"
+                            android:clickable="true"
+                            android:focusable="true"
+                            app:cardCornerRadius="16dp"
+                            app:cardElevation="2dp"
+                            app:cardBackgroundColor="@color/primary_purple">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_gravity="center"
+                                android:src="@android:drawable/ic_menu_camera"
+                                app:tint="@android:color/white" />
+                        </com.google.android.material.card.MaterialCardView>
+                    </FrameLayout>
+
+                    <!-- Name -->
                     <TextView
                         android:id="@+id/tvFullName"
                         android:layout_width="wrap_content"
@@ -72,19 +105,22 @@
                         android:textSize="@dimen/text_h3"
                         android:fontFamily="sans-serif-black" />
 
+                    <!-- Email -->
                     <TextView
                         android:id="@+id/tvEmail"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
                         android:text="user@email.com"
                         android:textColor="@color/text_gray"
                         android:textSize="@dimen/text_caption" />
 
+                    <!-- Role Badge -->
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_medium"
-                        app:cardCornerRadius="8dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
                         app:strokeWidth="0dp"
                         app:cardBackgroundColor="@color/light_purple">
@@ -93,14 +129,125 @@
                             android:id="@+id/tvRole"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="4dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="5dp"
                             android:text="ROLE: OWNER"
                             android:textColor="@color/primary_purple"
-                            android:textSize="10sp"
-                            android:fontFamily="sans-serif-black" />
+                            android:textSize="11sp"
+                            android:fontFamily="sans-serif-medium" />
                     </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
+            <!-- Change Username Card -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_large">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Change Username"
+                            android:textColor="@color/text_dark"
+                            android:textSize="@dimen/text_body"
+                            android:fontFamily="sans-serif-medium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnToggleChangeUsername"
+                            style="@style/Widget.Findora.Button.Text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Show" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutChangeUsernameForm"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Current Username">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etCurrentUsername"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textNoSuggestions"
+                                android:enabled="false"
+                                android:textColor="@color/text_dark"
+                                android:textColorHint="@color/text_hint" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="New Username">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etNewUsername"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textNoSuggestions"
+                                android:textColor="@color/text_dark"
+                                android:textColorHint="@color/text_hint" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Confirm New Username">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etConfirmUsername"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textNoSuggestions"
+                                android:textColor="@color/text_dark"
+                                android:textColorHint="@color/text_hint" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            android:id="@+id/tvChangeUsernameError"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:textColor="@color/error_red"
+                            android:textSize="@dimen/text_caption"
+                            android:visibility="gone" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnUpdateUsername"
+                            style="@style/Widget.Findora.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/button_height"
+                            android:layout_marginTop="@dimen/spacing_medium"
+                            android:text="Update Username" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -115,7 +262,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/spacing_medium">
+                    android:padding="@dimen/spacing_large">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -130,15 +277,14 @@
                             android:text="Change Password"
                             android:textColor="@color/text_dark"
                             android:textSize="@dimen/text_body"
-                            android:fontFamily="sans-serif-black" />
+                            android:fontFamily="sans-serif-medium" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnToggleChangePassword"
-                            style="@style/Widget.Material3.Button.TextButton"
+                            style="@style/Widget.Findora.Button.Text"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Show"
-                            android:textColor="@color/primary_purple" />
+                            android:text="Show" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -160,8 +306,9 @@
                                 android:id="@+id/etCurrentPassword"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:inputType="textPassword"
                                 android:textColor="@color/text_dark"
-                                android:inputType="textPassword" />
+                                android:textColorHint="@color/text_hint" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -176,8 +323,9 @@
                                 android:id="@+id/etNewPassword"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:inputType="textPassword"
                                 android:textColor="@color/text_dark"
-                                android:inputType="textPassword" />
+                                android:textColorHint="@color/text_hint" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -192,8 +340,9 @@
                                 android:id="@+id/etConfirmPassword"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:inputType="textPassword"
                                 android:textColor="@color/text_dark"
-                                android:inputType="textPassword" />
+                                android:textColorHint="@color/text_hint" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <TextView
@@ -209,22 +358,25 @@
                             android:id="@+id/btnUpdatePassword"
                             style="@style/Widget.Findora.Button"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="@dimen/button_height"
                             android:layout_marginTop="@dimen/spacing_medium"
                             android:text="Update Password" />
-
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Logout Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnLogout"
                 style="@style/Widget.Findora.Button"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="@dimen/button_height"
                 android:layout_marginTop="@dimen/spacing_xlarge"
-                android:text="Logout"
-                app:backgroundTint="@color/error_red" />
+                android:text="Sign Out"
+                app:backgroundTint="@color/light_red"
+                android:textColor="@color/error_red"
+                app:strokeColor="@color/error_red"
+                app:strokeWidth="1dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

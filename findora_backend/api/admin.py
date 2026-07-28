@@ -14,7 +14,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 
-from .models import ChatMessage, Claim, Item, Notification, OTPToken, User
+from .models import ChatMessage, Claim, Conversation, Item, Notification, OTPToken, User
 
 
 # ─── User Admin ───────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ['type', 'status', 'category', 'reported_at']
     search_fields = ['title', 'description', 'location', 'user__username', 'user__email']
     ordering = ['-reported_at']
-    readonly_fields = ['user', 'reported_at', 'updated_at', 'qr_code', 'image_preview']
+    readonly_fields = ['user', 'reported_at', 'updated_at', 'image_preview']
     list_per_page = 20
     date_hierarchy = 'reported_at'
     inlines = [ClaimInline]
@@ -148,8 +148,8 @@ class ItemAdmin(admin.ModelAdmin):
         ('Location', {
             'fields': ('location', 'latitude', 'longitude'),
         }),
-        ('Media & QR', {
-            'fields': ('image', 'image_preview', 'qr_code'),
+        ('Media', {
+            'fields': ('image', 'image_preview'),
         }),
         ('Timestamps', {
             'fields': ('reported_at', 'updated_at'),
@@ -248,14 +248,25 @@ class ClaimAdmin(admin.ModelAdmin):
 
 # ─── Chat Admin ───────────────────────────────────────────────────────────────
 
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    """Admin interface for conversations."""
+
+    list_display = ['item', 'owner', 'finder', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['item__title', 'owner__username', 'finder__username']
+    readonly_fields = ['item', 'owner', 'finder', 'created_at']
+    ordering = ['-created_at']
+
+
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     """Admin interface for chat messages (read-only moderation view)."""
 
-    list_display = ['sender', 'receiver', 'item', 'message_preview', 'is_read', 'sent_at']
+    list_display = ['conversation', 'sender', 'message_preview', 'is_read', 'sent_at']
     list_filter = ['is_read', 'sent_at']
-    search_fields = ['sender__username', 'receiver__username', 'message', 'item__title']
-    readonly_fields = ['sender', 'receiver', 'item', 'message', 'sent_at']
+    search_fields = ['sender__username', 'message', 'conversation__item__title']
+    readonly_fields = ['conversation', 'sender', 'message', 'sent_at']
     ordering = ['-sent_at']
 
     @admin.display(description='Message')

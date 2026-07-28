@@ -21,6 +21,7 @@ public class SessionManager {
     private static final String KEY_EMAIL      = "email";
     private static final String KEY_USER_ID    = "user_id";
     private static final String KEY_IS_VERIFIED = "is_verified";
+    private static final String KEY_PROFILE_IMAGE = "profile_image";
 
     public SessionManager(Context context) {
         // Always use application context to prevent memory leaks
@@ -37,7 +38,7 @@ public class SessionManager {
      */
     public void saveSession(String accessToken, String refreshToken,
                             String username, String role, String fullName,
-                            String email, int userId) {
+                            String email, int userId, String profileImage) {
         prefs.edit()
              .putString(KEY_TOKEN, accessToken)
              .putString(KEY_REFRESH, refreshToken)
@@ -47,7 +48,27 @@ public class SessionManager {
              .putString(KEY_EMAIL, email)
              .putInt(KEY_USER_ID, userId)
              .putBoolean(KEY_IS_VERIFIED, true)
+             .putString(KEY_PROFILE_IMAGE, profileImage)
              .commit(); // synchronous — token is durable when this returns
+    }
+
+    /**
+     * Updates only the username (e.g., after changing username).
+     */
+    public void saveUsername(String username) {
+        prefs.edit()
+             .putString(KEY_USERNAME, username)
+             .commit(); // synchronous
+    }
+
+    public void saveProfileImage(String profileImage) {
+        prefs.edit()
+             .putString(KEY_PROFILE_IMAGE, profileImage)
+             .commit();
+    }
+
+    public String getProfileImage() {
+        return prefs.getString(KEY_PROFILE_IMAGE, "");
     }
 
     /**

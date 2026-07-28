@@ -174,8 +174,7 @@ class Item(models.Model):
     location = models.CharField(max_length=255, blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    qr_code = models.CharField(max_length=100, blank=True)
-    reward = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    reward = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     reported_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -187,6 +186,24 @@ class Item(models.Model):
 
     def __str__(self):
         return f"[{self.type.upper()}] {self.title} — {self.status}"
+
+
+class ItemImage(models.Model):
+    """
+    Multiple images associated with a single reported item.
+    """
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='items/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'item_images'
+        ordering = ['uploaded_at']
+        verbose_name = 'Item Image'
+        verbose_name_plural = 'Item Images'
+
+    def __str__(self):
+        return f"Image for {self.item.title}"
 
 
 class Claim(models.Model):
@@ -218,17 +235,44 @@ class Claim(models.Model):
         return f"Claim by {self.claimant.username} on '{self.item.title}'"
 
 
+class Conversation(models.Model):
+    """
+    A conversation thread between an Owner and a Finder regarding a specific item.
+    """
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='conversations')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owner_conversations')
+    finder = models.ForeignKey(User, on_delete=models.CASCADE, related_name='finder_conversations')
+    hidden_by_owner = models.BooleanField(default=False)
+    hidden_by_finder = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'conversations'
+        unique_together = ('item', 'owner', 'finder')
+        ordering = ['-created_at']
+        verbose_name = 'Conversation'
+        verbose_name_plural = 'Conversations'
+
+    def __str__(self):
+        return f"Chat on {self.item.title} ({self.finder.username} & {self.owner.username})"
+
+
 class ChatMessage(models.Model):
     """
-    Direct message between two users about a specific item.
-
-    Messages are ordered chronologically and support read/unread tracking.
+    Direct message in a conversation.
     """
 
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages', null=True)
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='messages')
-    message = models.TextField()
+    message = models.TextField(blank=True)
+    message_type = models.CharField(max_length=10, choices=[('text', 'Text'), ('image', 'Image')], default='text')
+    image = models.ImageField(upload_to='chat_images/', blank=True, null=True)
+    caption = models.TextField(blank=True)
+    is_edited = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    deleted_for_everyone = models.BooleanField(default=False)
+    deleted_by_sender = models.BooleanField(default=False)
+    deleted_by_receiver = models.BooleanField(default=False)
     is_read = models.BooleanField(default=False)
     sent_at = models.DateTimeField(auto_now_add=True)
 
@@ -240,7 +284,7 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         preview = self.message[:40]
-        return f"{self.sender.username} → {self.receiver.username}: {preview}"
+        return f"{self.sender.username}: {preview}"
 
 
 class Notification(models.Model):

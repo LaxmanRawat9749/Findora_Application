@@ -13,6 +13,7 @@ public class OtpRequest {
 
     public OtpRequest(String email, String purpose) {
         this.email = email;
+
         this.purpose = purpose;
     }
 

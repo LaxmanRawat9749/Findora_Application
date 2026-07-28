@@ -12,6 +12,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/screen_background"
         app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/text_dark"
         app:title="Notifications"
         app:titleTextColor="@color/text_dark" />
 
@@ -24,24 +25,34 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp" />
+            android:paddingHorizontal="@dimen/screen_padding_horizontal"
+            android:paddingVertical="@dimen/spacing_medium" />
 
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:indeterminateTint="@color/primary_purple"
             android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/tvEmptyState"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="No notifications yet."
-            android:textColor="@color/text_gray"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvEmptyState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No notifications yet."
+                android:textColor="@color/text_gray"
+                android:textSize="@dimen/text_body"
+                android:fontFamily="sans-serif-medium"
+                android:visibility="gone" />
+        </LinearLayout>
+
     </FrameLayout>
 </LinearLayout>

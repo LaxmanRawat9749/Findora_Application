@@ -12,8 +12,10 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/screen_background"
         app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/text_dark"
         app:title="Create Account"
-        app:titleTextColor="@color/text_dark" />
+        app:titleTextColor="@color/text_dark"
+        app:titleTextAppearance="@null" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -24,7 +26,27 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/spacing_medium">
+            android:paddingHorizontal="@dimen/screen_padding_horizontal"
+            android:paddingBottom="@dimen/spacing_xlarge">
+
+            <!-- Header -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:text="Join Findora"
+                android:textColor="@color/text_dark"
+                android:textSize="@dimen/text_h2"
+                android:fontFamily="sans-serif-black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="@dimen/spacing_large"
+                android:text="Report lost items or help return found items"
+                android:textColor="@color/text_gray"
+                android:textSize="@dimen/text_caption" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Findora.Card"
@@ -35,25 +57,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/spacing_medium">
+                    android:padding="@dimen/spacing_large">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Join Findora"
-                        android:textColor="@color/text_dark"
-                        android:textSize="@dimen/text_h3"
-                        android:fontFamily="sans-serif-black" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/spacing_medium"
-                        android:text="Report lost items or help return found items"
-                        android:textColor="@color/text_gray"
-                        android:textSize="@dimen/text_caption" />
-
+                    <!-- Username -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilUsername"
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -65,10 +73,13 @@
                             android:layout_height="wrap_content"
                             android:inputType="text"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Email -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilEmail"
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -81,9 +92,11 @@
                             android:layout_height="wrap_content"
                             android:inputType="textEmailAddress"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- First + Last Name -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -103,6 +116,7 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="textPersonName"
                                 android:textColor="@color/text_dark"
+                                android:textColorHint="@color/text_hint"
                                 android:singleLine="true" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -123,11 +137,14 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="textPersonName"
                                 android:textColor="@color/text_dark"
+                                android:textColorHint="@color/text_hint"
                                 android:singleLine="true" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
 
+                    <!-- Phone -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilPhone"
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -140,15 +157,17 @@
                             android:layout_height="wrap_content"
                             android:inputType="phone"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Role -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_medium"
                         android:text="Primary Role"
-                        android:textColor="@color/text_dark"
+                        android:textColor="@color/text_gray"
                         android:textSize="@dimen/text_caption"
                         android:fontFamily="sans-serif-medium" />
 
@@ -166,6 +185,7 @@
                             android:layout_weight="1"
                             android:checked="true"
                             android:text="Owner (Lost)"
+                            android:textColor="@color/text_dark"
                             android:buttonTint="@color/primary_purple" />
 
                         <RadioButton
@@ -174,16 +194,21 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Finder (Found)"
+                            android:textColor="@color/text_dark"
                             android:buttonTint="@color/primary_purple" />
                     </RadioGroup>
 
+                    <!-- Password -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilPassword"
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_medium"
-                        android:hint="Password"
-                        app:passwordToggleEnabled="true">
+                        android:hint="Password (min. 8 characters)"
+                        app:passwordToggleEnabled="true"
+                        app:counterEnabled="true"
+                        app:counterMaxLength="100">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPassword"
@@ -191,10 +216,13 @@
                             android:layout_height="wrap_content"
                             android:inputType="textPassword"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Confirm Password -->
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilConfirmPassword"
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -208,9 +236,11 @@
                             android:layout_height="wrap_content"
                             android:inputType="textPassword"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Error -->
                     <TextView
                         android:id="@+id/tvError"
                         android:layout_width="match_parent"
@@ -221,21 +251,24 @@
                         android:textSize="@dimen/text_caption"
                         android:visibility="gone" />
 
+                    <!-- Progress -->
                     <ProgressBar
                         android:id="@+id/progressBar"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_marginTop="@dimen/spacing_medium"
+                        android:indeterminateTint="@color/primary_purple"
                         android:visibility="gone" />
 
+                    <!-- Register Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRegister"
                         style="@style/Widget.Findora.Button"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="@dimen/button_height"
                         android:layout_marginTop="@dimen/spacing_large"
-                        android:text="Register Account" />
+                        android:text="Create Account" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

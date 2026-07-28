@@ -1,23 +1,60 @@
 package com.findora.app.activities;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import androidx.exifinterface.media.ExifInterface;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import com.findora.app.R;
+import com.findora.app.adapters.UploadImageAdapter;
 import com.findora.app.databinding.ActivityUploadItemBinding;
 import com.findora.app.models.Item;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class UploadItemActivity extends AppCompatActivity {
 
     private ActivityUploadItemBinding binding;
     private ApiService apiService;
+
+    private List<Uri> selectedImages = new ArrayList<>();
+    private UploadImageAdapter imageAdapter;
+    private Uri currentPhotoUri;
+
+    private ActivityResultLauncher<String[]> requestPermissionsLauncher;
+    private ActivityResultLauncher<Uri> takePictureLauncher;
+    private ActivityResultLauncher<String> pickMultipleMediaLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +72,122 @@ public class UploadItemActivity extends AppCompatActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
 
+        // Setup image recycler view
+        imageAdapter = new UploadImageAdapter(selectedImages, position -> {
+            selectedImages.remove(position);
+            imageAdapter.notifyItemRemoved(position);
+            updateImageVisibility();
+        });
+        binding.rvImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        binding.rvImages.setAdapter(imageAdapter);
+
+        binding.cardAddPhoto.setOnClickListener(v -> showImagePickerDialog());
         binding.btnSubmit.setOnClickListener(v -> submitReport());
+
+        setupLaunchers();
+    }
+
+    private void updateImageVisibility() {
+        binding.rvImages.setVisibility(selectedImages.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private void setupLaunchers() {
+        requestPermissionsLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+            boolean allGranted = true;
+            for (Boolean granted : result.values()) {
+                if (!granted) allGranted = false;
+            }
+            if (allGranted) {
+                launchCamera();
+            } else {
+                if (!shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+                    showSettingsDialog();
+                } else {
+                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        takePictureLauncher = registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+            if (success && currentPhotoUri != null) {
+                addImage(currentPhotoUri);
+            }
+        });
+
+        pickMultipleMediaLauncher = registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), uris -> {
+            if (uris != null) {
+                for (Uri uri : uris) {
+                    addImage(uri);
+                }
+            }
+        });
+    }
+
+    private void addImage(Uri uri) {
+        if (selectedImages.size() >= 5) {
+            Toast.makeText(this, "You can upload a maximum of 5 images.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        selectedImages.add(uri);
+        imageAdapter.notifyItemInserted(selectedImages.size() - 1);
+        updateImageVisibility();
+    }
+
+    private void showImagePickerDialog() {
+        if (selectedImages.size() >= 5) {
+            Toast.makeText(this, "You can upload a maximum of 5 images.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View bottomSheetView = getLayoutInflater().inflate(R.layout.layout_image_picker_bottom_sheet, null);
+        dialog.setContentView(bottomSheetView);
+
+        bottomSheetView.findViewById(R.id.btnCamera).setOnClickListener(v -> {
+            dialog.dismiss();
+            launchCamera();
+        });
+
+        bottomSheetView.findViewById(R.id.btnGallery).setOnClickListener(v -> {
+            dialog.dismiss();
+            launchGallery();
+        });
+
+        bottomSheetView.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    private void launchCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionsLauncher.launch(new String[]{Manifest.permission.CAMERA});
+            return;
+        }
+        try {
+            File photoFile = File.createTempFile("JPEG_" + System.currentTimeMillis() + "_", ".jpg", getExternalCacheDir());
+            currentPhotoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".fileprovider", photoFile);
+            takePictureLauncher.launch(currentPhotoUri);
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to launch camera", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void launchGallery() {
+        pickMultipleMediaLauncher.launch("image/*");
+    }
+
+    private void showSettingsDialog() {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Camera Permission Required")
+            .setMessage("This app needs camera access to take item photos. Please enable it in app settings.")
+            .setPositiveButton("Settings", (dialog, which) -> {
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                Uri uri = Uri.fromParts("package", getPackageName(), null);
+                intent.setData(uri);
+                startActivity(intent);
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     private void submitReport() {
@@ -47,59 +199,98 @@ public class UploadItemActivity extends AppCompatActivity {
         int categoryIdx = binding.spinnerCategory.getSelectedItemPosition();
         String category = Constants.CATEGORIES[categoryIdx];
 
-        if (title.isEmpty()) {
-            Toast.makeText(this, "Please enter a title.", Toast.LENGTH_SHORT).show();
+        if (title.isEmpty() || description.isEmpty()) {
+            Toast.makeText(this, "Title and description are required.", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        if (description.isEmpty()) {
-            Toast.makeText(this, "Please enter a description.", Toast.LENGTH_SHORT).show();
+        
+        if (selectedImages.isEmpty()) {
+            Toast.makeText(this, "Please upload at least 1 image.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         setLoading(true);
 
-        Item item = new Item();
-        item.setType(type);
-        item.setTitle(title);
-        item.setDescription(description);
-        item.setCategory(category);
-        item.setLocation(location);
+        Map<String, RequestBody> partMap = new HashMap<>();
+        partMap.put("type", RequestBody.create(MediaType.parse("text/plain"), type));
+        partMap.put("title", RequestBody.create(MediaType.parse("text/plain"), title));
+        partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
+        partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
+        partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
         if (!rewardStr.isEmpty()) {
-            try {
-                item.setReward(Double.parseDouble(rewardStr));
-            } catch (NumberFormatException e) {
-                // ignore invalid reward
+            partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
+        }
+
+        List<MultipartBody.Part> imageParts = new ArrayList<>();
+        for (int i = 0; i < selectedImages.size(); i++) {
+            File file = compressImage(selectedImages.get(i));
+            if (file != null) {
+                RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
+                MultipartBody.Part body = MultipartBody.Part.createFormData("images", file.getName(), requestFile);
+                imageParts.add(body);
             }
         }
 
-        apiService.reportItem(item).enqueue(new Callback<Item>() {
+        apiService.reportItemWithImages(partMap, imageParts).enqueue(new Callback<Item>() {
             @Override
             public void onResponse(Call<Item> call, Response<Item> response) {
                 setLoading(false);
                 if (response.isSuccessful()) {
-                    Toast.makeText(UploadItemActivity.this,
-                            "Item reported successfully! Awaiting admin approval.",
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(UploadItemActivity.this, "Item reported successfully!", Toast.LENGTH_LONG).show();
                     finish();
                 } else {
-                    Toast.makeText(UploadItemActivity.this,
-                            "Failed to submit report. Please try again.",
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(UploadItemActivity.this, "Failed to submit report.", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Item> call, Throwable t) {
                 setLoading(false);
-                Toast.makeText(UploadItemActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(UploadItemActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private File compressImage(Uri uri) {
+        try {
+            InputStream input = getContentResolver().openInputStream(uri);
+            Bitmap bitmap = BitmapFactory.decodeStream(input);
+            input.close();
+
+            // Handle rotation
+            InputStream exifInput = getContentResolver().openInputStream(uri);
+            ExifInterface exif = new ExifInterface(exifInput);
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            Matrix matrix = new Matrix();
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) matrix.postRotate(90);
+            else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) matrix.postRotate(180);
+            else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) matrix.postRotate(270);
+            exifInput.close();
+            
+            bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+
+            // Resize if too large (max 1920x1920)
+            int maxDim = Math.max(bitmap.getWidth(), bitmap.getHeight());
+            if (maxDim > 1920) {
+                float scale = 1920f / maxDim;
+                bitmap = Bitmap.createScaledBitmap(bitmap, (int)(bitmap.getWidth() * scale), (int)(bitmap.getHeight() * scale), true);
+            }
+
+            File file = new File(getExternalCacheDir(), "compressed_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream fos = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos); // 80% quality
+            fos.flush();
+            fos.close();
+            return file;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private void setLoading(boolean loading) {
         binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         binding.btnSubmit.setEnabled(!loading);
+        binding.cardAddPhoto.setEnabled(!loading);
     }
 }

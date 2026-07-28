@@ -12,6 +12,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/screen_background"
         app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/text_dark"
         app:title="Report Item"
         app:titleTextColor="@color/text_dark" />
 
@@ -24,7 +25,27 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/spacing_medium">
+            android:paddingHorizontal="@dimen/screen_padding_horizontal"
+            android:paddingBottom="@dimen/spacing_xlarge">
+
+            <!-- Header -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:text="Submit a Report"
+                android:textColor="@color/text_dark"
+                android:textSize="@dimen/text_h2"
+                android:fontFamily="sans-serif-black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="@dimen/spacing_large"
+                android:text="Help the community find lost items"
+                android:textColor="@color/text_gray"
+                android:textSize="@dimen/text_caption" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Findora.Card"
@@ -35,13 +56,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/spacing_medium">
+                    android:padding="@dimen/spacing_large">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Report Type"
-                        android:textColor="@color/text_dark"
+                        android:textColor="@color/text_gray"
                         android:textSize="@dimen/text_caption"
                         android:fontFamily="sans-serif-medium" />
 
@@ -59,6 +80,7 @@
                             android:layout_weight="1"
                             android:checked="true"
                             android:text="I Lost an Item"
+                            android:textColor="@color/text_dark"
                             android:buttonTint="@color/primary_purple" />
 
                         <RadioButton
@@ -67,9 +89,11 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="I Found an Item"
+                            android:textColor="@color/text_dark"
                             android:buttonTint="@color/primary_purple" />
                     </RadioGroup>
 
+                    <!-- Title -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
@@ -83,36 +107,41 @@
                             android:layout_height="wrap_content"
                             android:inputType="text"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Category label -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_medium"
                         android:text="Category"
-                        android:textColor="@color/text_dark"
+                        android:textColor="@color/text_gray"
                         android:textSize="@dimen/text_caption"
                         android:fontFamily="sans-serif-medium" />
 
+                    <!-- Spinner wrapper -->
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="56dp"
                         android:layout_marginTop="@dimen/spacing_small"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="@dimen/input_corner_radius"
                         app:cardElevation="0dp"
                         app:strokeWidth="1dp"
-                        app:strokeColor="@color/card_border"
-                        app:cardBackgroundColor="@color/white">
+                        app:strokeColor="@color/md_theme_outline"
+                        app:cardBackgroundColor="@color/surface_02">
 
                         <Spinner
                             android:id="@+id/spinnerCategory"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@null"
-                            android:paddingHorizontal="12dp" />
+                            android:paddingHorizontal="14dp"
+                            android:popupBackground="@color/card_background" />
                     </com.google.android.material.card.MaterialCardView>
 
+                    <!-- Location -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
@@ -126,9 +155,11 @@
                             android:layout_height="wrap_content"
                             android:inputType="text"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Reward -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
@@ -142,9 +173,11 @@
                             android:layout_height="wrap_content"
                             android:inputType="numberDecimal"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Description -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"
                         android:layout_width="match_parent"
@@ -158,8 +191,73 @@
                             android:layout_height="120dp"
                             android:gravity="top"
                             android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
                             android:inputType="textMultiLine" />
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Item Images Section -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_large"
+                        android:text="Item Images"
+                        android:textColor="@color/text_dark"
+                        android:textSize="16sp"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Upload clear photos of the item to help identification."
+                        android:textColor="@color/text_gray"
+                        android:textSize="@dimen/text_caption" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        android:orientation="horizontal"
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardAddPhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/md_theme_outline"
+                        app:cardBackgroundColor="@color/surface_02"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <ImageView
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:src="@android:drawable/ic_menu_camera"
+                                android:tint="@color/text_gray" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:text="Add Photos (Max 5)"
+                                android:textColor="@color/text_dark"
+                                android:fontFamily="sans-serif-medium" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <ProgressBar
                         android:id="@+id/progressBar"
@@ -167,13 +265,14 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:layout_marginTop="@dimen/spacing_medium"
+                        android:indeterminateTint="@color/primary_purple"
                         android:visibility="gone" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSubmit"
                         style="@style/Widget.Findora.Button"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="@dimen/button_height"
                         android:layout_marginTop="@dimen/spacing_large"
                         android:text="Submit Report" />
 

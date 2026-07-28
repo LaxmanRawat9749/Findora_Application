@@ -20,9 +20,12 @@ urlpatterns = [
     path('forgot-password/', views.ForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/', views.ResetPasswordView.as_view(), name='reset-password'),
     path('change-password/', views.ChangePasswordView.as_view(), name='change-password'),
+    path('change-username/', views.ChangeUsernameView.as_view(), name='change-username'),
 
     # ─── Profile ──────────────────────────────────────────────────────────────
     path('profile/', views.ProfileView.as_view(), name='profile'),
+    path('profile/image/', views.ProfileImageView.as_view(), name='profile-image'),
+    path('users/<int:pk>/public-profile/', views.PublicProfileView.as_view(), name='public-profile'),
 
     # ─── Items ────────────────────────────────────────────────────────────────
     path('items/', views.ItemListCreateView.as_view(), name='item-list-create'),
@@ -37,6 +40,11 @@ urlpatterns = [
 
     # ─── Chat ─────────────────────────────────────────────────────────────────
     path('chat/', views.ChatListView.as_view(), name='chat'),
+    path('chat/profile/', views.ChatProfileView.as_view(), name='chat-profile'),
+    path('chat/message/<int:pk>/', views.ChatMessageDetailView.as_view(), name='chat-message-detail'),
+    path('chat/conversation/<int:pk>/', views.ConversationDetailView.as_view(), name='chat-conversation-detail'),
+    path('conversations/', views.ConversationListView.as_view(), name='conversations'),
+    path('conversations/init/', views.ConversationInitView.as_view(), name='conversation-init'),
 
     # ─── Notifications ────────────────────────────────────────────────────────
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),

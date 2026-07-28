@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="start"
-    android:orientation="vertical"
-    android:paddingVertical="4dp">
+    android:orientation="horizontal"
+    android:paddingVertical="4dp"
+    android:paddingHorizontal="@dimen/screen_padding_horizontal">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cvAvatar"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="8dp"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp">
+
+        <ImageView
+            android:id="@+id/ivAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_person"
+            app:tint="@color/primary_purple" />
+    </com.google.android.material.card.MaterialCardView>
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -21,7 +41,18 @@
             android:text="Sender Name"
             android:textColor="@color/primary_purple"
             android:textSize="11sp"
-            android:textStyle="bold" />
+            android:fontFamily="sans-serif-medium" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivMessageImage"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:maxHeight="260dp"
+            android:layout_marginBottom="4dp"
+            android:adjustViewBounds="true"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium" />
 
         <TextView
             android:id="@+id/tvMessage"
@@ -32,13 +63,31 @@
             android:textColor="@color/text_dark"
             android:textSize="14sp" />
 
-        <TextView
-            android:id="@+id/tvTime"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginTop="2dp"
-            android:textColor="@color/text_gray"
-            android:textSize="10sp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            
+            <TextView
+                android:id="@+id/tvEdited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:text="(Edited)"
+                android:textColor="@color/text_hint"
+                android:textSize="10sp"
+                android:textStyle="italic"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_hint"
+                android:textSize="10sp" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

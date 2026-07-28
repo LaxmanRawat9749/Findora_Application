@@ -6,7 +6,6 @@ import android.os.CountDownTimer;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.findora.app.databinding.ActivityVerifyOtpBinding;
@@ -15,6 +14,8 @@ import com.findora.app.models.OtpRequest;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
+import com.findora.app.utils.OtpFieldManager;
+import android.widget.TextView;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -26,7 +27,7 @@ public class VerifyOtpActivity extends AppCompatActivity {
     private String email;
     private String purpose;
     private CountDownTimer countDownTimer;
-    private EditText[] otpFields;
+    private OtpFieldManager otpManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,48 +49,26 @@ public class VerifyOtpActivity extends AppCompatActivity {
         binding.tvEmailSubtitle.setText("We sent a 6-digit OTP code to " + email);
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        otpFields = new EditText[]{
-                binding.etOtp1, binding.etOtp2, binding.etOtp3,
-                binding.etOtp4, binding.etOtp5, binding.etOtp6
+        TextView[] visualBoxes = new TextView[]{
+                binding.tvOtp1, binding.tvOtp2, binding.tvOtp3,
+                binding.tvOtp4, binding.tvOtp5, binding.tvOtp6
         };
 
-        setupOtpTextWatchers();
+        // Initialize Verify button disabled until all 6 digits are entered
+        binding.btnVerify.setEnabled(false);
+
+        otpManager = new OtpFieldManager(binding.etHiddenOtp, visualBoxes, (otp, isComplete) -> {
+            binding.btnVerify.setEnabled(isComplete);
+        });
+
         startTimer();
 
         binding.btnVerify.setOnClickListener(v -> verifyOtp());
         binding.btnResend.setOnClickListener(v -> resendOtp());
     }
 
-    private void setupOtpTextWatchers() {
-        for (int i = 0; i < otpFields.length; i++) {
-            final int index = i;
-            otpFields[i].addTextChangedListener(new TextWatcher() {
-                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-                @Override
-                public void afterTextChanged(Editable s) {
-                    if (s.length() == 1 && index < otpFields.length - 1) {
-                        otpFields[index + 1].requestFocus();
-                    }
-                    if (s.length() == 0 && index > 0) {
-                        otpFields[index - 1].requestFocus();
-                    }
-                }
-            });
-        }
-    }
-
-    private String getOtpCode() {
-        StringBuilder sb = new StringBuilder();
-        for (EditText field : otpFields) {
-            sb.append(field.getText().toString().trim());
-        }
-        return sb.toString();
-    }
-
     private void verifyOtp() {
-        String otp = getOtpCode();
+        String otp = otpManager.getOtp();
         if (otp.length() != 6) {
             showError("Please enter all 6 digits of the OTP code.");
             return;
@@ -198,9 +177,14 @@ public class VerifyOtpActivity extends AppCompatActivity {
 
     private void setLoading(boolean loading) {
         binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
-        binding.btnVerify.setEnabled(!loading);
-        binding.btnResend.setEnabled(!loading);
-        if (loading) binding.tvError.setVisibility(View.GONE);
+        if (loading) {
+            binding.btnVerify.setEnabled(false);
+            binding.btnResend.setEnabled(false);
+            binding.tvError.setVisibility(View.GONE);
+        } else {
+            binding.btnVerify.setEnabled(otpManager != null && otpManager.getOtp().length() == 6);
+            binding.btnResend.setEnabled(true);
+        }
     }
 
     @Override

@@ -40,6 +40,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Logs every request with timing — must be last so it wraps the full stack
+    'api.middleware.RequestTimingMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -66,6 +68,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # CONN_MAX_AGE=0: each request opens and closes its own DB connection.
+        # Keeps SQLite connections explicit and prevents stale connection errors
+        # when the dev server is restarted or the process is under load.
+        'CONN_MAX_AGE': 0,
     }
 }
 
@@ -140,17 +146,66 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Email Backend ───────────────────────────────────────────────────────────
-# Development: print emails to console so OTPs are visible during testing
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# SMTP backend — active for both development and production.
+# OTP emails are dispatched in daemon threads (see api/utils.py) so the HTTP
+# response is never blocked waiting for SMTP to complete.
 DEFAULT_FROM_EMAIL = 'Findora <noreply@findora.com>'
-
-# Production SMTP (uncomment and configure when deploying):
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'rawatlaxman089@gmail.com'
 EMAIL_HOST_PASSWORD = 'zuqb uxgd onkm jasm'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+# Structured request logging so every API call is visible in the console with
+# its endpoint, HTTP status, and elapsed time. Sensitive data (passwords, tokens)
+# is never logged — the middleware filters those fields explicitly.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        # Django's built-in request logger (covers 4xx/5xx)
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Django's database query logger (DEBUG level shows each query + time)
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',   # Set to DEBUG to log every SQL query
+            'propagate': False,
+        },
+        # Findora application loggers
+        'api': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
 
 # ─── Default Primary Key ─────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
