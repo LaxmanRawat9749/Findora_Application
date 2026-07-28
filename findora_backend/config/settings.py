@@ -161,7 +161,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Email Configuration (Resend) ────────────────────────────────────────────
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-DEFAULT_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'Findora <onboarding@resend.dev>')
+DEFAULT_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'Findora Backend <onboarding@resend.dev>')
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with
