@@ -159,17 +159,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ─── Email Backend ───────────────────────────────────────────────────────────
-# SMTP backend — active for both development and production.
-# OTP emails are dispatched in daemon threads (see api/utils.py) so the HTTP
-# response is never blocked waiting for SMTP to complete.
-DEFAULT_FROM_EMAIL = 'Findora <noreply@findora.com>'
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+# ─── Email Configuration (Resend) ────────────────────────────────────────────
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+DEFAULT_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'Findora <onboarding@resend.dev>')
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with

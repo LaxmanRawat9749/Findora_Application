@@ -10,9 +10,8 @@ import secrets
 import string
 import threading
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
+import resend
 
 from .models import OTPToken
 
@@ -48,50 +47,176 @@ def create_otp(user, purpose):
 
 def send_otp_email(user, otp_code, purpose):
     """
-    Send a formatted OTP email to the user for the given purpose.
+    Send a beautifully formatted OTP email to the user for the given purpose
+    using the Resend email service API.
 
-    The email is dispatched in a background thread so that slow or
-    unreachable SMTP servers do not block the HTTP response.  This
-    prevents Django's single-threaded ``runserver`` from queuing
-    subsequent requests while waiting for SMTP to complete.
+    The email is dispatched in a background thread so that HTTP responses are
+    never blocked waiting for the external API request.
     """
     subjects = {
         'email_verify': 'Findora — Verify Your Email',
         'password_reset': 'Findora — Password Reset OTP',
     }
-    bodies = {
-        'email_verify': (
-            f"Hello {user.first_name or user.username},\n\n"
+
+    subject = subjects.get(purpose, 'Findora OTP')
+    recipient = user.email
+    name = user.first_name or user.username
+
+    # Define content depending on the purpose
+    if purpose == 'email_verify':
+        instruction_text = "Please verify your email address to complete your Findora account setup."
+        text_body = (
+            f"Hello {name},\n\n"
             f"Your email verification OTP is: {otp_code}\n\n"
             f"This OTP expires in 10 minutes.\n"
             f"Do not share this OTP with anyone.\n\n"
             f"— Findora Team"
-        ),
-        'password_reset': (
-            f"Hello {user.first_name or user.username},\n\n"
+        )
+    else:
+        instruction_text = "You requested a password reset for your Findora account."
+        text_body = (
+            f"Hello {name},\n\n"
             f"Your password reset OTP is: {otp_code}\n\n"
             f"This OTP expires in 10 minutes.\n"
             f"If you did not request this, please ignore this email.\n\n"
             f"— Findora Team"
-        ),
-    }
+        )
 
-    subject = subjects.get(purpose, 'Findora OTP')
-    body = bodies.get(purpose, f"Your OTP: {otp_code}")
-    recipient = user.email
+    # Gorgeous HTML email body
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f5f7;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }}
+    .wrapper {{
+      width: 100%;
+      table-layout: fixed;
+      background-color: #f4f5f7;
+      padding: 40px 0;
+    }}
+    .container {{
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e1e4e8;
+    }}
+    .header {{
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      padding: 30px;
+      text-align: center;
+    }}
+    .header h1 {{
+      color: #ffffff;
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }}
+    .content {{
+      padding: 40px 30px;
+      color: #333333;
+      line-height: 1.6;
+    }}
+    .greeting {{
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }}
+    .instruction {{
+      font-size: 16px;
+      color: #4b5563;
+      margin-bottom: 24px;
+    }}
+    .otp-container {{
+      background-color: #f3f4f6;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin: 24px 0;
+      border: 1px dashed #d1d5db;
+    }}
+    .otp-code {{
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #4f46e5;
+      margin: 0;
+    }}
+    .expiry {{
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 10px;
+      text-align: center;
+    }}
+    .footer {{
+      background-color: #fafbfc;
+      padding: 20px 30px;
+      text-align: center;
+      border-top: 1px solid #e1e4e8;
+      font-size: 12px;
+      color: #9ca3af;
+    }}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>Findora</h1>
+      </div>
+      <div class="content">
+        <div class="greeting">Hello {name},</div>
+        <div class="instruction">{instruction_text}</div>
+        <div class="otp-container">
+          <div class="otp-code">{otp_code}</div>
+          <div class="expiry">This OTP is valid for 10 minutes. Do not share it with anyone.</div>
+        </div>
+        <div class="instruction" style="font-size: 14px; margin-top: 24px;">
+          If you did not request this code, you can safely ignore this email.
+        </div>
+      </div>
+      <div class="footer">
+        &copy; 2026 Findora. All rights reserved.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+"""
 
     def _send():
+        # Read API key and sender email inside thread to handle dynamic settings reload
+        from django.conf import settings
+        
+        api_key = getattr(settings, 'RESEND_API_KEY', None)
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Findora <onboarding@resend.dev>')
+
+        if not api_key:
+            logger.error("Failed to send OTP email to %s: RESEND_API_KEY is not configured in settings/env.", recipient)
+            return
+
         try:
-            send_mail(
-                subject=subject,
-                message=body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient],
-                fail_silently=False,
-            )
-            logger.info("OTP email sent to %s for %s", recipient, purpose)
+            resend.api_key = api_key
+            resend.Emails.send({
+                "from": from_email,
+                "to": recipient,
+                "subject": subject,
+                "text": text_body,
+                "html": html_body
+            })
+            logger.info("OTP email successfully sent via Resend API to %s for %s", recipient, purpose)
         except Exception:
-            logger.exception("Failed to send OTP email to %s for %s", recipient, purpose)
+            logger.exception("Exception occurred sending OTP email via Resend API to %s for %s", recipient, purpose)
 
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()
