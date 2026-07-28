@@ -2,15 +2,20 @@
 Django settings for the Findora Lost & Found Management application.
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file from the backend root directory
+load_dotenv(BASE_DIR / '.env')
+
 # ─── Security ────────────────────────────────────────────────────────────────
-SECRET_KEY = 'django-insecure-6t)9ky4afg++erp+2#_#g)hlonp%pbzn!byedo%^2*dh6jfxlc'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-change-me')
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # ─── Application Definition ──────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -64,15 +69,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-import os
 import dj_database_url
 
 # ─── Database ────────────────────────────────────────────────────────────────
-# You provided the Render internal database URL.
-# IMPORTANT: This internal URL (dpg-...) only works when the app is running ON Render.
-# We check if 'RENDER' environment variable is present, meaning it's running on the server.
-if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
-    RENDER_DB_URL = os.environ.get('DATABASE_URL', 'postgresql://findora_database_user:JnQVoWaEjtEi5kjpAdP8kLChemeyADzv@dpg-d9kbqnjm8hqs73c4g540-a/findora_database')
+# If DATABASE_URL is set (via .env locally or Render's env vars in production),
+# use PostgreSQL. Otherwise fall back to SQLite for local development.
+if os.environ.get('DATABASE_URL'):
+    RENDER_DB_URL = os.environ.get('DATABASE_URL')
     DATABASES = {
         'default': dj_database_url.parse(RENDER_DB_URL, conn_max_age=600)
     }
@@ -165,8 +168,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'rawatlaxman089@gmail.com'
-EMAIL_HOST_PASSWORD = 'zuqb uxgd onkm jasm'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with
