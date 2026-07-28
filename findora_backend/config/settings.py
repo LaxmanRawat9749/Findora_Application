@@ -215,3 +215,15 @@ LOGGING = {
 
 # ─── Default Primary Key ─────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- Startup Diagnostics (prints to Render deploy/runtime logs) ---------------
+print("[Findora] --- Environment Diagnostics ---")
+print(f"[Findora] RENDER env var present: {'RENDER' in os.environ}")
+print(f"[Findora] DATABASE_URL present:   {'DATABASE_URL' in os.environ}")
+if RESEND_API_KEY:
+    print(f"[Findora] RESEND_API_KEY loaded:   YES (starts with {RESEND_API_KEY[:10]}...)")
+else:
+    print("[Findora] RESEND_API_KEY loaded:   NO -- OTP emails will NOT be sent!")
+    print("[Findora]   -> Check Render Dashboard > Your Service > Environment > Environment Variables")
+print(f"[Findora] DEFAULT_FROM_EMAIL:      {DEFAULT_FROM_EMAIL}")
+print("[Findora] --- End Diagnostics ---")
