@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',          # Must be before CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',     # Add whitenoise for static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,23 +68,20 @@ import os
 import dj_database_url
 
 # ─── Database ────────────────────────────────────────────────────────────────
-# You provided the Render internal database URL. We will use it if no other URL is set.
+# You provided the Render internal database URL.
 # IMPORTANT: This internal URL (dpg-...) only works when the app is running ON Render.
-# If you run the project locally on your Windows PC, it will fail to connect.
-RENDER_DB_URL = os.environ.get('DATABASE_URL', 'postgresql://findora_database_user:JnQVoWaEjtEi5kjpAdP8kLChemeyADzv@dpg-d9kbqnjm8hqs73c4g540-a/findora_database')
-
-if RENDER_DB_URL:
+# We check if 'RENDER' environment variable is present, meaning it's running on the server.
+if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
+    RENDER_DB_URL = os.environ.get('DATABASE_URL', 'postgresql://findora_database_user:JnQVoWaEjtEi5kjpAdP8kLChemeyADzv@dpg-d9kbqnjm8hqs73c4g540-a/findora_database')
     DATABASES = {
         'default': dj_database_url.parse(RENDER_DB_URL, conn_max_age=600)
     }
 else:
+    # If running locally on your PC, use SQLite so it doesn't crash trying to reach Render's internal network.
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
-            # CONN_MAX_AGE=0: each request opens and closes its own DB connection.
-            # Keeps SQLite connections explicit and prevents stale connection errors
-            # when the dev server is restarted or the process is under load.
             'CONN_MAX_AGE': 0,
         }
     }
