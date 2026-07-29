@@ -11,7 +11,7 @@ import string
 import threading
 
 from django.utils import timezone
-import resend
+
 
 from .models import OTPToken
 
@@ -48,7 +48,7 @@ def create_otp(user, purpose):
 def send_otp_email(user, otp_code, purpose):
     """
     Send a beautifully formatted OTP email to the user for the given purpose
-    using the Resend email service API.
+    using the Brevo Transactional Email API.
 
     The email is dispatched in a background thread so that HTTP responses are
     never blocked waiting for the external API request.
@@ -195,48 +195,76 @@ def send_otp_email(user, otp_code, purpose):
 """
 
     def _send():
-        # Read API key and sender email inside thread to handle dynamic settings reload
+        # Read API key inside thread to handle dynamic settings reload
         import os
         from django.conf import settings
-        
+
         # Try retrieving API key from settings first, then directly from environment variable
-        api_key = getattr(settings, 'RESEND_API_KEY', None)
+        api_key = getattr(settings, 'BREVO_API_KEY', None)
         if not api_key:
-            api_key = os.environ.get('RESEND_API_KEY', None)
+            api_key = os.environ.get('BREVO_API_KEY', None)
 
         # Sanitize API key (remove surrounding quotes or whitespaces that might be added during copy-paste in Render UI)
         if api_key:
             api_key = api_key.strip().strip('"').strip("'")
 
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Findora <onboarding@resend.dev>')
-        if not from_email:
-            from_email = 'Findora <onboarding@resend.dev>'
-
         if not api_key:
             # Gather safe metadata to help the developer debug the configuration mismatch on Render
             env_keys = list(os.environ.keys())
-            matched_keys = [k for k in env_keys if "RESEND" in k or "API" in k or "KEY" in k]
+            matched_keys = [k for k in env_keys if "BREVO" in k or "API" in k or "KEY" in k]
             logger.error(
-                "Failed to send OTP email: RESEND_API_KEY is not configured in settings/env. "
+                "Failed to send OTP email: BREVO_API_KEY is not configured in settings/env. "
                 "Detected environment keys with matching patterns: %s. "
-                "Please verify that 'RESEND_API_KEY' is added as an Environment Variable in the Render Dashboard.",
+                "Please verify that 'BREVO_API_KEY' is added as an Environment Variable in the Render Dashboard.",
                 matched_keys
             )
             return
 
         try:
-            resend.api_key = api_key
-            resend.Emails.send({
-                "from": from_email,
-                "to": recipient,
-                "subject": subject,
-                "text": text_body,
-                "html": html_body
-            })
-            logger.info("OTP email successfully sent via Resend API to %s for %s", recipient, purpose)
+            from brevo import Brevo
+            from brevo.transactional_emails import (
+                SendTransacEmailRequestSender,
+                SendTransacEmailRequestToItem,
+            )
+
+            client = Brevo(api_key=api_key)
+            client.transactional_emails.send_transac_email(
+                subject=subject,
+                sender=SendTransacEmailRequestSender(
+                    name="Findora",
+                    email="rawatlaxman089@gmail.com",
+                ),
+                to=[
+                    SendTransacEmailRequestToItem(
+                        email=recipient,
+                        name=name,
+                    )
+                ],
+                html_content=html_body,
+                text_content=text_body,
+            )
+            logger.info("OTP email successfully sent via Brevo API to %s for %s", recipient, purpose)
+
+        except ImportError:
+            logger.error(
+                "Failed to send OTP email: brevo-python package is not installed. "
+                "Run 'pip install brevo-python' and redeploy."
+            )
         except Exception as e:
-            logger.error("Failed to send OTP email: Resend API request failed. Reason: %s", str(e))
-            logger.exception("Exception occurred sending OTP email via Resend API to %s for %s", recipient, purpose)
+            error_msg = str(e)
+            if "unauthorized" in error_msg.lower() or "invalid api key" in error_msg.lower():
+                logger.error(
+                    "Failed to send OTP email: Brevo API key is invalid or unauthorized. "
+                    "Please verify your BREVO_API_KEY in the Render Dashboard."
+                )
+            elif "sender" in error_msg.lower() and ("not found" in error_msg.lower() or "not allowed" in error_msg.lower()):
+                logger.error(
+                    "Failed to send OTP email: Sender email is not verified in Brevo. "
+                    "Verify 'rawatlaxman089@gmail.com' in your Brevo account under Settings → Senders."
+                )
+            else:
+                logger.error("Failed to send OTP email: Brevo API request failed. Reason: %s", error_msg)
+            logger.exception("Exception occurred sending OTP email via Brevo API to %s for %s", recipient, purpose)
 
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()

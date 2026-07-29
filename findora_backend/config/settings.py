@@ -5,17 +5,18 @@ Django settings for the Findora Lost & Found Management application.
 import os
 from pathlib import Path
 from datetime import timedelta
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env file from the backend root directory
+# Load .env file for local development; on Render env vars are set via the Dashboard.
 load_dotenv(BASE_DIR / '.env')
 
 # ─── Security ────────────────────────────────────────────────────────────────
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-change-me')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['*']
 
 # ─── Application Definition ──────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -72,12 +73,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 import dj_database_url
 
 # ─── Database ────────────────────────────────────────────────────────────────
-# If DATABASE_URL is set (via .env locally or Render's env vars in production),
-# use PostgreSQL. Otherwise fall back to SQLite for local development.
-if os.environ.get('DATABASE_URL'):
-    RENDER_DB_URL = os.environ.get('DATABASE_URL')
+# DATABASE_URL is read from .env (local) or Render env vars (production).
+# When DATABASE_URL is set, use PostgreSQL; otherwise fall back to SQLite for local dev.
+if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
     DATABASES = {
-        'default': dj_database_url.parse(RENDER_DB_URL, conn_max_age=600)
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL', ''), conn_max_age=600)
     }
 else:
     # If running locally on your PC, use SQLite so it doesn't crash trying to reach Render's internal network.
@@ -159,9 +159,19 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ─── Email Configuration (Resend) ────────────────────────────────────────────
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-DEFAULT_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'Findora Backend <onboarding@resend.dev>')
+# ─── Email / Brevo Transactional API ─────────────────────────────────────────
+# OTP emails are dispatched via Brevo's Transactional Email API in daemon
+# threads (see api/utils.py) so the HTTP response is never blocked.
+DEFAULT_FROM_EMAIL = 'Findora <rawatlaxman089@gmail.com>'
+
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+
+if not BREVO_API_KEY:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "BREVO_API_KEY is not set. OTP emails will NOT be sent. "
+        "Add BREVO_API_KEY to your environment variables (Render Dashboard → Environment)."
+    )
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with
@@ -215,15 +225,3 @@ LOGGING = {
 
 # ─── Default Primary Key ─────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# --- Startup Diagnostics (prints to Render deploy/runtime logs) ---------------
-print("[Findora] --- Environment Diagnostics ---")
-print(f"[Findora] RENDER env var present: {'RENDER' in os.environ}")
-print(f"[Findora] DATABASE_URL present:   {'DATABASE_URL' in os.environ}")
-if RESEND_API_KEY:
-    print(f"[Findora] RESEND_API_KEY loaded:   YES (starts with {RESEND_API_KEY[:10]}...)")
-else:
-    print("[Findora] RESEND_API_KEY loaded:   NO -- OTP emails will NOT be sent!")
-    print("[Findora]   -> Check Render Dashboard > Your Service > Environment > Environment Variables")
-print(f"[Findora] DEFAULT_FROM_EMAIL:      {DEFAULT_FROM_EMAIL}")
-print("[Findora] --- End Diagnostics ---")
