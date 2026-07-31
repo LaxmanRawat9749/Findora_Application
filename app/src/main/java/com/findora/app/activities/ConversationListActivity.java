@@ -2,6 +2,7 @@ package com.findora.app.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
+import com.findora.app.utils.SessionManager;
 import android.view.View;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,6 +18,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class ConversationListActivity extends AppCompatActivity {
+    private SessionManager sessionManager;
 
     private ActivityConversationListBinding binding;
     private ConversationAdapter adapter;
@@ -27,6 +29,9 @@ public class ConversationListActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityConversationListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

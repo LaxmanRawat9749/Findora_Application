@@ -2,6 +2,7 @@ package com.findora.app.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
+import com.findora.app.utils.SessionManager;
 import android.view.View;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +21,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class NotificationsActivity extends AppCompatActivity {
+    private SessionManager sessionManager;
 
     private ActivityNotificationsBinding binding;
     private ApiService apiService;
@@ -30,6 +32,9 @@ public class NotificationsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityNotificationsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import com.findora.app.utils.SessionManager;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -31,6 +32,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SearchActivity extends AppCompatActivity {
+    private SessionManager sessionManager;
 
     private ActivitySearchBinding binding;
     private ApiService apiService;
@@ -66,6 +68,9 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivitySearchBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

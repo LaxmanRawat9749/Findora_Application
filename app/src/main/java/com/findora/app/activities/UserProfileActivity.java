@@ -1,6 +1,7 @@
 package com.findora.app.activities;
 
 import android.os.Bundle;
+import com.findora.app.utils.SessionManager;
 import android.view.View;
 import android.widget.Toast;
 
@@ -19,6 +20,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class UserProfileActivity extends AppCompatActivity {
+    private SessionManager sessionManager;
 
     public static final String EXTRA_USER_ID = "extra_user_id";
 
@@ -31,6 +33,9 @@ public class UserProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityUserProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
 
         userId = getIntent().getIntExtra(EXTRA_USER_ID, -1);
         if (userId == -1) {

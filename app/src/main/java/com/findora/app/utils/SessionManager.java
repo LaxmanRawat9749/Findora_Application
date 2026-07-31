@@ -25,8 +25,8 @@ public class SessionManager {
     private static final String KEY_LOGIN_TIMESTAMP = "login_timestamp";
     private static final String KEY_LAST_ACTIVITY   = "last_activity";
 
-    /** Session timeout: 1 hour in milliseconds (configurable). */
-    public static final long SESSION_TIMEOUT_MS = 1 * 60 * 60 * 1000L; // 3,600,000 ms
+    /** Session timeout: 2 hours in milliseconds (configurable). */
+    public static final long SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000L; // 7,200,000 ms
 
     public SessionManager(Context context) {
         // Always use application context to prevent memory leaks
@@ -136,6 +136,26 @@ public class SessionManager {
 
         // JWT expiry check — decode payload without a library
         return !isJwtExpired(accessToken);
+    }
+
+    /**
+     * Centralized session validation for all protected Activities.
+     * Verifies the session and automatically redirects to LoginActivity if invalid or expired.
+     * 
+     * @param activity The current protected activity.
+     * @return true if session is valid and active, false if invalid/expired (and redirecting to login).
+     */
+    public boolean checkAndRequireSession(android.app.Activity activity) {
+        if (!isSessionValid() || isSessionExpired()) {
+            clearExpiredSession(); // safely wipe
+            android.content.Intent intent = new android.content.Intent(activity, com.findora.app.activities.LoginActivity.class);
+            intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            activity.startActivity(intent);
+            activity.finish();
+            return false;
+        }
+        updateLastActivity();
+        return true;
     }
 
     /**

@@ -43,8 +43,10 @@ public class ItemDetailActivity extends AppCompatActivity {
         binding = ActivityItemDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
+
         apiService = RetrofitClient.getInstance(this).getApi();
-        sessionManager = new SessionManager(this);
 
         itemId = getIntent().getIntExtra(Constants.EXTRA_ITEM_ID, -1);
         if (itemId == -1) {

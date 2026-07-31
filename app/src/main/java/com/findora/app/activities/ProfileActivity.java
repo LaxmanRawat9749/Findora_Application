@@ -96,8 +96,10 @@ public class ProfileActivity extends AppCompatActivity {
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
+
         apiService     = RetrofitClient.getInstance(this).getApi();
-        sessionManager = new SessionManager(this);
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 

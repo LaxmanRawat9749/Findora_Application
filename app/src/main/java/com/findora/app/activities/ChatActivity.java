@@ -69,8 +69,10 @@ public class ChatActivity extends AppCompatActivity {
         binding = ActivityChatBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
+
         apiService = RetrofitClient.getInstance(this).getApi();
-        sessionManager = new SessionManager(this);
 
         conversationId = getIntent().getIntExtra(Constants.EXTRA_CONVERSATION_ID, -1);
         String otherUserName = getIntent().getStringExtra("other_user_name");

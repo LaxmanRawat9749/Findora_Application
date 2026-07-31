@@ -8,6 +8,7 @@ import android.graphics.Matrix;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import com.findora.app.utils.SessionManager;
 import android.os.Environment;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 
 public class UploadItemActivity extends AppCompatActivity {
+    private SessionManager sessionManager;
 
     private ActivityUploadItemBinding binding;
     private ApiService apiService;
@@ -61,6 +63,9 @@ public class UploadItemActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityUploadItemBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        this.sessionManager = new SessionManager(this);
+        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 
