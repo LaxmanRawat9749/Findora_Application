@@ -27,11 +27,11 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class ItemDetailActivity extends AppCompatActivity {
+public class ItemDetailActivity extends BaseActivity {
 
     private ActivityItemDetailBinding binding;
     private ApiService apiService;
-    private SessionManager sessionManager;
+    
     private Item currentItem;
     private int itemId;
     private Call<Item> itemDetailCall;
@@ -42,9 +42,6 @@ public class ItemDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityItemDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 
@@ -59,7 +56,7 @@ public class ItemDetailActivity extends AppCompatActivity {
 
         binding.btnChat.setOnClickListener(v -> {
             if (currentItem != null) {
-                if (currentItem.getUser() == sessionManager.getUserId()) {
+                if (currentItem.getUser() == baseSessionManager.getUserId()) {
                     Intent intent = new Intent(this, ConversationListActivity.class);
                     startActivity(intent);
                 } else {
@@ -190,7 +187,7 @@ public class ItemDetailActivity extends AppCompatActivity {
         }
 
         // Check if user is the poster of the item
-        if (item.getUser() == sessionManager.getUserId()) {
+        if (item.getUser() == baseSessionManager.getUserId()) {
             binding.layoutDefaultActions.setVisibility(View.VISIBLE);
             binding.layoutFoundActions.setVisibility(View.GONE);
             binding.btnChat.setVisibility(View.VISIBLE);
@@ -236,7 +233,7 @@ public class ItemDetailActivity extends AppCompatActivity {
         ConversationInitRequest request = new ConversationInitRequest(id);
         
         android.util.Log.e("ChatBug", "initConversation called from ItemDetailActivity! item_id=" + id + 
-                ", sessionUserId=" + sessionManager.getUserId() + 
+                ", sessionUserId=" + baseSessionManager.getUserId() + 
                 ", currentItemOwner=" + (currentItem != null ? currentItem.getUser() : -1));
 
         if (conversationInitCall != null) conversationInitCall.cancel();

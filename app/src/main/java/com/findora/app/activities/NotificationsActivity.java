@@ -20,8 +20,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class NotificationsActivity extends AppCompatActivity {
-    private SessionManager sessionManager;
+public class NotificationsActivity extends BaseActivity {
+    
 
     private ActivityNotificationsBinding binding;
     private ApiService apiService;
@@ -32,9 +32,6 @@ public class NotificationsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityNotificationsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

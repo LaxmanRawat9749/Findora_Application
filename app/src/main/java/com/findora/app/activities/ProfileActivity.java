@@ -40,11 +40,11 @@ import okhttp3.RequestBody;
 import com.findora.app.R;
 
 
-public class ProfileActivity extends AppCompatActivity {
+public class ProfileActivity extends BaseActivity {
 
     private ActivityProfileBinding binding;
     private ApiService apiService;
-    private SessionManager sessionManager;
+    
     private boolean isPasswordFormVisible = false;
     private boolean isUsernameFormVisible = false;
 
@@ -95,9 +95,6 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService     = RetrofitClient.getInstance(this).getApi();
 
@@ -153,10 +150,10 @@ public class ProfileActivity extends AppCompatActivity {
                     binding.tvRole.setText("Role: " + capitalize(user.getRole()));
                     if (user.getUsername() != null) {
                         binding.etCurrentUsername.setText(user.getUsername());
-                        sessionManager.saveUsername(user.getUsername());
+                        baseSessionManager.saveUsername(user.getUsername());
                     }
                     if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
-                        sessionManager.saveProfileImage(user.getProfileImage());
+                        baseSessionManager.saveProfileImage(user.getProfileImage());
                         Glide.with(ProfileActivity.this)
                                 .load(user.getProfileImage())
                                 .circleCrop()
@@ -165,7 +162,7 @@ public class ProfileActivity extends AppCompatActivity {
                                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                                 .into(binding.ivProfilePicture);
                     } else {
-                        sessionManager.saveProfileImage("");
+                        baseSessionManager.saveProfileImage("");
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
                 } else {
@@ -188,17 +185,17 @@ public class ProfileActivity extends AppCompatActivity {
      * This is only called after the API attempt fails — never before it.
      */
     private void showCachedProfile() {
-        String cachedName = sessionManager.getFullName();
-        String cachedEmail = sessionManager.getEmail();
-        String cachedRole = sessionManager.getRole();
-        String cachedUsername = sessionManager.getUsername();
+        String cachedName = baseSessionManager.getFullName();
+        String cachedEmail = baseSessionManager.getEmail();
+        String cachedRole = baseSessionManager.getRole();
+        String cachedUsername = baseSessionManager.getUsername();
 
         if (!cachedName.isEmpty()) binding.tvFullName.setText(cachedName);
         if (!cachedEmail.isEmpty()) binding.tvEmail.setText(cachedEmail);
         if (!cachedRole.isEmpty()) binding.tvRole.setText("Role: " + capitalize(cachedRole));
         if (!cachedUsername.isEmpty()) binding.etCurrentUsername.setText(cachedUsername);
         
-        String cachedImage = sessionManager.getProfileImage();
+        String cachedImage = baseSessionManager.getProfileImage();
         if (cachedImage != null && !cachedImage.isEmpty()) {
             Glide.with(this).load(cachedImage).circleCrop().placeholder(R.drawable.ic_person).error(R.drawable.ic_person).into(binding.ivProfilePicture);
         } else {
@@ -244,7 +241,7 @@ public class ProfileActivity extends AppCompatActivity {
                     Toast.makeText(ProfileActivity.this, "Username updated successfully!", Toast.LENGTH_LONG).show();
                     String updatedUsername = response.body().getUsername();
                     if (updatedUsername != null) {
-                        sessionManager.saveUsername(updatedUsername);
+                        baseSessionManager.saveUsername(updatedUsername);
                         binding.etCurrentUsername.setText(updatedUsername);
                     }
                     binding.etNewUsername.setText("");
@@ -317,7 +314,7 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void logout() {
-        sessionManager.logout();
+        baseSessionManager.logout();
         Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -431,7 +428,7 @@ public class ProfileActivity extends AppCompatActivity {
                 public void onResponse(Call<User> call, Response<User> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         Toast.makeText(ProfileActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
-                        sessionManager.saveProfileImage(response.body().getProfileImage());
+                        baseSessionManager.saveProfileImage(response.body().getProfileImage());
                         loadProfile();
                     } else {
                         Toast.makeText(ProfileActivity.this, "Failed to update profile picture", Toast.LENGTH_SHORT).show();
@@ -454,7 +451,7 @@ public class ProfileActivity extends AppCompatActivity {
             public void onResponse(Call<User> call, Response<User> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Toast.makeText(ProfileActivity.this, "Profile picture removed", Toast.LENGTH_SHORT).show();
-                    sessionManager.saveProfileImage("");
+                    baseSessionManager.saveProfileImage("");
                     loadProfile();
                 } else {
                     Toast.makeText(ProfileActivity.this, "Failed to remove profile picture", Toast.LENGTH_SHORT).show();

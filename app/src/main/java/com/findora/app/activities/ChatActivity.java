@@ -45,11 +45,11 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class ChatActivity extends AppCompatActivity {
+public class ChatActivity extends BaseActivity {
 
     private ActivityChatBinding binding;
     private ApiService apiService;
-    private SessionManager sessionManager;
+    
     private ChatAdapter adapter;
     private int conversationId;
     private Handler pollHandler;
@@ -68,9 +68,6 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityChatBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 
@@ -104,7 +101,7 @@ public class ChatActivity extends AppCompatActivity {
             return false;
         });
 
-        adapter = new ChatAdapter(this, sessionManager.getUserId(), 
+        adapter = new ChatAdapter(this, baseSessionManager.getUserId(), 
             msg -> showMessageOptions(msg),
             userId -> openUserProfile(userId));
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -443,7 +440,7 @@ public class ChatActivity extends AppCompatActivity {
     private void openUserProfile(int userId) {
         if (userId == -1) return;
         Intent intent;
-        if (userId == sessionManager.getUserId()) {
+        if (userId == baseSessionManager.getUserId()) {
             intent = new Intent(this, ProfileActivity.class);
         } else {
             intent = new Intent(this, UserProfileActivity.class);

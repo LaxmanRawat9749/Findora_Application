@@ -147,7 +147,7 @@ public class SessionManager {
      */
     public boolean checkAndRequireSession(android.app.Activity activity) {
         if (!isSessionValid() || isSessionExpired()) {
-            clearExpiredSession(); // safely wipe
+            logout(); // safely and forcefully wipe any invalid session
             android.content.Intent intent = new android.content.Intent(activity, com.findora.app.activities.LoginActivity.class);
             intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
             activity.startActivity(intent);

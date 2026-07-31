@@ -31,8 +31,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class SearchActivity extends AppCompatActivity {
-    private SessionManager sessionManager;
+public class SearchActivity extends BaseActivity {
+    
 
     private ActivitySearchBinding binding;
     private ApiService apiService;
@@ -68,9 +68,6 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivitySearchBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

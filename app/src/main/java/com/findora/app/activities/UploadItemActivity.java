@@ -44,8 +44,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class UploadItemActivity extends AppCompatActivity {
-    private SessionManager sessionManager;
+public class UploadItemActivity extends BaseActivity {
+    
 
     private ActivityUploadItemBinding binding;
     private ApiService apiService;
@@ -63,9 +63,6 @@ public class UploadItemActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityUploadItemBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
 
         apiService = RetrofitClient.getInstance(this).getApi();
 

@@ -566,10 +566,13 @@ class ItemListCreateView(APIView):
     def get(self, request):
         queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
 
-        # Role-based filtering: Owners see only their own items,
-        # Finders (and admins) see all approved items.
+        # Role-based filtering:
+        # Owners: see their own Lost items + ALL Found items.
+        # Finders: see ALL Lost items + their own Found items.
         if request.user.role == 'owner':
-            queryset = queryset.filter(user=request.user)
+            queryset = queryset.filter(Q(type='lost', user=request.user) | Q(type='found'))
+        elif request.user.role == 'finder':
+            queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
 
         search = request.query_params.get('search', '').strip()
         if search:

@@ -35,11 +35,11 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends BaseActivity {
 
     private ActivityHomeBinding binding;
     private ApiService apiService;
-    private SessionManager sessionManager;
+    
     private ItemAdapter adapter;
 
     private String currentType = null; // null = all
@@ -80,9 +80,6 @@ public class HomeActivity extends AppCompatActivity {
         binding = ActivityHomeBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        this.sessionManager = new SessionManager(this);
-        if (!sessionManager.checkAndRequireSession(this)) return;
-
         
 
         apiService = RetrofitClient.getInstance(this).getApi();
@@ -110,7 +107,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        sessionManager.updateLastActivity();
+        baseSessionManager.updateLastActivity();
         updateGreeting();
         if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
             binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);
@@ -340,8 +337,8 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void updateGreeting() {
-        String fullName = sessionManager.getFullName();
-        String username = sessionManager.getUsername();
+        String fullName = baseSessionManager.getFullName();
+        String username = baseSessionManager.getUsername();
         String nameToDisplay = null;
 
         if (fullName != null && !fullName.trim().isEmpty()) {
