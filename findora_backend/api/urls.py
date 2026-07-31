@@ -29,7 +29,9 @@ urlpatterns = [
 
     # ─── Items ────────────────────────────────────────────────────────────────
     path('items/', views.ItemListCreateView.as_view(), name='item-list-create'),
+    path('items/resolved/', views.ResolvedItemListView.as_view(), name='item-resolved-list'),
     path('items/<int:pk>/', views.ItemDetailView.as_view(), name='item-detail'),
+    path('items/<int:pk>/resolve/', views.ItemResolveView.as_view(), name='item-resolve'),
 
     # ─── Admin ────────────────────────────────────────────────────────────────
     path('admin/items/', views.AdminItemListView.as_view(), name='admin-item-list'),

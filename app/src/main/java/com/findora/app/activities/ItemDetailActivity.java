@@ -15,6 +15,7 @@ import com.bumptech.glide.Glide;
 import com.findora.app.R;
 import com.findora.app.databinding.ActivityItemDetailBinding;
 import com.findora.app.models.Claim;
+import com.findora.app.models.MessageResponse;
 import com.findora.app.models.Item;
 import com.findora.app.models.ItemImage;
 import com.findora.app.models.ConversationInitRequest;
@@ -81,6 +82,7 @@ public class ItemDetailActivity extends AppCompatActivity {
 
         binding.btnClaim.setOnClickListener(v -> showClaimDialog());
         binding.btnViewMap.setOnClickListener(v -> openMap());
+        binding.btnMarkReceived.setOnClickListener(v -> showMarkReceivedDialog());
 
         loadItemDetail();
     }
@@ -190,6 +192,17 @@ public class ItemDetailActivity extends AppCompatActivity {
             }
         }
 
+        // Handle Resolved Status
+        if ("resolved".equalsIgnoreCase(item.getStatus())) {
+            binding.layoutDefaultActions.setVisibility(View.GONE);
+            binding.layoutFoundActions.setVisibility(View.GONE);
+            binding.btnMarkReceived.setVisibility(View.GONE);
+            binding.layoutRecoveredBadge.setVisibility(View.VISIBLE);
+            return;
+        } else {
+            binding.layoutRecoveredBadge.setVisibility(View.GONE);
+        }
+
         // Check if user is the poster of the item
         if (item.getUser() == sessionManager.getUserId()) {
             binding.layoutDefaultActions.setVisibility(View.VISIBLE);
@@ -197,16 +210,24 @@ public class ItemDetailActivity extends AppCompatActivity {
             binding.btnChat.setVisibility(View.VISIBLE);
             binding.btnChat.setText("View Conversations");
             binding.btnClaim.setVisibility(View.GONE);
+            binding.btnMarkReceived.setVisibility(View.VISIBLE);
         } else {
+            binding.btnMarkReceived.setVisibility(View.GONE);
             if ("found".equalsIgnoreCase(item.getType())) {
-                binding.layoutDefaultActions.setVisibility(View.GONE);
                 binding.layoutFoundActions.setVisibility(View.VISIBLE);
+                if ("owner".equalsIgnoreCase(sessionManager.getRole())) {
+                    binding.layoutDefaultActions.setVisibility(View.VISIBLE);
+                    binding.btnChat.setVisibility(View.GONE);
+                    binding.btnClaim.setVisibility(View.VISIBLE);
+                } else {
+                    binding.layoutDefaultActions.setVisibility(View.GONE);
+                }
             } else {
                 binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                 binding.layoutFoundActions.setVisibility(View.GONE);
                 binding.btnChat.setVisibility(View.VISIBLE);
                 binding.btnChat.setText("Contact Owner");
-                binding.btnClaim.setVisibility(View.VISIBLE);
+                binding.btnClaim.setVisibility(View.GONE);
             }
         }
     }
@@ -243,6 +264,39 @@ public class ItemDetailActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void showMarkReceivedDialog() {
+        if (currentItem == null) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm Item Received")
+                .setMessage("Have you successfully received your item from the finder?")
+                .setPositiveButton("Yes, Received", (dialog, which) -> resolveItem())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void resolveItem() {
+        binding.progressBar.setVisibility(View.VISIBLE);
+        apiService.resolveItem(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
+            @Override
+            public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful()) {
+                    Toast.makeText(ItemDetailActivity.this, "Item marked as received!", Toast.LENGTH_SHORT).show();
+                    currentItem.setStatus("resolved");
+                    displayItem(currentItem);
+                } else {
+                    Toast.makeText(ItemDetailActivity.this, "Failed to mark as received.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<MessageResponse> call, Throwable t) {
+                binding.progressBar.setVisibility(View.GONE);
+                Toast.makeText(ItemDetailActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void submitClaim(String description) {

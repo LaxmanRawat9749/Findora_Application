@@ -682,6 +682,49 @@ class ItemDetailView(APIView):
         return Response({'message': 'Item deleted successfully.'}, status=status.HTTP_200_OK)
 
 
+class ItemResolveView(APIView):
+    """
+    POST /api/items/{id}/resolve/ — Mark an item as resolved.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            item = Item.objects.select_related('user').get(pk=pk)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if item.user != request.user:
+            return Response({'error': 'You do not have permission to resolve this item.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if item.status == 'resolved':
+            return Response({'message': 'Item is already resolved.'}, status=status.HTTP_200_OK)
+
+        item.status = 'resolved'
+        item.save()
+
+        # Send notification
+        Notification.objects.create(
+            user=request.user,
+            title="Item Recovered",
+            message=f"Your item '{item.title}' has been successfully marked as resolved."
+        )
+
+        return Response({'message': 'Item successfully marked as resolved.'}, status=status.HTTP_200_OK)
+
+
+class ResolvedItemListView(APIView):
+    """
+    GET /api/items/resolved/ — List all resolved items for the authenticated user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        queryset = Item.objects.filter(status='resolved', user=request.user).order_by('-updated_at')
+        serializer = ItemSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin Views
 # ─────────────────────────────────────────────────────────────────────────────

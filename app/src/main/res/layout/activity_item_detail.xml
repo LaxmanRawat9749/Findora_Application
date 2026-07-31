@@ -286,6 +286,46 @@
                     android:text="View Conversations" />
             </LinearLayout>
 
+            <!-- Mark Received Action (for owner) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_mark_received"
+                style="@style/Widget.Findora.Button"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:text="Mark as Received"
+                app:backgroundTint="@color/success_green"
+                android:visibility="gone" />
+
+            <!-- Recovered Badge (when status is resolved) -->
+            <LinearLayout
+                android:id="@+id/layout_recovered_badge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_large"
+                android:background="@drawable/bg_badge_lost"
+                android:backgroundTint="@color/light_green"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:padding="@dimen/spacing_medium"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/checkbox_on_background"
+                    app:tint="@color/success_green" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_small"
+                    android:text="Item Successfully Returned"
+                    android:textColor="@color/success_green"
+                    android:textSize="@dimen/text_body"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

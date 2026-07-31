@@ -94,6 +94,12 @@ public interface ApiService {
     @DELETE("items/{id}/")
     Call<MessageResponse> deleteItem(@Path("id") int id);
 
+    @POST("items/{id}/resolve/")
+    Call<MessageResponse> resolveItem(@Path("id") int id);
+
+    @GET("items/resolved/")
+    Call<List<Item>> getResolvedItems();
+
     // ─── Admin ───────────────────────────────────────────────
     @GET("admin/items/")
     Call<List<Item>> getPendingItems();
