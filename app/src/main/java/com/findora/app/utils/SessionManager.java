@@ -22,6 +22,11 @@ public class SessionManager {
     private static final String KEY_USER_ID    = "user_id";
     private static final String KEY_IS_VERIFIED = "is_verified";
     private static final String KEY_PROFILE_IMAGE = "profile_image";
+    private static final String KEY_LOGIN_TIMESTAMP = "login_timestamp";
+    private static final String KEY_LAST_ACTIVITY   = "last_activity";
+
+    /** Session timeout: 2 hours in milliseconds. */
+    public static final long SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000L; // 7,200,000 ms
 
     public SessionManager(Context context) {
         // Always use application context to prevent memory leaks
@@ -39,6 +44,7 @@ public class SessionManager {
     public void saveSession(String accessToken, String refreshToken,
                             String username, String role, String fullName,
                             String email, int userId, String profileImage) {
+        long now = System.currentTimeMillis();
         prefs.edit()
              .putString(KEY_TOKEN, accessToken)
              .putString(KEY_REFRESH, refreshToken)
@@ -49,6 +55,8 @@ public class SessionManager {
              .putInt(KEY_USER_ID, userId)
              .putBoolean(KEY_IS_VERIFIED, true)
              .putString(KEY_PROFILE_IMAGE, profileImage)
+             .putLong(KEY_LOGIN_TIMESTAMP, now)
+             .putLong(KEY_LAST_ACTIVITY, now)
              .commit(); // synchronous — token is durable when this returns
     }
 
@@ -167,6 +175,49 @@ public class SessionManager {
         }
     }
 
+    // ─── Session timeout management ──────────────────────────────────────────
+
+    /**
+     * Updates the last-activity timestamp to the current time.
+     * Call this on every user interaction: screen resume, API request,
+     * message sent, image uploaded, etc.
+     */
+    public void updateLastActivity() {
+        prefs.edit()
+             .putLong(KEY_LAST_ACTIVITY, System.currentTimeMillis())
+             .commit(); // synchronous
+    }
+
+    /**
+     * Returns true if the session has expired based on inactivity.
+     * A session is considered expired when the difference between the
+     * current time and the last activity timestamp exceeds SESSION_TIMEOUT_MS.
+     * Also returns true if no last-activity timestamp exists (no active session).
+     */
+    public boolean isSessionExpired() {
+        long lastActivity = prefs.getLong(KEY_LAST_ACTIVITY, 0L);
+        if (lastActivity == 0L) return true; // no recorded activity — no session
+        long elapsed = System.currentTimeMillis() - lastActivity;
+        return elapsed > SESSION_TIMEOUT_MS;
+    }
+
+    /**
+     * Checks session expiry and, if expired, clears all session data.
+     * Returns true if the session was expired (and has been cleared),
+     * false if the session is still active.
+     */
+    public boolean clearExpiredSession() {
+        if (isSessionExpired()) {
+            Log.i(TAG, "Session expired — clearing session data");
+            logout();
+            return true;
+        }
+        return false;
+    }
+
+    public long getLoginTimestamp()  { return prefs.getLong(KEY_LOGIN_TIMESTAMP, 0L); }
+    public long getLastActivity()    { return prefs.getLong(KEY_LAST_ACTIVITY, 0L); }
+
     // ─── Logout — clears ALL session data synchronously ──────────────────────
 
     /**
@@ -184,6 +235,9 @@ public class SessionManager {
              .remove(KEY_EMAIL)
              .remove(KEY_USER_ID)
              .remove(KEY_IS_VERIFIED)
+             .remove(KEY_PROFILE_IMAGE)
+             .remove(KEY_LOGIN_TIMESTAMP)
+             .remove(KEY_LAST_ACTIVITY)
              .commit(); // synchronous — prefs are cleared before caller proceeds
     }
 }

@@ -121,6 +121,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        sessionManager.updateLastActivity();
         updateGreeting();
         if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
             binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);

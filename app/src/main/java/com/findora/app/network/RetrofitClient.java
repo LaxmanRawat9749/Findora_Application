@@ -121,6 +121,12 @@ public class RetrofitClient {
                         SessionManager sessionManager = new SessionManager(ctx);
                         String token = sessionManager.getToken();
 
+                        // Update last-activity timestamp on every authenticated request
+                        // so session timeout reflects actual usage across the entire app.
+                        if (token != null && !token.trim().isEmpty()) {
+                            sessionManager.updateLastActivity();
+                        }
+
                         Request.Builder builder = chain.request().newBuilder()
                             .header("Content-Type", "application/json")
                             .header("Accept", "application/json");
