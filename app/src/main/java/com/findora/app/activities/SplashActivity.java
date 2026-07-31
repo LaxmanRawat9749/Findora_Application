@@ -83,18 +83,8 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateNext() {
-        Intent intent;
-
-        if (sessionManager.isSessionValid() && !sessionManager.isSessionExpired()) {
-            // Session is active and within the 2-hour timeout — go straight to Dashboard
-            sessionManager.updateLastActivity();
-            intent = new Intent(this, HomeActivity.class);
-        } else {
-            // No valid session, or session has expired — require login
-            sessionManager.clearExpiredSession();
-            intent = new Intent(this, LoginActivity.class);
-        }
-
+        // Always require login on every fresh app launch.
+        Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         overridePendingTransition(R.anim.fade_in_slow, R.anim.fade_out_slow);
