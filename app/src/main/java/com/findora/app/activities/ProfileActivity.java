@@ -137,9 +137,6 @@ public class ProfileActivity extends AppCompatActivity {
         binding.btnLogout.setOnClickListener(v -> logout());
 
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());
-        binding.btnViewRecoveredItems.setOnClickListener(v -> {
-            startActivity(new Intent(this, ResolvedItemsActivity.class));
-        });
 
     }
 

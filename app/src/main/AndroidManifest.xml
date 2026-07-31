@@ -53,7 +53,6 @@
         <activity android:name=".activities.ProfileActivity" android:exported="false" />
         <activity android:name=".activities.FullScreenImageActivity" android:exported="false" />
         <activity android:name=".activities.UserProfileActivity" android:exported="false" />
-        <activity android:name=".activities.ResolvedItemsActivity" android:exported="false" />
 
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"

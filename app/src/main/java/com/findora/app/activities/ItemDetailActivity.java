@@ -14,8 +14,6 @@ import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
 import com.findora.app.R;
 import com.findora.app.databinding.ActivityItemDetailBinding;
-import com.findora.app.models.Claim;
-import com.findora.app.models.MessageResponse;
 import com.findora.app.models.Item;
 import com.findora.app.models.ItemImage;
 import com.findora.app.models.ConversationInitRequest;
@@ -38,7 +36,6 @@ public class ItemDetailActivity extends AppCompatActivity {
     private int itemId;
     private Call<Item> itemDetailCall;
     private Call<ConversationInitResponse> conversationInitCall;
-    private Call<Claim> claimCall;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,9 +77,7 @@ public class ItemDetailActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        binding.btnClaim.setOnClickListener(v -> showClaimDialog());
         binding.btnViewMap.setOnClickListener(v -> openMap());
-        binding.btnMarkReceived.setOnClickListener(v -> showMarkReceivedDialog());
 
         loadItemDetail();
     }
@@ -192,137 +187,23 @@ public class ItemDetailActivity extends AppCompatActivity {
             }
         }
 
-        // Handle Resolved Status
-        if ("resolved".equalsIgnoreCase(item.getStatus())) {
-            binding.layoutDefaultActions.setVisibility(View.GONE);
-            binding.layoutFoundActions.setVisibility(View.GONE);
-            binding.btnMarkReceived.setVisibility(View.GONE);
-            binding.layoutRecoveredBadge.setVisibility(View.VISIBLE);
-            return;
-        } else {
-            binding.layoutRecoveredBadge.setVisibility(View.GONE);
-        }
-
         // Check if user is the poster of the item
         if (item.getUser() == sessionManager.getUserId()) {
             binding.layoutDefaultActions.setVisibility(View.VISIBLE);
             binding.layoutFoundActions.setVisibility(View.GONE);
             binding.btnChat.setVisibility(View.VISIBLE);
             binding.btnChat.setText("View Conversations");
-            binding.btnClaim.setVisibility(View.GONE);
-            binding.btnMarkReceived.setVisibility(View.VISIBLE);
         } else {
-            binding.btnMarkReceived.setVisibility(View.GONE);
             if ("found".equalsIgnoreCase(item.getType())) {
+                binding.layoutDefaultActions.setVisibility(View.GONE);
                 binding.layoutFoundActions.setVisibility(View.VISIBLE);
-                if ("owner".equalsIgnoreCase(sessionManager.getRole())) {
-                    binding.layoutDefaultActions.setVisibility(View.VISIBLE);
-                    binding.btnChat.setVisibility(View.GONE);
-                    binding.btnClaim.setVisibility(View.VISIBLE);
-                } else {
-                    binding.layoutDefaultActions.setVisibility(View.GONE);
-                }
             } else {
                 binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                 binding.layoutFoundActions.setVisibility(View.GONE);
                 binding.btnChat.setVisibility(View.VISIBLE);
                 binding.btnChat.setText("Contact Owner");
-                binding.btnClaim.setVisibility(View.GONE);
             }
         }
-    }
-
-    private void showClaimDialog() {
-        if (currentItem == null) return;
-
-        EditText etDescription = new EditText(this);
-        String hintText;
-        if ("lost".equalsIgnoreCase(currentItem.getType())) {
-            hintText = "Describe where and when you found this item, and any details that may help the owner identify it.";
-        } else {
-            hintText = "Describe why you believe this item belongs to you. Include identifying details such as color, brand, unique marks, or where you lost it.";
-        }
-        etDescription.setHint(hintText);
-        etDescription.setMinLines(3);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 32, 48, 16);
-        layout.addView(etDescription);
-
-        new AlertDialog.Builder(this)
-                .setTitle("Claim This Item")
-                .setMessage("Provide a description to verify your claim.")
-                .setView(layout)
-                .setPositiveButton("Submit Claim", (dialog, which) -> {
-                    String desc = etDescription.getText().toString().trim();
-                    if (desc.isEmpty()) {
-                        Toast.makeText(this, "Please enter a claim description.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    submitClaim(desc);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showMarkReceivedDialog() {
-        if (currentItem == null) return;
-        new AlertDialog.Builder(this)
-                .setTitle("Confirm Item Received")
-                .setMessage("Have you successfully received your item from the finder?")
-                .setPositiveButton("Yes, Received", (dialog, which) -> resolveItem())
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void resolveItem() {
-        binding.progressBar.setVisibility(View.VISIBLE);
-        apiService.resolveItem(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
-            @Override
-            public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
-                binding.progressBar.setVisibility(View.GONE);
-                if (response.isSuccessful()) {
-                    Toast.makeText(ItemDetailActivity.this, "Item marked as received!", Toast.LENGTH_SHORT).show();
-                    currentItem.setStatus("resolved");
-                    displayItem(currentItem);
-                } else {
-                    Toast.makeText(ItemDetailActivity.this, "Failed to mark as received.", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<MessageResponse> call, Throwable t) {
-                binding.progressBar.setVisibility(View.GONE);
-                Toast.makeText(ItemDetailActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void submitClaim(String description) {
-        Claim claim = new Claim(currentItem.getId(), description);
-
-        if (claimCall != null) claimCall.cancel();
-        claimCall = apiService.submitClaim(claim);
-        claimCall.enqueue(new Callback<Claim>() {
-            @Override
-            public void onResponse(Call<Claim> call, Response<Claim> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(ItemDetailActivity.this,
-                            "Claim submitted successfully!", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(ItemDetailActivity.this,
-                            "Failed to submit claim.", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<Claim> call, Throwable t) {
-                if (call.isCanceled()) return;
-                Toast.makeText(ItemDetailActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
     }
 
     private void openMap() {
@@ -395,6 +276,5 @@ public class ItemDetailActivity extends AppCompatActivity {
         super.onDestroy();
         if (itemDetailCall != null) itemDetailCall.cancel();
         if (conversationInitCall != null) conversationInitCall.cancel();
-        if (claimCall != null) claimCall.cancel();
     }
 }

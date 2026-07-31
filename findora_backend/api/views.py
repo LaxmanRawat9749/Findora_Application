@@ -26,12 +26,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import ChatMessage, Claim, Conversation, Item, ItemImage, Notification, OTPToken, User
+from .models import ChatMessage, Conversation, Item, ItemImage, Notification, OTPToken, User
 from .permissions import IsAdminRole, IsOwnerOrReadOnly, IsVerifiedUser
 from .serializers import (
     ChatMessageSerializer,
     ConversationSerializer,
-    ClaimSerializer,
+
     ItemSerializer,
     NotificationSerializer,
     ProfileUpdateSerializer,
@@ -566,18 +566,10 @@ class ItemListCreateView(APIView):
     def get(self, request):
         queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
 
-        # Role-based filtering
-        user = request.user
-        if user.role == 'owner':
-            # Owner sees their own lost items + all found items
-            queryset = queryset.filter(
-                Q(type='lost', user=user) | Q(type='found')
-            )
-        elif user.role == 'finder':
-            # Finder sees all lost items + only their own found items
-            queryset = queryset.filter(
-                Q(type='lost') | Q(type='found', user=user)
-            )
+        # Role-based filtering: Owners see only their own items,
+        # Finders (and admins) see all approved items.
+        if request.user.role == 'owner':
+            queryset = queryset.filter(user=request.user)
 
         search = request.query_params.get('search', '').strip()
         if search:
@@ -682,49 +674,6 @@ class ItemDetailView(APIView):
         return Response({'message': 'Item deleted successfully.'}, status=status.HTTP_200_OK)
 
 
-class ItemResolveView(APIView):
-    """
-    POST /api/items/{id}/resolve/ — Mark an item as resolved.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            item = Item.objects.select_related('user').get(pk=pk)
-        except Item.DoesNotExist:
-            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if item.user != request.user:
-            return Response({'error': 'You do not have permission to resolve this item.'}, status=status.HTTP_403_FORBIDDEN)
-
-        if item.status == 'resolved':
-            return Response({'message': 'Item is already resolved.'}, status=status.HTTP_200_OK)
-
-        item.status = 'resolved'
-        item.save()
-
-        # Send notification
-        Notification.objects.create(
-            user=request.user,
-            title="Item Recovered",
-            message=f"Your item '{item.title}' has been successfully marked as resolved."
-        )
-
-        return Response({'message': 'Item successfully marked as resolved.'}, status=status.HTTP_200_OK)
-
-
-class ResolvedItemListView(APIView):
-    """
-    GET /api/items/resolved/ — List all resolved items for the authenticated user.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        queryset = Item.objects.filter(status='resolved', user=request.user).order_by('-updated_at')
-        serializer = ItemSerializer(queryset, many=True, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin Views
 # ─────────────────────────────────────────────────────────────────────────────
@@ -805,65 +754,6 @@ class AdminVerifyItemView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Claim Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ClaimCreateView(APIView):
-    """
-    POST /api/claims/
-    Submit an ownership claim on a found item.
-
-    A user cannot claim their own item.
-    Duplicate pending claims from the same user are rejected.
-    """
-
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        item_id = request.data.get('item')
-        proof = request.data.get('proof_description', '')
-
-        try:
-            item = Item.objects.get(pk=item_id, status='approved')
-        except Item.DoesNotExist:
-            return Response(
-                {'error': 'Item not found or not yet approved.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if item.user == request.user:
-            return Response(
-                {'error': 'You cannot claim your own item.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if Claim.objects.filter(item=item, claimant=request.user, status='pending').exists():
-            return Response(
-                {'error': 'You already have a pending claim for this item.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        claim = Claim.objects.create(
-            item=item,
-            claimant=request.user,
-            proof_description=proof,
-        )
-
-        # Notify the item reporter about the new claim
-        Notification.objects.create(
-            user=item.user,
-            type='claim',
-            message=(
-                f'{request.user.get_full_name() or request.user.username} '
-                f'has submitted a claim on your item "{item.title}".'
-            ),
-            related_item=item,
-        )
-
-        serializer = ClaimSerializer(claim)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

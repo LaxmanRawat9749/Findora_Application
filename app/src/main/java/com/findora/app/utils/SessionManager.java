@@ -25,8 +25,8 @@ public class SessionManager {
     private static final String KEY_LOGIN_TIMESTAMP = "login_timestamp";
     private static final String KEY_LAST_ACTIVITY   = "last_activity";
 
-    /** Session timeout: 2 hours in milliseconds. */
-    public static final long SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000L; // 7,200,000 ms
+    /** Session timeout: 1 hour in milliseconds (configurable). */
+    public static final long SESSION_TIMEOUT_MS = 1 * 60 * 60 * 1000L; // 3,600,000 ms
 
     public SessionManager(Context context) {
         // Always use application context to prevent memory leaks
