@@ -74,6 +74,18 @@ public class UploadItemActivity extends BaseActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
 
+        // Adjust Report Type based on role
+        String role = new SessionManager(this).getRole();
+        if ("owner".equalsIgnoreCase(role)) {
+            binding.rbLost.setChecked(true);
+            binding.rbFound.setVisibility(View.GONE);
+            binding.rbFound.setEnabled(false);
+        } else if ("finder".equalsIgnoreCase(role)) {
+            binding.rbFound.setChecked(true);
+            binding.rbLost.setVisibility(View.GONE);
+            binding.rbLost.setEnabled(false);
+        }
+
         // Setup image recycler view
         imageAdapter = new UploadImageAdapter(selectedImages, position -> {
             selectedImages.remove(position);
@@ -193,7 +205,15 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void submitReport() {
-        String type = binding.rbLost.isChecked() ? "lost" : "found";
+        String role = new SessionManager(this).getRole();
+        String type;
+        if ("owner".equalsIgnoreCase(role)) {
+            type = "lost";
+        } else if ("finder".equalsIgnoreCase(role)) {
+            type = "found";
+        } else {
+            type = binding.rbLost.isChecked() ? "lost" : "found";
+        }
         String title = binding.etTitle.getText().toString().trim();
         String location = binding.etLocation.getText().toString().trim();
         String rewardStr = binding.etReward.getText().toString().trim();

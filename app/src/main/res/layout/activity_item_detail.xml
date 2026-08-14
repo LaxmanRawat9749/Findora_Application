@@ -90,6 +90,24 @@
                                 android:textColor="@color/text_gray"
                                 android:textSize="@dimen/text_caption"
                                 android:fontFamily="sans-serif-medium" />
+
+                            <Space
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1" />
+
+                            <TextView
+                                android:id="@+id/tv_returned_badge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_badge_found"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="4dp"
+                                android:text="✓ RETURNED"
+                                android:textColor="@color/success_green"
+                                android:textSize="@dimen/text_caption"
+                                android:fontFamily="sans-serif-medium"
+                                android:visibility="gone" />
                         </LinearLayout>
 
                         <!-- Title -->
@@ -240,6 +258,33 @@
                     android:layout_height="@dimen/button_height"
                     android:layout_weight="1"
                     android:text="Chat" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_return_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_mark_returned"
+                    style="@style/Widget.Findora.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/button_height"
+                    android:text="Mark as Returned"
+                    android:visibility="gone"
+                    app:backgroundTint="@color/primary_purple" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_confirm_return"
+                    style="@style/Widget.Findora.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/button_height"
+                    android:text="Confirm Return"
+                    android:visibility="gone"
+                    app:backgroundTint="@color/success_green" />
             </LinearLayout>
 
             <!-- Action Buttons for Found Items -->

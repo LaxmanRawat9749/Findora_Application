@@ -58,6 +58,9 @@ public interface ApiService {
     @GET("users/{id}/public-profile/")
     Call<PublicProfile> getPublicProfile(@Path("id") int userId);
 
+    @GET("profile/items/")
+    Call<List<Item>> getMyReports();
+
     // ─── Items ───────────────────────────────────────────────
     @GET("items/")
     Call<List<Item>> getItems();
@@ -93,6 +96,12 @@ public interface ApiService {
 
     @DELETE("items/{id}/")
     Call<MessageResponse> deleteItem(@Path("id") int id);
+
+    @POST("items/{id}/mark-returned/")
+    Call<MessageResponse> markItemReturned(@Path("id") int id);
+
+    @POST("items/{id}/confirm-return/")
+    Call<MessageResponse> confirmItemReturn(@Path("id") int id);
 
     // ─── Admin ───────────────────────────────────────────────
     @GET("admin/items/")

@@ -195,6 +195,19 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user', 'status', 'reported_at', 'updated_at']
 
+    def validate(self, data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user_role = getattr(request.user, 'role', None)
+            item_type = data.get('type')
+            
+            if item_type:
+                if user_role == 'owner' and item_type != 'lost':
+                    raise serializers.ValidationError({"type": "Owners can only report lost items."})
+                if user_role == 'finder' and item_type != 'found':
+                    raise serializers.ValidationError({"type": "Finders can only report found items."})
+        return super().validate(data)
+
     def get_user_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
 

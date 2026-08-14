@@ -135,6 +135,11 @@ public class ProfileActivity extends BaseActivity {
         binding.btnUpdatePassword.setOnClickListener(v -> attemptChangePassword());
         binding.btnLogout.setOnClickListener(v -> logout());
 
+        binding.btnMyReports.setOnClickListener(v -> {
+            Intent intent = new Intent(this, MyReportsActivity.class);
+            startActivity(intent);
+        });
+
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());
 
     }

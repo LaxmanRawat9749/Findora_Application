@@ -25,17 +25,18 @@ urlpatterns = [
     # ─── Profile ──────────────────────────────────────────────────────────────
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('profile/image/', views.ProfileImageView.as_view(), name='profile-image'),
+    path('profile/items/', views.MyReportsView.as_view(), name='my-reports'),
     path('users/<int:pk>/public-profile/', views.PublicProfileView.as_view(), name='public-profile'),
 
     # ─── Items ────────────────────────────────────────────────────────────────
     path('items/', views.ItemListCreateView.as_view(), name='item-list-create'),
     path('items/<int:pk>/', views.ItemDetailView.as_view(), name='item-detail'),
+    path('items/<int:pk>/mark-returned/', views.MarkItemReturnedView.as_view(), name='item-mark-returned'),
+    path('items/<int:pk>/confirm-return/', views.ConfirmItemReturnView.as_view(), name='item-confirm-return'),
 
     # ─── Admin ────────────────────────────────────────────────────────────────
     path('admin/items/', views.AdminItemListView.as_view(), name='admin-item-list'),
     path('admin/items/<int:pk>/verify/', views.AdminVerifyItemView.as_view(), name='admin-verify-item'),
-
-
 
     # ─── Chat ─────────────────────────────────────────────────────────────────
     path('chat/', views.ChatListView.as_view(), name='chat'),

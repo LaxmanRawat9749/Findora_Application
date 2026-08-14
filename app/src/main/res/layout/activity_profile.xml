@@ -365,6 +365,16 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- My Reports Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMyReports"
+                style="@style/Widget.Findora.Button"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginTop="@dimen/spacing_xlarge"
+                android:text="My Reports &amp; History"
+                app:backgroundTint="@color/primary_purple" />
+
             <!-- Logout Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnLogout"

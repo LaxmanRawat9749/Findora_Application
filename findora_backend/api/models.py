@@ -175,6 +175,9 @@ class Item(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     reward = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    owner_returned_confirm = models.BooleanField(default=False)
+    finder_returned_confirm = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
     reported_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

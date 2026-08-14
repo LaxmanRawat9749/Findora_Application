@@ -760,6 +760,82 @@ class AdminVerifyItemView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Item Return Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MarkItemReturnedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            item = Item.objects.get(pk=pk)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if item.user != request.user:
+            return Response({'error': 'Only the owner can mark the item as returned'}, status=status.HTTP_403_FORBIDDEN)
+
+        if item.status == 'resolved':
+            return Response({'error': 'Item is already resolved'}, status=status.HTTP_400_BAD_REQUEST)
+
+        item.owner_returned_confirm = True
+        item.save(update_fields=['owner_returned_confirm', 'updated_at'])
+
+        # Notify the finder via Conversation if one exists
+        conversations = Conversation.objects.filter(item=item)
+        if conversations.exists():
+            for conv in conversations:
+                other_user = conv.finder if conv.owner == request.user else conv.owner
+                Notification.objects.create(
+                    user=other_user,
+                    type='message',
+                    message=f'The user {request.user.username} has marked "{item.title}" as returned. Please confirm.',
+                    related_item=item
+                )
+
+        return Response({'message': 'Return confirmation sent to finder'}, status=status.HTTP_200_OK)
+
+class ConfirmItemReturnView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            item = Item.objects.get(pk=pk)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if item.user == request.user:
+            return Response({'error': 'The owner cannot confirm the return on behalf of the finder'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not item.owner_returned_confirm:
+            return Response({'error': 'The owner has not marked this item as returned yet'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if item.status == 'resolved':
+            return Response({'message': 'Item is already resolved'}, status=status.HTTP_200_OK)
+
+        item.finder_returned_confirm = True
+        item.status = 'resolved'
+        item.resolved_at = timezone.now()
+        item.save(update_fields=['finder_returned_confirm', 'status', 'resolved_at', 'updated_at'])
+
+        Notification.objects.create(
+            user=item.user,
+            type='message',
+            message=f'{request.user.username} confirmed the return of "{item.title}". Item is now resolved.',
+            related_item=item
+        )
+
+        return Response({'message': 'Item return confirmed and resolved'}, status=status.HTTP_200_OK)
+
+class MyReportsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        queryset = Item.objects.filter(user=request.user).prefetch_related('images').order_by('-reported_at')
+        serializer = ItemSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Chat Views
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -30,6 +30,13 @@ public class Item {
     @SerializedName("updated_at")
     private String updatedAt;
     
+    @SerializedName("owner_returned_confirm")
+    private boolean ownerReturnedConfirm;
+    @SerializedName("finder_returned_confirm")
+    private boolean finderReturnedConfirm;
+    @SerializedName("resolved_at")
+    private String resolvedAt;
+    
     private List<ItemImage> images;
 
     public Item() {}
@@ -87,6 +94,15 @@ public class Item {
 
     public String getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+
+    public boolean isOwnerReturnedConfirm() { return ownerReturnedConfirm; }
+    public void setOwnerReturnedConfirm(boolean ownerReturnedConfirm) { this.ownerReturnedConfirm = ownerReturnedConfirm; }
+
+    public boolean isFinderReturnedConfirm() { return finderReturnedConfirm; }
+    public void setFinderReturnedConfirm(boolean finderReturnedConfirm) { this.finderReturnedConfirm = finderReturnedConfirm; }
+
+    public String getResolvedAt() { return resolvedAt; }
+    public void setResolvedAt(String resolvedAt) { this.resolvedAt = resolvedAt; }
 
     public List<ItemImage> getImages() { return images; }
     public void setImages(List<ItemImage> images) { this.images = images; }

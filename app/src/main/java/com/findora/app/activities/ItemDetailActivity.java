@@ -26,6 +26,7 @@ import com.findora.app.utils.SessionManager;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import com.findora.app.models.MessageResponse;
 
 public class ItemDetailActivity extends BaseActivity {
 
@@ -77,6 +78,9 @@ public class ItemDetailActivity extends BaseActivity {
         });
 
         binding.btnViewMap.setOnClickListener(v -> openMap());
+
+        binding.btnMarkReturned.setOnClickListener(v -> handleMarkReturned());
+        binding.btnConfirmReturn.setOnClickListener(v -> handleConfirmReturn());
 
         loadItemDetail();
     }
@@ -186,23 +190,106 @@ public class ItemDetailActivity extends BaseActivity {
             }
         }
 
-        // Check if user is the poster of the item
-        if (item.getUser() == baseSessionManager.getUserId()) {
-            binding.layoutDefaultActions.setVisibility(View.VISIBLE);
+        binding.layoutReturnActions.setVisibility(View.GONE);
+        binding.btnMarkReturned.setVisibility(View.GONE);
+        binding.btnConfirmReturn.setVisibility(View.GONE);
+        binding.tvReturnedBadge.setVisibility(View.GONE);
+
+        if ("resolved".equalsIgnoreCase(item.getStatus())) {
+            binding.layoutDefaultActions.setVisibility(View.GONE);
             binding.layoutFoundActions.setVisibility(View.GONE);
-            binding.btnChat.setVisibility(View.VISIBLE);
-            binding.btnChat.setText("View Conversations");
+            binding.tvReturnedBadge.setVisibility(View.VISIBLE);
         } else {
-            if ("found".equalsIgnoreCase(item.getType())) {
-                binding.layoutDefaultActions.setVisibility(View.GONE);
-                binding.layoutFoundActions.setVisibility(View.VISIBLE);
-            } else {
+            // Check if user is the poster of the item
+            if (item.getUser() == baseSessionManager.getUserId()) {
                 binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                 binding.layoutFoundActions.setVisibility(View.GONE);
                 binding.btnChat.setVisibility(View.VISIBLE);
-                binding.btnChat.setText("Contact Owner");
+                binding.btnChat.setText("View Conversations");
+                
+                if (!item.isOwnerReturnedConfirm()) {
+                    binding.layoutReturnActions.setVisibility(View.VISIBLE);
+                    binding.btnMarkReturned.setVisibility(View.VISIBLE);
+                }
+            } else {
+                if ("found".equalsIgnoreCase(item.getType())) {
+                    binding.layoutDefaultActions.setVisibility(View.GONE);
+                    binding.layoutFoundActions.setVisibility(View.VISIBLE);
+                } else {
+                    binding.layoutDefaultActions.setVisibility(View.VISIBLE);
+                    binding.layoutFoundActions.setVisibility(View.GONE);
+                    binding.btnChat.setVisibility(View.VISIBLE);
+                    binding.btnChat.setText("Contact Owner");
+                }
+                
+                if (item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm()) {
+                    binding.layoutReturnActions.setVisibility(View.VISIBLE);
+                    binding.btnConfirmReturn.setVisibility(View.VISIBLE);
+                }
             }
         }
+    }
+
+    private void handleMarkReturned() {
+        if (currentItem == null) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Mark as Returned")
+                .setMessage("Are you sure you want to mark this item as returned? The finder will be notified to confirm.")
+                .setPositiveButton("Yes", (dialog, which) -> callMarkReturned())
+                .setNegativeButton("No", null)
+                .show();
+    }
+
+    private void callMarkReturned() {
+        binding.progressBar.setVisibility(View.VISIBLE);
+        apiService.markItemReturned(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
+            @Override
+            public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful()) {
+                    Toast.makeText(ItemDetailActivity.this, "Item marked as returned", Toast.LENGTH_SHORT).show();
+                    loadItemDetail();
+                } else {
+                    Toast.makeText(ItemDetailActivity.this, "Failed to mark as returned", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<MessageResponse> call, Throwable t) {
+                binding.progressBar.setVisibility(View.GONE);
+                Toast.makeText(ItemDetailActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void handleConfirmReturn() {
+        if (currentItem == null) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm Return")
+                .setMessage("Are you sure you want to confirm the return of this item? This will resolve the listing.")
+                .setPositiveButton("Yes", (dialog, which) -> callConfirmReturn())
+                .setNegativeButton("No", null)
+                .show();
+    }
+
+    private void callConfirmReturn() {
+        binding.progressBar.setVisibility(View.VISIBLE);
+        apiService.confirmItemReturn(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
+            @Override
+            public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful()) {
+                    Toast.makeText(ItemDetailActivity.this, "Return confirmed successfully", Toast.LENGTH_SHORT).show();
+                    loadItemDetail();
+                } else {
+                    Toast.makeText(ItemDetailActivity.this, "Failed to confirm return", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<MessageResponse> call, Throwable t) {
+                binding.progressBar.setVisibility(View.GONE);
+                Toast.makeText(ItemDetailActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void openMap() {
