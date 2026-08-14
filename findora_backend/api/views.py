@@ -891,7 +891,7 @@ class ConversationInitView(APIView):
         # Check both orientations to ensure we never duplicate a conversation
         # if the IDs were somehow flipped.
         conversation = Conversation.objects.filter(
-            Q(item_id=item.id) & (
+            Q(item__category=item.category) & (
                 (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
                 (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
             )
