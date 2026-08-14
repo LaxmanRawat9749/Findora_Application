@@ -38,7 +38,7 @@ public class MyReportsActivity extends BaseActivity {
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        adapter = new ItemAdapter(itemList, item -> {
+        adapter = new ItemAdapter(this, item -> {
             Intent intent = new Intent(this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
             startActivity(intent);
@@ -67,7 +67,7 @@ public class MyReportsActivity extends BaseActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     itemList.clear();
                     itemList.addAll(response.body());
-                    adapter.notifyDataSetChanged();
+                    adapter.setItems(itemList);
                     updateEmptyState();
                 } else {
                     Toast.makeText(MyReportsActivity.this, "Failed to load reports", Toast.LENGTH_SHORT).show();

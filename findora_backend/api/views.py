@@ -887,10 +887,11 @@ class ConversationInitView(APIView):
             owner_user = request.user
             finder_user = item.user
             
-        # Search for any existing conversation between these two users, regardless of item
+        # Search for any existing conversation between these two users FOR THIS SPECIFIC ITEM
         conversation = Conversation.objects.filter(
-            (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
-            (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
+            item_id=item.id,
+            owner_id=owner_user.id,
+            finder_id=finder_user.id
         ).first()
         
         if not conversation:
