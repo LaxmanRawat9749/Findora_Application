@@ -336,6 +336,14 @@ public class ItemDetailActivity extends BaseActivity {
                     
                     Intent intent = new Intent(ItemDetailActivity.this, ChatActivity.class);
                     intent.putExtra(Constants.EXTRA_CONVERSATION_ID, conversationId);
+                    intent.putExtra("ITEM_ID", currentItem.getId());
+                    if ("lost".equalsIgnoreCase(currentItem.getType())) {
+                        intent.putExtra("OWNER_ID", currentItem.getUser());
+                        intent.putExtra("FINDER_ID", baseSessionManager.getUserId());
+                    } else {
+                        intent.putExtra("OWNER_ID", baseSessionManager.getUserId());
+                        intent.putExtra("FINDER_ID", currentItem.getUser());
+                    }
                     String ownerName = currentItem.getUserName() != null ? currentItem.getUserName() : "Owner";
                     intent.putExtra("other_user_name", ownerName);
                     startActivity(intent);

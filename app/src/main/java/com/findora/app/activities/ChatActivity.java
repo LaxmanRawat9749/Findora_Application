@@ -72,6 +72,9 @@ public class ChatActivity extends BaseActivity {
         apiService = RetrofitClient.getInstance(this).getApi();
 
         conversationId = getIntent().getIntExtra(Constants.EXTRA_CONVERSATION_ID, -1);
+        int itemId = getIntent().getIntExtra("ITEM_ID", -1);
+        int ownerId = getIntent().getIntExtra("OWNER_ID", -1);
+        int finderId = getIntent().getIntExtra("FINDER_ID", -1);
         String otherUserName = getIntent().getStringExtra("other_user_name");
 
         if (conversationId == -1) {
