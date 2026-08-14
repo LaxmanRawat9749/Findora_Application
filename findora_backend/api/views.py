@@ -888,10 +888,13 @@ class ConversationInitView(APIView):
             finder_user = item.user
             
         # Search for any existing conversation between these two users FOR THIS SPECIFIC ITEM
+        # Check both orientations to ensure we never duplicate a conversation
+        # if the IDs were somehow flipped.
         conversation = Conversation.objects.filter(
-            item_id=item.id,
-            owner_id=owner_user.id,
-            finder_id=finder_user.id
+            Q(item_id=item.id) & (
+                (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
+                (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
+            )
         ).first()
         
         if not conversation:
