@@ -82,6 +82,22 @@ public class ItemDetailActivity extends BaseActivity {
         binding.btnMarkReturned.setOnClickListener(v -> handleMarkReturned());
         binding.btnConfirmReturn.setOnClickListener(v -> handleConfirmReturn());
 
+        binding.layoutReporter.setOnClickListener(v -> {
+            if (currentItem != null && currentItem.getUser() != -1) {
+                Intent intent = new Intent(this, UserProfileActivity.class);
+                intent.putExtra(UserProfileActivity.EXTRA_USER_ID, currentItem.getUser());
+                startActivity(intent);
+            }
+        });
+
+        binding.ivProfileLink.setOnClickListener(v -> {
+            if (currentItem != null && currentItem.getUser() != -1) {
+                Intent intent = new Intent(this, UserProfileActivity.class);
+                intent.putExtra(UserProfileActivity.EXTRA_USER_ID, currentItem.getUser());
+                startActivity(intent);
+            }
+        });
+
         loadItemDetail();
     }
 

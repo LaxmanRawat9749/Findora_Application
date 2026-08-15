@@ -142,10 +142,15 @@
 
                         <!-- Reporter -->
                         <LinearLayout
+                            android:id="@+id/layout_reporter"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:orientation="horizontal"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:background="?attr/selectableItemBackground"
+                            android:paddingVertical="4dp">
 
                             <com.google.android.material.card.MaterialCardView
                                 android:id="@+id/cv_reporter_avatar"
@@ -172,6 +177,17 @@
                                 android:textColor="@color/text_gray"
                                 android:textSize="@dimen/text_caption"
                                 android:fontFamily="sans-serif-medium" />
+
+                            <ImageView
+                                android:id="@+id/iv_profile_link"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginStart="8dp"
+                                android:src="@drawable/ic_person"
+                                app:tint="@color/primary_purple"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?attr/selectableItemBackgroundBorderless" />
                         </LinearLayout>
 
                         <!-- Location -->
