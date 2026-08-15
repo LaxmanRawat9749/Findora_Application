@@ -84,6 +84,41 @@
                     android:textSize="16sp" />
             </RadioGroup>
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Select Payment Method"
+                android:textColor="@color/text_dark"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-black" />
+
+            <RadioGroup
+                android:id="@+id/rg_providers"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/rb_khalti"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:padding="16dp"
+                    android:text="Khalti"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/rb_esewa"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:padding="16dp"
+                    android:text="eSewa"
+                    android:textSize="16sp" />
+            </RadioGroup>
+
             <Space
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
@@ -96,7 +131,7 @@
                 android:layout_height="@dimen/button_height"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="24dp"
-                android:text="Pay with Khalti" />
+                android:text="Pay Now" />
 
         </LinearLayout>
     </ScrollView>

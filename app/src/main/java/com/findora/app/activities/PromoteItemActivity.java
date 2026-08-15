@@ -24,6 +24,7 @@ public class PromoteItemActivity extends BaseActivity {
     private ApiService apiService;
     private int itemId = -1;
     private String selectedPackage = "";
+    private String selectedProvider = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,9 +53,21 @@ public class PromoteItemActivity extends BaseActivity {
             }
         });
 
+        binding.rgProviders.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rb_khalti) {
+                selectedProvider = "khalti";
+            } else if (checkedId == R.id.rb_esewa) {
+                selectedProvider = "esewa";
+            }
+        });
+
         binding.btnPay.setOnClickListener(v -> {
             if (selectedPackage.isEmpty()) {
                 Toast.makeText(this, "Please select a package", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (selectedProvider.isEmpty()) {
+                Toast.makeText(this, "Please select a payment method", Toast.LENGTH_SHORT).show();
                 return;
             }
             initiatePayment();
@@ -65,7 +78,7 @@ public class PromoteItemActivity extends BaseActivity {
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.btnPay.setEnabled(false);
 
-        PaymentRequest.Initiate request = new PaymentRequest.Initiate(itemId, selectedPackage);
+        PaymentRequest.Initiate request = new PaymentRequest.Initiate(itemId, selectedPackage, selectedProvider);
         apiService.initiatePayment(request).enqueue(new Callback<PaymentResponse.Initiate>() {
             @Override
             public void onResponse(Call<PaymentResponse.Initiate> call, Response<PaymentResponse.Initiate> response) {

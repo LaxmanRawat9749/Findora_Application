@@ -9,18 +9,22 @@ public class PaymentRequest {
         private int itemId;
         
         @SerializedName("package")
-        private String pkg;
+        private String packageKey;
+        
+        @SerializedName("provider")
+        private String provider;
 
-        public Initiate(int itemId, String pkg) {
+        public Initiate(int itemId, String packageKey, String provider) {
             this.itemId = itemId;
-            this.pkg = pkg;
+            this.packageKey = packageKey;
+            this.provider = provider;
         }
 
         public int getItemId() { return itemId; }
         public void setItemId(int itemId) { this.itemId = itemId; }
 
-        public String getPkg() { return pkg; }
-        public void setPkg(String pkg) { this.pkg = pkg; }
+        public String getPackageKey() { return packageKey; }
+        public String getProvider() { return provider; }
     }
 
     public static class Verify {
