@@ -5,6 +5,8 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.conf import settings
+from django.shortcuts import render
+from django.http import HttpResponse
 
 from .models import Item, Payment
 
@@ -69,25 +71,27 @@ class InitiatePaymentView(APIView):
         # Call Khalti API to generate pidx and payment_url
         secret_key = getattr(settings, 'KHALTI_SECRET_KEY', 'test_secret_key')
         khalti_url = f"{getattr(settings, 'KHALTI_API_URL', 'https://a.khalti.com/api/v2')}/epayment/initiate/"
+        # We need a return URL handled by Django
+        return_url = request.build_absolute_uri('/api/payments/callback/')
         
-        # We need a return URL. For Android WebView interception, we use a custom scheme.
-        return_url = "findorapp://payment/callback"
+        # Ensure the website_url matches the environment
+        website_url = "https://findora-application.onrender.com" if not getattr(settings, 'DEBUG', True) else "http://127.0.0.1:8000"
         
         payload = {
             "return_url": return_url,
-            "website_url": "https://findora.app",
-            "amount": price * 100,  # in paisa
+            "website_url": website_url,
+            "amount": int(price * 100),  # strictly an integer in paisa
             "purchase_order_id": str(payment.id),
             "purchase_order_name": item.title,
             "customer_info": {
-                "name": request.user.username,
+                "name": request.user.username or "Findora User",
                 "email": request.user.email or "user@findora.app",
-                "phone": getattr(request.user, 'phone_number', '9800000000')
+                "phone": getattr(request.user, 'phone_number', '9800000000') or "9800000000"
             }
         }
         
         headers = {
-            "Authorization": f"key {secret_key}",
+            "Authorization": f"Key {secret_key}",
             "Content-Type": "application/json"
         }
         
@@ -109,12 +113,33 @@ class InitiatePaymentView(APIView):
             }, status=status.HTTP_200_OK)
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Khalti initiate failed: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                logger.error(f"Khalti Response: {e.response.text}")
+            payment_env = getattr(settings, 'PAYMENT_ENV', 'test')
+            khalti_status = khalti_resp.status_code if 'khalti_resp' in locals() else 'Unknown'
+            khalti_body = khalti_resp.text if 'khalti_resp' in locals() else 'None'
+            key_configured = bool(getattr(settings, 'KHALTI_SECRET_KEY', None) and getattr(settings, 'KHALTI_SECRET_KEY') != 'test_secret_key')
+            
+            logger.error(
+                f"KHALTI INITIATE DIAGNOSTIC:\n"
+                f"Endpoint: {khalti_url}\n"
+                f"HTTP Status: {khalti_status}\n"
+                f"Response Body: {khalti_body}\n"
+                f"Exception: {str(e)}\n"
+                f"Package: {package_key}\n"
+                f"Amount (Paisa): {price * 100}\n"
+                f"Environment: {payment_env}\n"
+                f"KHALTI_SECRET_KEY configured: {key_configured}"
+            )
+            
             payment.status = 'FAILED'
             payment.save(update_fields=['status'])
-            return Response({'error': 'Failed to initiate payment with Khalti.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            error_msg = "Payment service is temporarily unavailable."
+            if khalti_status == 401:
+                error_msg = "Payment configuration error (Unauthorized)."
+            elif khalti_status == 400:
+                error_msg = "Unable to start payment. Invalid request parameters."
+                
+            return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerifyPaymentView(APIView):
@@ -202,3 +227,29 @@ class VerifyPaymentView(APIView):
             payment.status = 'FAILED'
             payment.save()
             return Response({'error': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+class PaymentCallbackView(APIView):
+    """
+    GET /api/payments/callback/
+    Handles the GET redirect from Khalti after payment.
+    Khalti redirects to this URL with query params: pidx, transaction_id, amount, mobile, purchase_order_id, purchase_order_name, status.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        pidx = request.query_params.get('pidx')
+        status_param = request.query_params.get('status')
+        
+        # We return a simple HTML page that confirms the status.
+        # However, the Android app's WebView should intercept this URL before it fully loads.
+        html = f"""
+        <html>
+        <head><title>Khalti Payment Callback</title></head>
+        <body>
+            <h1>Payment Status: {status_param}</h1>
+            <p>PIDX: {pidx}</p>
+            <p>Please return to the application.</p>
+        </body>
+        </html>
+        """
+        return HttpResponse(html)

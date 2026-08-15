@@ -42,6 +42,7 @@ urlpatterns = [
     # ─── Payments ─────────────────────────────────────────────────────────────
     path('payments/initiate/', payment_views.InitiatePaymentView.as_view(), name='payment-initiate'),
     path('payments/verify/', payment_views.VerifyPaymentView.as_view(), name='payment-verify'),
+    path('payments/callback/', payment_views.PaymentCallbackView.as_view(), name='payment-callback'),
 
     # ─── Chat ─────────────────────────────────────────────────────────────────
     path('chat/', views.ChatListView.as_view(), name='chat'),

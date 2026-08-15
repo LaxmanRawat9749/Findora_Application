@@ -61,7 +61,7 @@ public class KhaltiWebViewActivity extends BaseActivity {
                 String url = uri.toString();
                 
                 // Intercept the return_url we configured on the backend
-                if (url.startsWith("findorapp://payment/callback")) {
+                if (url.contains("/api/payments/callback/")) {
                     String pidx = uri.getQueryParameter("pidx");
                     String status = uri.getQueryParameter("status");
                     

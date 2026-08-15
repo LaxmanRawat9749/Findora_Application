@@ -84,7 +84,31 @@ public class PromoteItemActivity extends BaseActivity {
                 } else {
                     binding.progressBar.setVisibility(View.GONE);
                     binding.btnPay.setEnabled(true);
-                    Toast.makeText(PromoteItemActivity.this, "Failed to initiate payment", Toast.LENGTH_SHORT).show();
+                    
+                    String errorMsg = "Unable to start payment. Please try again.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errBody = response.errorBody().string();
+                            if (errBody.contains("error")) {
+                                // Basic parsing for simple JSON {"error": "..."}
+                                int start = errBody.indexOf("error\":\"") + 8;
+                                int end = errBody.indexOf("\"", start);
+                                if (start > 7 && end > start) {
+                                    errorMsg = errBody.substring(start, end);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    
+                    if (response.code() == 401) {
+                        errorMsg = "Payment configuration error (Unauthorized).";
+                    } else if (response.code() >= 500) {
+                        errorMsg = "Payment service is temporarily unavailable.";
+                    }
+                    
+                    Toast.makeText(PromoteItemActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                 }
             }
 
@@ -92,7 +116,7 @@ public class PromoteItemActivity extends BaseActivity {
             public void onFailure(Call<PaymentResponse.Initiate> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
                 binding.btnPay.setEnabled(true);
-                Toast.makeText(PromoteItemActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                Toast.makeText(PromoteItemActivity.this, "Unable to connect to server. Please try again.", Toast.LENGTH_LONG).show();
             }
         });
     }
