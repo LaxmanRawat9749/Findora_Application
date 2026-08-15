@@ -566,13 +566,30 @@ class ItemListCreateView(APIView):
     def get(self, request):
         queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
 
+        item_type = request.query_params.get('type', '').strip()
+
         # Role-based filtering:
-        # Owners: see their own Lost items + ALL Found items.
-        # Finders: see ALL Lost items + their own Found items.
+        # Owners: see their own Lost items + ALL Found items (for discovery).
+        # Finders: see ALL Lost items (for discovery) + their own Found items.
+        # If an explicit section (type) is requested, restrict appropriately.
         if request.user.role == 'owner':
-            queryset = queryset.filter(Q(type='lost', user=request.user) | Q(type='found'))
+            if item_type == 'found':
+                queryset = queryset.filter(type='found', user=request.user)
+            elif item_type == 'lost':
+                queryset = queryset.filter(type='lost', user=request.user)
+            else:
+                queryset = queryset.filter(Q(type='lost', user=request.user) | Q(type='found'))
         elif request.user.role == 'finder':
-            queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
+            if item_type == 'found':
+                queryset = queryset.filter(type='found', user=request.user)
+            elif item_type == 'lost':
+                queryset = queryset.filter(type='lost')
+            else:
+                queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
+        else:
+            # Fallback for admins or other roles
+            if item_type:
+                queryset = queryset.filter(type=item_type)
 
         search = request.query_params.get('search', '').strip()
         now = timezone.now()
@@ -603,10 +620,7 @@ class ItemListCreateView(APIView):
         else:
             queryset = queryset.order_by('-active_featured', '-reported_at')
 
-        item_type = request.query_params.get('type', '').strip()
-        if item_type:
-            queryset = queryset.filter(type=item_type)
-
+        # Category filter
         category = request.query_params.get('category', '').strip()
         if category:
             queryset = queryset.filter(category=category)
@@ -660,6 +674,15 @@ class ItemDetailView(APIView):
         item = self._get_item(pk)
         if not item:
             return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        # Enforce role-based visibility rules for detail view
+        if request.user.role == 'owner':
+            if item.type == 'lost' and item.user != request.user:
+                return Response({'error': 'You do not have permission to view this lost item.'}, status=status.HTTP_403_FORBIDDEN)
+        elif request.user.role == 'finder':
+            if item.type == 'found' and item.user != request.user:
+                return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 

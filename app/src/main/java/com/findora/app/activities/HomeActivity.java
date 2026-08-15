@@ -147,7 +147,7 @@ public class HomeActivity extends BaseActivity {
             // Clear search when switching tabs
             binding.etHomeSearch.setText("");
             currentSearch = "";
-            applyFilters();
+            loadItems();
         });
     }
 
@@ -233,7 +233,14 @@ public class HomeActivity extends BaseActivity {
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        apiService.getItems().enqueue(new Callback<List<Item>>() {
+        Call<List<Item>> call;
+        if (currentType != null && !currentType.isEmpty()) {
+            call = apiService.filterByType(currentType);
+        } else {
+            call = apiService.getItems();
+        }
+
+        call.enqueue(new Callback<List<Item>>() {
             @Override
             public void onResponse(Call<List<Item>> call, Response<List<Item>> response) {
                 binding.progressBar.setVisibility(View.GONE);
@@ -265,10 +272,9 @@ public class HomeActivity extends BaseActivity {
         String searchLower = currentSearch.toLowerCase().trim();
         
         for (Item item : originalItemList) {
-            boolean matchType = currentType == null || currentType.equalsIgnoreCase(item.getType());
             boolean matchCat = currentCategory == null || currentCategory.equalsIgnoreCase(item.getCategory());
             
-            if (!matchType || !matchCat) continue;
+            if (!matchCat) continue;
             
             if (searchLower.isEmpty()) {
                 filtered.add(item);
