@@ -39,6 +39,11 @@
     <color name="card_border">#333333</color>
     <color name="divider">#2E2E2E</color>
 
+    <!-- Findora Light Colors -->
+    <color name="findora_primary">#534AB7</color>
+    <color name="findora_light_purple">#EEEDFE</color>
+    <color name="findora_background">#F8F7FF</color>
+
     <!-- Standard -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>

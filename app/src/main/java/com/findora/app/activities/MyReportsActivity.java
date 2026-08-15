@@ -38,7 +38,7 @@ public class MyReportsActivity extends BaseActivity {
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        adapter = new ItemAdapter(this, item -> {
+        adapter = new ItemAdapter(this, true, item -> {
             Intent intent = new Intent(this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
             startActivity(intent);
