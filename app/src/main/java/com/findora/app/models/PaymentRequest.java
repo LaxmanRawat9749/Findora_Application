@@ -24,21 +24,14 @@ public class PaymentRequest {
     }
 
     public static class Verify {
-        @SerializedName("payment_id")
-        private int paymentId;
-        
-        @SerializedName("token")
-        private String token;
+        @SerializedName("pidx")
+        private String pidx;
 
-        public Verify(int paymentId, String token) {
-            this.paymentId = paymentId;
-            this.token = token;
+        public Verify(String pidx) {
+            this.pidx = pidx;
         }
 
-        public int getPaymentId() { return paymentId; }
-        public void setPaymentId(int paymentId) { this.paymentId = paymentId; }
-
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
+        public String getPidx() { return pidx; }
+        public void setPidx(String pidx) { this.pidx = pidx; }
     }
 }

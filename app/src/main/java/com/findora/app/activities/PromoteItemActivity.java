@@ -70,10 +70,17 @@ public class PromoteItemActivity extends BaseActivity {
             @Override
             public void onResponse(Call<PaymentResponse.Initiate> call, Response<PaymentResponse.Initiate> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Mock Khalti Payment flow here.
-                    // In a real app, you would pass these details to the Khalti SDK
-                    // and wait for the success callback to get the token.
-                    mockKhaltiPaymentFlow(response.body().getPaymentId());
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.btnPay.setEnabled(true);
+                    
+                    String paymentUrl = response.body().getPaymentUrl();
+                    String pidx = response.body().getPidx();
+                    
+                    if (paymentUrl != null && !paymentUrl.isEmpty()) {
+                        launchKhaltiWebView(paymentUrl, pidx);
+                    } else {
+                        Toast.makeText(PromoteItemActivity.this, "Failed to get Khalti payment URL", Toast.LENGTH_SHORT).show();
+                    }
                 } else {
                     binding.progressBar.setVisibility(View.GONE);
                     binding.btnPay.setEnabled(true);
@@ -90,25 +97,33 @@ public class PromoteItemActivity extends BaseActivity {
         });
     }
 
-    private void mockKhaltiPaymentFlow(int paymentId) {
-        // Simulating the Khalti SDK opening and user paying successfully.
-        new AlertDialog.Builder(this)
-                .setTitle("Mock Khalti Payment")
-                .setMessage("Simulating successful payment via Khalti SDK...")
-                .setCancelable(false)
-                .setPositiveButton("Pay Success", (dialog, which) -> {
-                    verifyPayment(paymentId, "mock_khalti_token_123");
-                })
-                .setNegativeButton("Cancel", (dialog, which) -> {
-                    binding.progressBar.setVisibility(View.GONE);
-                    binding.btnPay.setEnabled(true);
-                    Toast.makeText(PromoteItemActivity.this, "Payment cancelled", Toast.LENGTH_SHORT).show();
-                })
-                .show();
+    private void launchKhaltiWebView(String paymentUrl, String pidx) {
+        Intent intent = new Intent(this, KhaltiWebViewActivity.class);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_URL, paymentUrl);
+        // Request code 1001 for Khalti callback
+        startActivityForResult(intent, 1001);
     }
 
-    private void verifyPayment(int paymentId, String token) {
-        PaymentRequest.Verify request = new PaymentRequest.Verify(paymentId, token);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
+            String status = data.getStringExtra(KhaltiWebViewActivity.EXTRA_STATUS);
+            String pidx = data.getStringExtra(KhaltiWebViewActivity.EXTRA_PIDX);
+            
+            if ("Completed".equalsIgnoreCase(status) && pidx != null) {
+                binding.progressBar.setVisibility(View.VISIBLE);
+                binding.btnPay.setEnabled(false);
+                verifyPayment(pidx);
+            } else {
+                Toast.makeText(this, "Payment " + status, Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void verifyPayment(String pidx) {
+        PaymentRequest.Verify request = new PaymentRequest.Verify(pidx);
         apiService.verifyPayment(request).enqueue(new Callback<PaymentResponse.Verify>() {
             @Override
             public void onResponse(Call<PaymentResponse.Verify> call, Response<PaymentResponse.Verify> response) {

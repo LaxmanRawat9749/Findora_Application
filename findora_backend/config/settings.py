@@ -173,6 +173,15 @@ if not BREVO_API_KEY:
         "Add BREVO_API_KEY to your environment variables (Render Dashboard → Environment)."
     )
 
+# ─── Khalti Payment Gateway ────────────────────────────────────────────────────
+KHALTI_SECRET_KEY = os.environ.get('KHALTI_SECRET_KEY', 'test_secret_key')
+PAYMENT_ENV = os.environ.get('PAYMENT_ENV', 'test').lower()
+
+if PAYMENT_ENV == 'live':
+    KHALTI_API_URL = "https://khalti.com/api/v2"
+else:
+    KHALTI_API_URL = "https://a.khalti.com/api/v2"
+
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with
 # its endpoint, HTTP status, and elapsed time. Sensitive data (passwords, tokens)

@@ -66,14 +66,55 @@ class InitiatePaymentView(APIView):
             promotion_duration=package_key
         )
 
-        return Response({
-            'payment_id': payment.id,
-            'amount': price,
-            'amount_paisa': price * 100,
-            'public_key': getattr(settings, 'KHALTI_PUBLIC_KEY', 'test_public_key'),
-            'product_identity': str(item.id),
-            'product_name': item.title
-        }, status=status.HTTP_200_OK)
+        # Call Khalti API to generate pidx and payment_url
+        secret_key = getattr(settings, 'KHALTI_SECRET_KEY', 'test_secret_key')
+        khalti_url = f"{getattr(settings, 'KHALTI_API_URL', 'https://a.khalti.com/api/v2')}/epayment/initiate/"
+        
+        # We need a return URL. For Android WebView interception, we use a custom scheme.
+        return_url = "findorapp://payment/callback"
+        
+        payload = {
+            "return_url": return_url,
+            "website_url": "https://findora.app",
+            "amount": price * 100,  # in paisa
+            "purchase_order_id": str(payment.id),
+            "purchase_order_name": item.title,
+            "customer_info": {
+                "name": request.user.username,
+                "email": request.user.email or "user@findora.app",
+                "phone": getattr(request.user, 'phone_number', '9800000000')
+            }
+        }
+        
+        headers = {
+            "Authorization": f"key {secret_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            khalti_resp = requests.post(khalti_url, json=payload, headers=headers)
+            khalti_resp.raise_for_status()
+            data = khalti_resp.json()
+            
+            pidx = data.get('pidx')
+            payment_url = data.get('payment_url')
+            
+            # Save pidx to transaction_id temporarily
+            payment.transaction_id = pidx
+            payment.save(update_fields=['transaction_id'])
+            
+            return Response({
+                'payment_url': payment_url,
+                'pidx': pidx,
+            }, status=status.HTTP_200_OK)
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Khalti initiate failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Khalti Response: {e.response.text}")
+            payment.status = 'FAILED'
+            payment.save(update_fields=['status'])
+            return Response({'error': 'Failed to initiate payment with Khalti.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerifyPaymentView(APIView):
@@ -89,16 +130,15 @@ class VerifyPaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        payment_id = request.data.get('payment_id')
-        khalti_token = request.data.get('token')
+        pidx = request.data.get('pidx')
 
-        if not payment_id or not khalti_token:
-            return Response({'error': 'payment_id and token are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not pidx:
+            return Response({'error': 'pidx is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            payment = Payment.objects.get(pk=payment_id, user=request.user)
+            payment = Payment.objects.get(transaction_id=pidx, user=request.user)
         except Payment.DoesNotExist:
-            return Response({'error': 'Payment record not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Payment record not found for this pidx.'}, status=status.HTTP_404_NOT_FOUND)
 
         if payment.status == 'COMPLETED':
             return Response({'message': 'Payment already completed.'}, status=status.HTTP_200_OK)
@@ -107,30 +147,36 @@ class VerifyPaymentView(APIView):
             return Response({'error': 'Payment is not in a pending state.'}, status=status.HTTP_400_BAD_REQUEST)
 
         secret_key = getattr(settings, 'KHALTI_SECRET_KEY', 'test_secret_key')
+        khalti_url = f"{getattr(settings, 'KHALTI_API_URL', 'https://a.khalti.com/api/v2')}/epayment/lookup/"
         
-        # Verify with Khalti API (Mocking if test_secret_key)
         is_verified = False
-        if secret_key == 'test_secret_key':
-            is_verified = True # MOCK verification
-        else:
-            url = "https://khalti.com/api/v2/payment/verify/"
-            payload = {
-                "token": khalti_token,
-                "amount": int(payment.amount * 100) # Khalti amount is in paisa
-            }
-            headers = {
-                "Authorization": f"Key {secret_key}"
-            }
-            try:
-                response = requests.post(url, data=payload, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    # Optionally verify amount and other details
-                    if data.get('state', {}).get('name') == 'Completed':
+        payload = {
+            "pidx": pidx
+        }
+        headers = {
+            "Authorization": f"Key {secret_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.post(khalti_url, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Verify status is Completed
+                if data.get('status') == 'Completed':
+                    # Verify amount matches (in paisa)
+                    if data.get('total_amount') == (payment.amount * 100):
                         is_verified = True
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Khalti verification failed: {e}")
-                return Response({'error': 'Payment verification failed due to network error.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    else:
+                        logger.error(f"Khalti lookup amount mismatch for pidx {pidx}. Expected {payment.amount * 100}, got {data.get('total_amount')}")
+                else:
+                    logger.warning(f"Khalti lookup returned status {data.get('status')} for pidx {pidx}")
+            else:
+                logger.error(f"Khalti lookup returned status code {response.status_code}: {response.text}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Khalti lookup failed: {e}")
+            return Response({'error': 'Payment verification failed due to network error.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if is_verified:
             # Activate Feature
@@ -138,7 +184,7 @@ class VerifyPaymentView(APIView):
             hours_to_add = PROMOTION_PACKAGES[payment.promotion_duration]['hours']
             
             payment.status = 'COMPLETED'
-            payment.transaction_id = khalti_token
+            # transaction_id is already pidx
             payment.verified_at = now
             payment.save()
 
