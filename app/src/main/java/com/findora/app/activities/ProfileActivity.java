@@ -140,6 +140,22 @@ public class ProfileActivity extends BaseActivity {
             startActivity(intent);
         });
 
+        // Setup Theme Toggle
+        int currentTheme = baseSessionManager.getThemeMode();
+        if (currentTheme == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO) {
+            binding.rbThemeLight.setChecked(true);
+        } else {
+            binding.rbThemeDark.setChecked(true);
+        }
+
+        binding.rgTheme.setOnCheckedChangeListener((group, checkedId) -> {
+            int newTheme = (checkedId == R.id.rbThemeLight) 
+                    ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO 
+                    : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
+            baseSessionManager.setThemeMode(newTheme);
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(newTheme);
+        });
+
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());
 
     }

@@ -25,6 +25,13 @@ public class Item {
     private Double latitude;
     private Double longitude;
     private double reward;
+    
+    @SerializedName("is_featured")
+    private boolean isFeatured;
+    
+    @SerializedName("featured_until")
+    private String featuredUntil;
+
     @SerializedName("reported_at")
     private String reportedAt;
     @SerializedName("updated_at")
@@ -88,6 +95,12 @@ public class Item {
 
     public double getReward() { return reward; }
     public void setReward(double reward) { this.reward = reward; }
+
+    public boolean isFeatured() { return isFeatured; }
+    public void setFeatured(boolean featured) { isFeatured = featured; }
+
+    public String getFeaturedUntil() { return featuredUntil; }
+    public void setFeaturedUntil(String featuredUntil) { this.featuredUntil = featuredUntil; }
 
     public String getReportedAt() { return reportedAt; }
     public void setReportedAt(String reportedAt) { this.reportedAt = reportedAt; }

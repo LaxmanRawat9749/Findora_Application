@@ -24,6 +24,7 @@ public class SessionManager {
     private static final String KEY_PROFILE_IMAGE = "profile_image";
     private static final String KEY_LOGIN_TIMESTAMP = "login_timestamp";
     private static final String KEY_LAST_ACTIVITY   = "last_activity";
+    private static final String KEY_THEME           = "app_theme";
 
     /** Session timeout: 2 hours in milliseconds (configurable). */
     public static final long SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000L; // 7,200,000 ms
@@ -73,6 +74,14 @@ public class SessionManager {
         prefs.edit()
              .putString(KEY_PROFILE_IMAGE, profileImage)
              .commit();
+    }
+
+    public void setThemeMode(int mode) {
+        prefs.edit().putInt(KEY_THEME, mode).commit();
+    }
+
+    public int getThemeMode() {
+        return prefs.getInt(KEY_THEME, androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
     }
 
     public String getProfileImage() {

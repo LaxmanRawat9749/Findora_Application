@@ -90,6 +90,14 @@ public class ItemDetailActivity extends BaseActivity {
             }
         });
 
+        binding.btnPromote.setOnClickListener(v -> {
+            if (currentItem != null) {
+                Intent intent = new Intent(this, PromoteItemActivity.class);
+                intent.putExtra(Constants.EXTRA_ITEM_ID, currentItem.getId());
+                startActivity(intent);
+            }
+        });
+
         loadItemDetail();
     }
 
@@ -135,6 +143,12 @@ public class ItemDetailActivity extends BaseActivity {
                 ContextCompat.getColor(this, isLost ? R.color.light_red : R.color.light_green));
         binding.tvTypeBadge.setTextColor(
                 ContextCompat.getColor(this, isLost ? R.color.error_red : R.color.success_green));
+
+        if (item.isFeatured()) {
+            binding.tvFeaturedBadge.setVisibility(View.VISIBLE);
+        } else {
+            binding.tvFeaturedBadge.setVisibility(View.GONE);
+        }
 
         binding.tvCategory.setText(item.getCategory() != null ?
                 item.getCategory().replace('_', ' ') : "");
@@ -202,6 +216,7 @@ public class ItemDetailActivity extends BaseActivity {
         }
 
         binding.layoutReturnActions.setVisibility(View.GONE);
+        binding.layoutOwnerActions.setVisibility(View.GONE);
         binding.btnMarkReturned.setVisibility(View.GONE);
         binding.btnConfirmReturn.setVisibility(View.GONE);
         binding.tvReturnedBadge.setVisibility(View.GONE);
@@ -213,6 +228,9 @@ public class ItemDetailActivity extends BaseActivity {
         } else {
             // Check if user is the poster of the item
             if (item.getUser() == baseSessionManager.getUserId()) {
+                if (!item.isFeatured()) {
+                    binding.layoutOwnerActions.setVisibility(View.VISIBLE);
+                }
                 binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                 binding.layoutFoundActions.setVisibility(View.GONE);
                 binding.btnChat.setVisibility(View.VISIBLE);

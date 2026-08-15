@@ -160,4 +160,11 @@ public interface ApiService {
 
     @POST("notifications/{id}/read/")
     Call<MessageResponse> markNotificationRead(@Path("id") int id);
+
+    // ─── Payments ────────────────────────────────────────────
+    @POST("payments/initiate/")
+    Call<PaymentResponse.Initiate> initiatePayment(@Body PaymentRequest.Initiate request);
+
+    @POST("payments/verify/")
+    Call<PaymentResponse.Verify> verifyPayment(@Body PaymentRequest.Verify request);
 }

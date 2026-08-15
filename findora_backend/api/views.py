@@ -575,6 +575,16 @@ class ItemListCreateView(APIView):
             queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
 
         search = request.query_params.get('search', '').strip()
+        now = timezone.now()
+        
+        queryset = queryset.annotate(
+            active_featured=Case(
+                When(is_featured=True, featured_until__gt=now, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+        
         if search:
             queryset = queryset.filter(
                 Q(category__icontains=search)
@@ -589,9 +599,9 @@ class ItemListCreateView(APIView):
                     default=Value(0),
                     output_field=IntegerField(),
                 )
-            ).order_by('-match_score', '-reported_at')
+            ).order_by('-active_featured', '-match_score', '-reported_at')
         else:
-            queryset = queryset.order_by('-reported_at')
+            queryset = queryset.order_by('-active_featured', '-reported_at')
 
         item_type = request.query_params.get('type', '').strip()
         if item_type:
@@ -891,7 +901,7 @@ class ConversationInitView(APIView):
         # Check both orientations to ensure we never duplicate a conversation
         # if the IDs were somehow flipped.
         conversation = Conversation.objects.filter(
-            Q(item__category=item.category) & (
+            Q(item=item) & (
                 (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
                 (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
             )
@@ -934,21 +944,24 @@ class ChatListView(APIView):
 
         messages = ChatMessage.objects.filter(conversation=conversation).select_related('sender')
 
-        # Replace text for messages deleted
+        filtered_messages = []
         for msg in messages:
             is_deleted_for_me = (msg.deleted_by_sender and msg.sender == request.user) or (msg.deleted_by_receiver and msg.sender != request.user)
-            if msg.deleted_for_everyone or is_deleted_for_me:
+            if is_deleted_for_me:
+                continue
+            if msg.deleted_for_everyone:
                 msg.message = "This message was deleted"
                 msg.message_type = 'text'
                 msg.caption = None
                 if msg.image:
                     msg.image.name = None
                 msg.deleted_for_everyone = True # Forces italic styling and removes click listener in frontend
+            filtered_messages.append(msg)
 
         # Mark messages sent to this user as read
         messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
 
-        serializer = ChatMessageSerializer(messages, many=True, context={'request': request})
+        serializer = ChatMessageSerializer(filtered_messages, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -1116,15 +1129,19 @@ class ConversationDetailView(APIView):
         except Conversation.DoesNotExist:
             return Response({'error': 'Conversation not found'}, status=status.HTTP_404_NOT_FOUND)
             
-        if request.user != conversation.owner and request.user != conversation.finder:
+        if request.user.id != conversation.owner_id and request.user.id != conversation.finder_id:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
             
-        if request.user == conversation.owner:
+        if request.user.id == conversation.owner_id:
             conversation.hidden_by_owner = True
             conversation.save(update_fields=['hidden_by_owner'])
+            ChatMessage.objects.filter(conversation=conversation, sender=request.user).update(deleted_by_sender=True)
+            ChatMessage.objects.filter(conversation=conversation).exclude(sender=request.user).update(deleted_by_receiver=True)
         else:
             conversation.hidden_by_finder = True
             conversation.save(update_fields=['hidden_by_finder'])
+            ChatMessage.objects.filter(conversation=conversation, sender=request.user).update(deleted_by_sender=True)
+            ChatMessage.objects.filter(conversation=conversation).exclude(sender=request.user).update(deleted_by_receiver=True)
             
         return Response({'message': 'Conversation removed'}, status=status.HTTP_200_OK)
 

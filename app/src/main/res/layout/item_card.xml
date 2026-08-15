@@ -111,6 +111,21 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <!-- Featured badge -->
+                <TextView
+                    android:id="@+id/tvFeaturedBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_badge_found"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="3dp"
+                    android:text="⭐ FEATURED"
+                    android:textColor="@color/primary_purple"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:visibility="gone" />
+
                 <!-- Type badge (Lost / Found) -->
                 <TextView
                     android:id="@+id/tvTypeBadge"

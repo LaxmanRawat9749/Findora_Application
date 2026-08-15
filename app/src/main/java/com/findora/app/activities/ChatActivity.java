@@ -95,10 +95,7 @@ public class ChatActivity extends BaseActivity {
 
         binding.toolbar.inflateMenu(R.menu.menu_chat);
         binding.toolbar.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == R.id.action_remove_conversation) {
-                showRemoveConversationDialog();
-                return true;
-            } else if (item.getItemId() == R.id.action_view_profile) {
+            if (item.getItemId() == R.id.action_view_profile) {
                 if (otherUserId != -1) {
                     openUserProfile(otherUserId);
                 } else {
@@ -563,36 +560,7 @@ public class ChatActivity extends BaseActivity {
         });
     }
 
-    private void showRemoveConversationDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Remove conversation?")
-            .setMessage("Are you sure you want to remove this conversation?")
-            .setPositiveButton("Remove", (dialog, which) -> {
-                removeConversation();
-            })
-            .setNegativeButton("Cancel", (dialog, which) -> {
-                dialog.dismiss();
-            })
-            .show();
-    }
 
-    private void removeConversation() {
-        apiService.removeConversation(conversationId).enqueue(new Callback<MessageResponse>() {
-            @Override
-            public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(ChatActivity.this, "Conversation removed", Toast.LENGTH_SHORT).show();
-                    finish();
-                } else {
-                    Toast.makeText(ChatActivity.this, "Failed to remove conversation", Toast.LENGTH_SHORT).show();
-                }
-            }
-            @Override
-            public void onFailure(Call<MessageResponse> call, Throwable t) {
-                Toast.makeText(ChatActivity.this, "Network error", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
     @Override
     protected void onDestroy() {

@@ -5,8 +5,5 @@
         android:id="@+id/action_view_profile"
         android:title="View Profile"
         app:showAsAction="never" />
-    <item
-        android:id="@+id/action_remove_conversation"
-        android:title="Remove Conversation"
-        app:showAsAction="never" />
+
 </menu>

@@ -24,6 +24,10 @@ public class FindoraApplication extends Application {
         // the app was killed in the background, fulfilling the process-bound
         // session requirement without rewriting the existing SharedPreferences architecture.
         SessionManager sessionManager = new SessionManager(this);
+        
+        // Apply saved theme immediately
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(sessionManager.getThemeMode());
+        
         sessionManager.logout();
     }
 }

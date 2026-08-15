@@ -175,6 +175,8 @@ class Item(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     reward = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    is_featured = models.BooleanField(default=False)
+    featured_until = models.DateTimeField(null=True, blank=True)
     owner_returned_confirm = models.BooleanField(default=False)
     finder_returned_confirm = models.BooleanField(default=False)
     resolved_at = models.DateTimeField(null=True, blank=True)
@@ -327,3 +329,35 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"[{self.type}] → {self.user.username}: {self.message[:50]}"
+
+
+class Payment(models.Model):
+    """
+    Payment record for promoting an item to featured status.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='NPR')
+    provider = models.CharField(max_length=50, default='khalti')
+    transaction_id = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    promotion_duration = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'payments'
+        ordering = ['-created_at']
+        verbose_name = 'Payment'
+        verbose_name_plural = 'Payments'
+
+    def __str__(self):
+        return f"Payment {self.id} for Item {self.item_id} - {self.status}"

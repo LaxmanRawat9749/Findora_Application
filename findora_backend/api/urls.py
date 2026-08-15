@@ -8,6 +8,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from . import views
+from . import payment_views
 
 urlpatterns = [
     # ─── Authentication ───────────────────────────────────────────────────────
@@ -37,6 +38,10 @@ urlpatterns = [
     # ─── Admin ────────────────────────────────────────────────────────────────
     path('admin/items/', views.AdminItemListView.as_view(), name='admin-item-list'),
     path('admin/items/<int:pk>/verify/', views.AdminVerifyItemView.as_view(), name='admin-verify-item'),
+
+    # ─── Payments ─────────────────────────────────────────────────────────────
+    path('payments/initiate/', payment_views.InitiatePaymentView.as_view(), name='payment-initiate'),
+    path('payments/verify/', payment_views.VerifyPaymentView.as_view(), name='payment-verify'),
 
     # ─── Chat ─────────────────────────────────────────────────────────────────
     path('chat/', views.ChatListView.as_view(), name='chat'),

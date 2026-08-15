@@ -6,38 +6,38 @@
          ═══════════════════════════════════════════════════════════════ -->
 
     <!-- Brand / Accent -->
-    <color name="primary_purple">#7C6CF8</color>
-    <color name="light_purple">#2D2550</color>
-    <color name="dark_purple">#5A4FCC</color>
-    <color name="primary_purple_10">#1A7C6CF8</color>
+    <color name="primary_purple">#534AB7</color>
+    <color name="light_purple">#EEEDFE</color>
+    <color name="dark_purple">#3B3482</color>
+    <color name="primary_purple_10">#1A534AB7</color>
 
     <!-- Semantic — Success -->
-    <color name="success_green">#4ADE80</color>
-    <color name="light_green">#0D2B1A</color>
+    <color name="success_green">#16A34A</color>
+    <color name="light_green">#DCFCE7</color>
 
     <!-- Semantic — Error / Lost -->
-    <color name="error_red">#F87171</color>
-    <color name="light_red">#3D1515</color>
+    <color name="error_red">#DC2626</color>
+    <color name="light_red">#FEE2E2</color>
 
     <!-- Semantic — Warning -->
-    <color name="warning_orange">#FBBF24</color>
-    <color name="light_warning">#2E2105</color>
+    <color name="warning_orange">#D97706</color>
+    <color name="light_warning">#FEF3C7</color>
 
-    <!-- Backgrounds (Dark Surface Hierarchy) -->
-    <color name="screen_background">#121212</color>
-    <color name="surface_01">#1E1E1E</color>
-    <color name="surface_02">#252525</color>
-    <color name="card_background">#2A2A2A</color>
+    <!-- Backgrounds (Light Surface Hierarchy) -->
+    <color name="screen_background">#F8F7FF</color>
+    <color name="surface_01">#FFFFFF</color>
+    <color name="surface_02">#F0F0F5</color>
+    <color name="card_background">#FFFFFF</color>
 
     <!-- Text -->
-    <color name="text_dark">#F5F5F5</color>
-    <color name="text_gray">#AAAAAA</color>
-    <color name="text_hint">#666666</color>
-    <color name="text_disabled">#444444</color>
+    <color name="text_dark">#121212</color>
+    <color name="text_gray">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+    <color name="text_disabled">#D1D5DB</color>
 
     <!-- Borders / Dividers -->
-    <color name="card_border">#333333</color>
-    <color name="divider">#2E2E2E</color>
+    <color name="card_border">#E5E7EB</color>
+    <color name="divider">#F3F4F6</color>
 
     <!-- Findora Light Colors -->
     <color name="findora_primary">#534AB7</color>
@@ -50,22 +50,22 @@
     <color name="transparent">#00000000</color>
 
     <!-- Material Design Theme Tokens -->
-    <color name="md_theme_primary">#7C6CF8</color>
+    <color name="md_theme_primary">#534AB7</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
-    <color name="md_theme_primary_container">#2D2550</color>
-    <color name="md_theme_onPrimaryContainer">#CEC6FF</color>
-    <color name="md_theme_secondary">#4ADE80</color>
-    <color name="md_theme_onSecondary">#0A2618</color>
-    <color name="md_theme_secondary_container">#0D2B1A</color>
-    <color name="md_theme_onSecondaryContainer">#4ADE80</color>
-    <color name="md_theme_error">#F87171</color>
-    <color name="md_theme_onError">#3D0000</color>
-    <color name="md_theme_background">#121212</color>
-    <color name="md_theme_onBackground">#F5F5F5</color>
-    <color name="md_theme_surface">#1E1E1E</color>
-    <color name="md_theme_onSurface">#F5F5F5</color>
-    <color name="md_theme_surfaceVariant">#2A2A2A</color>
-    <color name="md_theme_onSurfaceVariant">#AAAAAA</color>
-    <color name="md_theme_outline">#444444</color>
+    <color name="md_theme_primary_container">#EEEDFE</color>
+    <color name="md_theme_onPrimaryContainer">#3B3482</color>
+    <color name="md_theme_secondary">#16A34A</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondary_container">#DCFCE7</color>
+    <color name="md_theme_onSecondaryContainer">#16A34A</color>
+    <color name="md_theme_error">#DC2626</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_background">#F8F7FF</color>
+    <color name="md_theme_onBackground">#121212</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_onSurface">#121212</color>
+    <color name="md_theme_surfaceVariant">#F0F0F5</color>
+    <color name="md_theme_onSurfaceVariant">#6B7280</color>
+    <color name="md_theme_outline">#E5E7EB</color>
 
 </resources>

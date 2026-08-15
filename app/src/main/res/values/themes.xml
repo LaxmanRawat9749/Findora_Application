@@ -3,7 +3,7 @@
     <!-- ═══════════════════════════════════════════════════════════════
          Findora — Dark Material3 Application Theme
          ═══════════════════════════════════════════════════════════════ -->
-    <style name="Theme.Findora" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.Findora" parent="Theme.Material3.DayNight.NoActionBar">
 
         <!-- Brand Colors -->
         <item name="colorPrimary">@color/primary_purple</item>
