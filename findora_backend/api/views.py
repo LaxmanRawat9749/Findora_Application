@@ -567,31 +567,36 @@ class ItemListCreateView(APIView):
         queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
 
         item_type = request.query_params.get('type', '').strip()
+        search = request.query_params.get('search', '').strip()
 
-        # Role-based filtering:
-        # Owners: see their own Lost items + ALL Found items (for discovery).
-        # Finders: see ALL Lost items (for discovery) + their own Found items.
-        # If an explicit section (type) is requested, restrict appropriately.
-        if request.user.role == 'owner':
-            if item_type == 'found':
-                queryset = queryset.filter(type='found', user=request.user)
-            elif item_type == 'lost':
-                queryset = queryset.filter(type='lost', user=request.user)
-            else:
-                queryset = queryset.filter(Q(type='lost', user=request.user) | Q(type='found'))
-        elif request.user.role == 'finder':
-            if item_type == 'found':
-                queryset = queryset.filter(type='found', user=request.user)
-            elif item_type == 'lost':
-                queryset = queryset.filter(type='lost')
-            else:
-                queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
-        else:
-            # Fallback for admins or other roles
+        if not search:
+            # MAIN DASHBOARD: Only current user's items
+            queryset = queryset.filter(user=request.user)
             if item_type:
                 queryset = queryset.filter(type=item_type)
+        else:
+            # PUBLIC DISCOVERY (Search Activity / Voice Search)
+            # Owners: see their own Lost items + ALL Found items.
+            # Finders: see ALL Lost items + their own Found items.
+            if request.user.role == 'owner':
+                if item_type == 'found':
+                    queryset = queryset.filter(type='found', user=request.user)
+                elif item_type == 'lost':
+                    queryset = queryset.filter(type='lost', user=request.user)
+                else:
+                    queryset = queryset.filter(Q(type='lost', user=request.user) | Q(type='found'))
+            elif request.user.role == 'finder':
+                if item_type == 'found':
+                    queryset = queryset.filter(type='found', user=request.user)
+                elif item_type == 'lost':
+                    queryset = queryset.filter(type='lost')
+                else:
+                    queryset = queryset.filter(Q(type='lost') | Q(type='found', user=request.user))
+            else:
+                # Fallback for admins or other roles
+                if item_type:
+                    queryset = queryset.filter(type=item_type)
 
-        search = request.query_params.get('search', '').strip()
         now = timezone.now()
         
         queryset = queryset.annotate(
