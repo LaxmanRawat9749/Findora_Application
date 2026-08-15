@@ -52,6 +52,7 @@ public class ChatActivity extends BaseActivity {
     
     private ChatAdapter adapter;
     private int conversationId;
+    private int otherUserId = -1;
     private Handler pollHandler;
     private Runnable pollRunnable;
     private ChatMessage messageToEdit;
@@ -95,10 +96,14 @@ public class ChatActivity extends BaseActivity {
         binding.toolbar.inflateMenu(R.menu.menu_chat);
         binding.toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_remove_conversation) {
-                removeConversation();
+                showRemoveConversationDialog();
                 return true;
             } else if (item.getItemId() == R.id.action_view_profile) {
-                // View Profile logic
+                if (otherUserId != -1) {
+                    openUserProfile(otherUserId);
+                } else {
+                    Toast.makeText(this, "Profile not loaded yet.", Toast.LENGTH_SHORT).show();
+                }
                 return true;
             }
             return false;
@@ -293,7 +298,10 @@ public class ChatActivity extends BaseActivity {
             launchGallery();
         });
 
-        bottomSheetView.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+        bottomSheetView.findViewById(R.id.btnCancel).setOnClickListener(v -> {
+            dialog.dismiss();
+            messageToEdit = null;
+        });
         dialog.show();
     }
 
@@ -325,13 +333,62 @@ public class ChatActivity extends BaseActivity {
         
         Glide.with(this).load(uri).into(ivPreview);
         
-        view.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+        if (messageToEdit != null && "image".equals(messageToEdit.getMessageType())) {
+            etCaption.setText(messageToEdit.getCaption() != null ? messageToEdit.getCaption() : "");
+        }
+        
+        view.findViewById(R.id.btnCancel).setOnClickListener(v -> {
+            dialog.dismiss();
+            messageToEdit = null;
+        });
         view.findViewById(R.id.btnSend).setOnClickListener(v -> {
             dialog.dismiss();
-            sendImageMessage(uri, etCaption.getText().toString().trim());
+            if (messageToEdit != null) {
+                updateImageMessage(uri, etCaption.getText().toString().trim());
+            } else {
+                sendImageMessage(uri, etCaption.getText().toString().trim());
+            }
         });
         
         dialog.show();
+    }
+
+    private void updateImageMessage(Uri uri, String caption) {
+        File file = compressImage(uri);
+        if (file == null) {
+            Toast.makeText(this, "Failed to process image.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        binding.progressBar.setVisibility(View.VISIBLE);
+        binding.btnSend.setEnabled(false);
+        binding.btnAttachment.setEnabled(false);
+
+        RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption);
+        RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
+        MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+
+        apiService.editImageMessage(messageToEdit.getId(), captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
+            @Override
+            public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                binding.btnSend.setEnabled(true);
+                binding.btnAttachment.setEnabled(true);
+                if (response.isSuccessful()) {
+                    messageToEdit = null;
+                    loadMessages(); // Refresh UI
+                } else {
+                    Toast.makeText(ChatActivity.this, "Failed to update image.", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<ChatMessage> call, Throwable t) {
+                binding.progressBar.setVisibility(View.GONE);
+                binding.btnSend.setEnabled(true);
+                binding.btnAttachment.setEnabled(true);
+                Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void sendImageMessage(Uri uri, String caption) {
@@ -407,6 +464,7 @@ public class ChatActivity extends BaseActivity {
             public void onResponse(Call<User> call, Response<User> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     User otherUser = response.body();
+                    otherUserId = otherUser.getId();
                     binding.tvChatName.setText(otherUser.getFirstName() != null && !otherUser.getFirstName().isEmpty() ? 
                         otherUser.getFirstName() + " " + otherUser.getLastName() : otherUser.getUsername());
                     
@@ -457,14 +515,7 @@ public class ChatActivity extends BaseActivity {
         View bottomSheetView = getLayoutInflater().inflate(R.layout.layout_chat_bottom_sheet, null);
         dialog.setContentView(bottomSheetView);
 
-        bottomSheetView.findViewById(R.id.btnEdit).setOnClickListener(v -> {
-            dialog.dismiss();
-            messageToEdit = message;
-            String textToEdit = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
-            binding.etMessage.setText(textToEdit != null ? textToEdit : "");
-            binding.etMessage.setHint("image".equals(message.getMessageType()) ? "Editing caption..." : "Editing message...");
-            binding.etMessage.requestFocus();
-        });
+
 
         bottomSheetView.findViewById(R.id.btnCopy).setOnClickListener(v -> {
             dialog.dismiss();
@@ -480,11 +531,17 @@ public class ChatActivity extends BaseActivity {
             dialog.dismiss();
             deleteMessage(message.getId(), false);
         });
-
-        bottomSheetView.findViewById(R.id.btnDeleteEveryone).setOnClickListener(v -> {
-            dialog.dismiss();
-            deleteMessage(message.getId(), true);
-        });
+        
+        View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
+        if (message.getSender() == baseSessionManager.getUserId()) {
+            btnDeleteEveryone.setVisibility(View.VISIBLE);
+            btnDeleteEveryone.setOnClickListener(v -> {
+                dialog.dismiss();
+                deleteMessage(message.getId(), true);
+            });
+        } else {
+            btnDeleteEveryone.setVisibility(View.GONE);
+        }
 
         dialog.show();
     }
@@ -504,6 +561,19 @@ public class ChatActivity extends BaseActivity {
                 Toast.makeText(ChatActivity.this, "Network error", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void showRemoveConversationDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Remove conversation?")
+            .setMessage("Are you sure you want to remove this conversation?")
+            .setPositiveButton("Remove", (dialog, which) -> {
+                removeConversation();
+            })
+            .setNegativeButton("Cancel", (dialog, which) -> {
+                dialog.dismiss();
+            })
+            .show();
     }
 
     private void removeConversation() {

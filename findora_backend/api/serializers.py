@@ -300,7 +300,15 @@ class ConversationSerializer(serializers.ModelSerializer):
         if not messages:
             return ""
         messages.sort(key=lambda m: m.sent_at, reverse=True)
-        return messages[0].message
+        last_msg = messages[0]
+        request = self.context.get('request')
+        is_deleted_for_me = False
+        if request:
+            is_deleted_for_me = (last_msg.deleted_by_sender and last_msg.sender == request.user) or (last_msg.deleted_by_receiver and last_msg.sender != request.user)
+            
+        if last_msg.deleted_for_everyone or is_deleted_for_me:
+            return "This message was deleted"
+        return last_msg.message
 
     def get_last_message_time(self, obj):
         messages = list(obj.messages.all())

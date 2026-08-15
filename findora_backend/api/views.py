@@ -932,15 +932,18 @@ class ChatListView(APIView):
         if request.user.id != conversation.owner_id and request.user.id != conversation.finder_id:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
-        messages = ChatMessage.objects.filter(conversation=conversation).exclude(
-            Q(deleted_by_sender=True, sender=request.user) | 
-            Q(deleted_by_receiver=True, sender_id=conversation.owner_id if request.user.id == conversation.finder_id else conversation.finder_id)
-        ).select_related('sender')
+        messages = ChatMessage.objects.filter(conversation=conversation).select_related('sender')
 
-        # Replace text for messages deleted for everyone
+        # Replace text for messages deleted
         for msg in messages:
-            if msg.deleted_for_everyone:
-                msg.message = "🚫 This message was deleted"
+            is_deleted_for_me = (msg.deleted_by_sender and msg.sender == request.user) or (msg.deleted_by_receiver and msg.sender != request.user)
+            if msg.deleted_for_everyone or is_deleted_for_me:
+                msg.message = "This message was deleted"
+                msg.message_type = 'text'
+                msg.caption = None
+                if msg.image:
+                    msg.image.name = None
+                msg.deleted_for_everyone = True # Forces italic styling and removes click listener in frontend
 
         # Mark messages sent to this user as read
         messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
@@ -1032,28 +1035,39 @@ class ChatMessageDetailView(APIView):
         except ChatMessage.DoesNotExist:
             return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
             
-        if message.sender != request.user:
-            return Response({'error': 'You can only edit your own messages'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.id not in [message.conversation.owner_id, message.conversation.finder_id]:
+            return Response({'error': 'You can only edit messages in your conversations'}, status=status.HTTP_403_FORBIDDEN)
             
         if message.deleted_for_everyone:
             return Response({'error': 'Cannot edit a deleted message'}, status=status.HTTP_400_BAD_REQUEST)
             
+        update_fields = ['is_edited', 'edited_at']
+
         if message.message_type == 'image':
             new_text = request.data.get('caption')
             if new_text is None:  # In case frontend sends 'message' key instead
                 new_text = request.data.get('message')
-            if new_text is None:
-                return Response({'error': 'Caption text is required'}, status=status.HTTP_400_BAD_REQUEST)
-            message.caption = new_text
+            if new_text is not None:
+                message.caption = new_text
+                update_fields.append('caption')
+
+            new_image = request.FILES.get('image')
+            if new_image:
+                message.image = new_image
+                update_fields.append('image')
+                
+            if new_text is None and not new_image:
+                return Response({'error': 'Caption text or image is required'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             new_text = request.data.get('message')
             if not new_text:
                 return Response({'error': 'Message text is required'}, status=status.HTTP_400_BAD_REQUEST)
             message.message = new_text
+            update_fields.append('message')
             
         message.is_edited = True
         message.edited_at = timezone.now()
-        message.save(update_fields=['message', 'caption', 'is_edited', 'edited_at'])
+        message.save(update_fields=update_fields)
         
         serializer = ChatMessageSerializer(message, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

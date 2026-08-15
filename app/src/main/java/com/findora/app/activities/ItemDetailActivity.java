@@ -90,14 +90,6 @@ public class ItemDetailActivity extends BaseActivity {
             }
         });
 
-        binding.ivProfileLink.setOnClickListener(v -> {
-            if (currentItem != null && currentItem.getUser() != -1) {
-                Intent intent = new Intent(this, UserProfileActivity.class);
-                intent.putExtra(UserProfileActivity.EXTRA_USER_ID, currentItem.getUser());
-                startActivity(intent);
-            }
-        });
-
         loadItemDetail();
     }
 
@@ -153,6 +145,7 @@ public class ItemDetailActivity extends BaseActivity {
         binding.tvReporter.setText(reporterText);
         
         if (item.getUserProfileImage() != null && !item.getUserProfileImage().isEmpty()) {
+            binding.ivReporterAvatar.setImageTintList(null);
             Glide.with(this)
                     .load(item.getUserProfileImage())
                     .circleCrop()
@@ -160,6 +153,8 @@ public class ItemDetailActivity extends BaseActivity {
                     .error(R.drawable.ic_person)
                     .into(binding.ivReporterAvatar);
         } else {
+            binding.ivReporterAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(this, R.color.primary_purple)));
             binding.ivReporterAvatar.setImageResource(R.drawable.ic_person);
         }
 

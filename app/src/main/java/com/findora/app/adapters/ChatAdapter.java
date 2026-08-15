@@ -42,10 +42,9 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public void setMessages(List<ChatMessage> newMessages) {
         if (newMessages == null) newMessages = new ArrayList<>();
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ChatDiffCallback(this.messages, newMessages));
         this.messages.clear();
         this.messages.addAll(newMessages);
-        diffResult.dispatchUpdatesTo(this);
+        notifyDataSetChanged();
     }
     
     private static class ChatDiffCallback extends DiffUtil.Callback {
@@ -115,7 +114,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (holder instanceof SentViewHolder) {
             ((SentViewHolder) holder).bind(msg, longClickListener, profileClickListener);
         } else {
-            ((ReceivedViewHolder) holder).bind(msg, profileClickListener);
+            ((ReceivedViewHolder) holder).bind(msg, longClickListener, profileClickListener);
         }
     }
 
@@ -218,7 +217,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             this.binding = binding;
         }
 
-        void bind(ChatMessage msg, OnProfileClickListener profileClickListener) {
+        void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener) {
             if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
                 Glide.with(binding.getRoot().getContext())
@@ -257,11 +256,22 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
                 binding.tvMessage.setTextColor(android.graphics.Color.GRAY);
                 binding.tvEdited.setVisibility(android.view.View.GONE);
+                binding.getRoot().setOnLongClickListener(null);
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
             } else {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
                 // Keep the default text color for received messages (usually dark)
                 binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+                
+                binding.getRoot().setOnLongClickListener(v -> {
+                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
+                    return true;
+                });
+                
+                binding.ivMessageImage.setOnLongClickListener(v -> {
+                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
+                    return true;
+                });
             }
             
             if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {

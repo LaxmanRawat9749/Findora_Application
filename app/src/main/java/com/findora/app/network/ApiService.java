@@ -140,6 +140,14 @@ public interface ApiService {
     @PUT("chat/message/{id}/")
     Call<ChatMessage> editMessage(@Path("id") int id, @Body ChatMessage message);
 
+    @Multipart
+    @PUT("chat/message/{id}/")
+    Call<ChatMessage> editImageMessage(
+        @Path("id") int id,
+        @Part("caption") RequestBody caption,
+        @Part MultipartBody.Part image
+    );
+
     @DELETE("chat/message/{id}/")
     Call<MessageResponse> deleteMessage(@Path("id") int id, @Query("for_everyone") boolean forEveryone);
 

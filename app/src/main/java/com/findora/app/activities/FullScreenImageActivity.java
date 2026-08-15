@@ -27,6 +27,5 @@ public class FullScreenImageActivity extends AppCompatActivity {
                     .into(ivFullScreen);
         }
 
-        ivFullScreen.setSwipeDownCallback(() -> finish());
     }
 }
