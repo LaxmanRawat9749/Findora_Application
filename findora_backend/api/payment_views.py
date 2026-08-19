@@ -13,6 +13,7 @@ import base64
 import hmac
 import hashlib
 import uuid
+import json
 
 from .models import Item, Payment
 
@@ -226,7 +227,7 @@ class EsewaFormView(APIView):
         hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
         signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
         
-        success_url = request.build_absolute_uri(f'/api/payments/callback/?status=Completed&pidx={transaction_uuid}')
+        success_url = request.build_absolute_uri(f'/api/payments/esewa/verify-callback/')
         failure_url = request.build_absolute_uri(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
         
         html = f'''
@@ -253,6 +254,108 @@ class EsewaFormView(APIView):
         </html>
         '''
         return HttpResponse(html)
+
+from django.shortcuts import redirect
+
+class EsewaVerifyCallbackView(APIView):
+    """
+    GET /api/payments/esewa/verify-callback/
+    eSewa redirects here after payment. We decode the base64 data, verify the signature,
+    and then redirect to the common callback URL that Android intercepts.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        data_encoded = request.query_params.get('data')
+        if not data_encoded:
+            return redirect('/api/payments/callback/?status=Failed&pidx=unknown')
+
+        try:
+            decoded_bytes = base64.b64decode(data_encoded)
+            decoded_str = decoded_bytes.decode('utf-8')
+            payload = json.loads(decoded_str)
+            
+            transaction_uuid = payload.get('transaction_uuid')
+            status_val = payload.get('status')
+            total_amount = str(payload.get('total_amount'))
+            signed_field_names = payload.get('signed_field_names', '')
+            signature = payload.get('signature')
+
+            try:
+                payment = Payment.objects.get(transaction_id=transaction_uuid)
+            except Payment.DoesNotExist:
+                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+
+            # Step 1: Verify Signature
+            secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+            
+            fields = signed_field_names.split(',')
+            message_parts = []
+            for field in fields:
+                # eSewa includes some fields like 'total_amount' as float in JSON but string in signature sometimes,
+                # actually, we just use the exact string representation from the JSON payload or format it properly.
+                # However, taking it directly from the dict is standard.
+                # But wait! If eSewa sends 'total_amount': 50.0 in JSON, it was signed as '50.0' or '50'?
+                # Best is to just take str() or if eSewa sends string, take it directly.
+                val = payload.get(field, '')
+                # If the value is a float ending in .0, eSewa often sent it as a string without .0 if originally sent like that,
+                # but we'll use exactly what's parsed. We can also use request.GET directly if it was form encoded, but it's base64 json.
+                # We'll use str(val) but remove .0 if it's an integer to match our "50" exactly if they passed it back differently,
+                # Actually, standard eSewa docs say to use the value from the JSON.
+                # Just use str(val). If val is float, it might format as "50.0".
+                # Let's clean it just in case:
+                if isinstance(val, float) and val.is_integer():
+                    val = int(val)
+                message_parts.append(f"{field}={val}")
+            
+            message = ",".join(message_parts)
+            
+            hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
+            expected_signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
+            
+            if signature != expected_signature:
+                logger.error(f"eSewa signature verification failed for {transaction_uuid}. Expected {expected_signature}, got {signature}")
+                payment.status = 'FAILED'
+                payment.save(update_fields=['status'])
+                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+
+            # Step 2: Verify Status
+            if status_val != 'COMPLETE':
+                payment.status = 'FAILED'
+                payment.save(update_fields=['status'])
+                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+
+            # Step 3: Verify Amount
+            try:
+                received_amount = float(total_amount.replace(',', ''))
+            except ValueError:
+                received_amount = 0.0
+
+            if received_amount != float(payment.amount):
+                logger.error(f"eSewa amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
+                payment.status = 'FAILED'
+                payment.save(update_fields=['status'])
+                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+
+            # If valid, activate
+            if payment.status != 'COMPLETED':
+                now = timezone.now()
+                hours_to_add = PROMOTION_PACKAGES[payment.promotion_duration]['hours']
+                
+                payment.status = 'COMPLETED'
+                payment.verified_at = now
+                payment.save()
+
+                item = payment.item
+                item.is_featured = True
+                item.featured_until = now + timezone.timedelta(hours=hours_to_add)
+                item.save(update_fields=['is_featured', 'featured_until'])
+
+            return redirect(f'/api/payments/callback/?status=Completed&pidx={transaction_uuid}')
+
+        except Exception as e:
+            logger.error(f"eSewa verify callback error: {e}")
+            return redirect('/api/payments/callback/?status=Failed&pidx=unknown')
 
 
 class VerifyPaymentView(APIView):
@@ -371,9 +474,15 @@ class VerifyPaymentView(APIView):
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                # Status is 'COMPLETE' according to eSewa v2 docs
                 if data.get('status') == 'COMPLETE':
-                    is_verified = True
+                    received_amount = float(str(data.get('total_amount', '0')).replace(',', ''))
+                    if received_amount == float(payment.amount):
+                        is_verified = True
+                    else:
+                        logger.error(f"eSewa lookup amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
+                elif data.get('status') == 'PENDING':
+                    logger.info(f"eSewa transaction {transaction_uuid} is PENDING.")
+                    return Response({'error': 'Payment is still pending.'}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     logger.warning(f"eSewa lookup returned status {data.get('status')} for {transaction_uuid}")
             else:

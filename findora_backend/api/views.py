@@ -858,7 +858,14 @@ class MyReportsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        queryset = Item.objects.filter(user=request.user).prefetch_related('images').order_by('-reported_at')
+        now = timezone.now()
+        queryset = Item.objects.filter(user=request.user).prefetch_related('images').annotate(
+            active_featured=Case(
+                When(is_featured=True, featured_until__gt=now, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by('-active_featured', '-reported_at')
         serializer = ItemSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 

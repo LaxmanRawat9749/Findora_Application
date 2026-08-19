@@ -290,13 +290,6 @@ public class HomeActivity extends BaseActivity {
             }
         }
         
-        if (!searchLower.isEmpty()) {
-            Collections.sort(filtered, (i1, i2) -> {
-                int score1 = getMatchScore(i1, searchLower);
-                int score2 = getMatchScore(i2, searchLower);
-                return Integer.compare(score2, score1); // Descending order
-            });
-        }
         
         adapter.setItems(filtered);
         binding.tvEmptyState.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
