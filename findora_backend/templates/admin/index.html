@@ -1,0 +1,299 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard findora-dashboard-page{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="findora-dashboard-wrapper">
+    <!-- Welcome Header Banner -->
+    <div class="dashboard-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Platform Overview</h1>
+            <p class="hero-subtitle">Real-time telemetry, moderation queues, and operational metrics for Findora Lost & Found.</p>
+        </div>
+        <div class="hero-actions">
+            <a href="{% url 'findora_admin:api_item_changelist' %}?status__exact=pending" class="hero-btn hero-btn-primary">
+                <span class="btn-icon">⚡</span> Review Pending Items ({{ pending_items }})
+            </a>
+            <a href="{% url 'findora_admin:api_claim_changelist' %}?status__exact=pending" class="hero-btn hero-btn-secondary">
+                <span class="btn-icon">📋</span> Pending Claims ({{ pending_claims }})
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. Key Metrics Cards Grid -->
+    <div class="stats-grid">
+        <!-- Card 1: Users -->
+        <div class="stat-card stat-card-indigo">
+            <div class="stat-card-header">
+                <div class="stat-icon-wrapper icon-indigo">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <span class="stat-badge badge-active">{{ active_users }} Active</span>
+            </div>
+            <div class="stat-value">{{ total_owners|add:total_finders }}</div>
+            <div class="stat-label">Application Users</div>
+            <div class="stat-breakdown">
+                <div class="breakdown-item"><span class="dot dot-indigo"></span> Owners: <strong>{{ total_owners }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-emerald"></span> Finders: <strong>{{ total_finders }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-amber"></span> Verified: <strong>{{ verified_users }}</strong></div>
+            </div>
+            <a href="{% url 'findora_admin:api_user_changelist' %}" class="card-footer-link">Manage Users →</a>
+        </div>
+
+        <!-- Card 2: Items & Listings -->
+        <div class="stat-card stat-card-emerald">
+            <div class="stat-card-header">
+                <div class="stat-icon-wrapper icon-emerald">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                </div>
+                <span class="stat-badge badge-emerald">{{ approved_items }} Live Listings</span>
+            </div>
+            <div class="stat-value">{{ total_lost|add:total_found }}</div>
+            <div class="stat-label">Total Reported Items</div>
+            <div class="stat-breakdown">
+                <div class="breakdown-item"><span class="dot dot-rose"></span> Lost: <strong>{{ total_lost }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-emerald"></span> Found: <strong>{{ total_found }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-purple"></span> Resolved: <strong>{{ resolved_items }}</strong></div>
+            </div>
+            <a href="{% url 'findora_admin:api_item_changelist' %}" class="card-footer-link">Manage Items →</a>
+        </div>
+
+        <!-- Card 3: Featured & Revenue -->
+        <div class="stat-card stat-card-amber">
+            <div class="stat-card-header">
+                <div class="stat-icon-wrapper icon-amber">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                </div>
+                <span class="stat-badge badge-amber">NPR {{ total_revenue }}</span>
+            </div>
+            <div class="stat-value">{{ active_featured }}</div>
+            <div class="stat-label">Active Featured Listings</div>
+            <div class="stat-breakdown">
+                <div class="breakdown-item"><span class="dot dot-emerald"></span> Paid Txns: <strong>{{ successful_payments }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-amber"></span> Pending: <strong>{{ pending_payments }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-gray"></span> Expired: <strong>{{ expired_featured }}</strong></div>
+            </div>
+            <a href="{% url 'findora_admin:api_payment_changelist' %}" class="card-footer-link">Payment Transactions →</a>
+        </div>
+
+        <!-- Card 4: Moderation & System -->
+        <div class="stat-card stat-card-purple">
+            <div class="stat-card-header">
+                <div class="stat-icon-wrapper icon-purple">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </div>
+                <span class="stat-badge badge-purple">{{ total_admins }} Administrators</span>
+            </div>
+            <div class="stat-value">{{ total_claims }}</div>
+            <div class="stat-label">Ownership Claims & Proofs</div>
+            <div class="stat-breakdown">
+                <div class="breakdown-item"><span class="dot dot-amber"></span> Pending: <strong>{{ pending_claims }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-emerald"></span> Approved: <strong>{{ approved_claims }}</strong></div>
+                <div class="breakdown-item"><span class="dot dot-indigo"></span> Chats: <strong>{{ total_conversations }}</strong></div>
+            </div>
+            <a href="{% url 'findora_admin:api_claim_changelist' %}" class="card-footer-link">Moderation Center →</a>
+        </div>
+    </div>
+
+    <!-- 2. Dual Panel: Recent Activity & Management Modules -->
+    <div class="dashboard-split-grid">
+        <!-- Left: Quick Navigation App Modules -->
+        <div class="dashboard-main-column">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">System Management Modules</h2>
+                    <span class="panel-caption">Direct access to core entities</span>
+                </div>
+                <div class="modules-grid">
+                    <!-- User Management -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-indigo">👥</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_user_changelist' %}">Application Users</a></h3>
+                            <p class="module-desc">Manage Owners and Finders, verify accounts, handle security locks.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_user_changelist' %}" class="quick-link">View All ({{ total_owners|add:total_finders }})</a>
+                        </div>
+                    </div>
+
+                    <!-- Item Management -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-emerald">📦</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_item_changelist' %}">Lost & Found Items</a></h3>
+                            <p class="module-desc">Approve reports, inspect photos, monitor returns and resolution status.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_item_changelist' %}?status__exact=pending" class="quick-link text-amber">Pending ({{ pending_items }})</a>
+                            <a href="{% url 'findora_admin:api_item_changelist' %}" class="quick-link">All Items</a>
+                        </div>
+                    </div>
+
+                    <!-- Featured Listings & Payments -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-amber">💳</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_payment_changelist' %}">Payments & Featured Listings</a></h3>
+                            <p class="module-desc">Khalti & eSewa payment verifications, promotion packages, transaction logs.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_payment_changelist' %}" class="quick-link">Transactions ({{ total_payments }})</a>
+                        </div>
+                    </div>
+
+                    <!-- Ownership Claims -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-purple">🛡️</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_claim_changelist' %}">Claims & Verification</a></h3>
+                            <p class="module-desc">Review submitted ownership proofs, verify claims, match items.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_claim_changelist' %}?status__exact=pending" class="quick-link text-amber">Pending ({{ pending_claims }})</a>
+                        </div>
+                    </div>
+
+                    <!-- Communications -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-blue">💬</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_conversation_changelist' %}">Communications & Chats</a></h3>
+                            <p class="module-desc">Moderation access to owner-finder conversations and system alerts.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_conversation_changelist' %}" class="quick-link">Chats ({{ total_conversations }})</a>
+                            <a href="{% url 'findora_admin:api_notification_changelist' %}" class="quick-link">Alerts ({{ total_notifications }})</a>
+                        </div>
+                    </div>
+
+                    <!-- Administration & Security -->
+                    <div class="module-box">
+                        <div class="module-box-icon bg-slate">🔒</div>
+                        <div class="module-box-info">
+                            <h3 class="module-title"><a href="{% url 'findora_admin:api_administrator_changelist' %}">Staff & Administrators</a></h3>
+                            <p class="module-desc">Manage admin roles (Super Admin, Moderator, Manager), review audit logs.</p>
+                        </div>
+                        <div class="module-box-actions">
+                            <a href="{% url 'findora_admin:api_administrator_changelist' %}" class="quick-link">Admins ({{ total_admins }})</a>
+                            <a href="{% url 'findora_admin:api_adminauditlog_changelist' %}" class="quick-link">Audit Trail</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Items Table -->
+            <div class="dashboard-panel" style="margin-top: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Lost & Found Reports</h2>
+                    <a href="{% url 'findora_admin:api_item_changelist' %}" class="panel-link">View all items →</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="findora-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Type</th>
+                                <th>Reporter</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in recent_items %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'findora_admin:api_item_change' item.pk %}" class="table-item-title">
+                                        <strong>{{ item.title }}</strong>
+                                    </a>
+                                    <div class="table-item-sub">{{ item.get_category_display }} · {{ item.location|default:"No location" }}</div>
+                                </td>
+                                <td>
+                                    {% if item.type == 'lost' %}
+                                    <span class="badge-mini badge-lost">LOST</span>
+                                    {% else %}
+                                    <span class="badge-mini badge-found">FOUND</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="reporter-pill">{{ item.user.username }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-indicator status-{{ item.status }}">{{ item.get_status_display }}</span>
+                                </td>
+                                <td class="text-muted">{{ item.reported_at|date:"M d, H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="empty-cell">No items reported yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Recent Activity & Audit Trail -->
+        <div class="dashboard-side-column">
+            <!-- Recent Audit Logs -->
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Admin Audit Trail</h2>
+                    <a href="{% url 'findora_admin:api_adminauditlog_changelist' %}" class="panel-link">Full log →</a>
+                </div>
+                <div class="audit-log-list">
+                    {% for log in recent_audit_logs %}
+                    <div class="audit-log-item">
+                        <div class="audit-avatar">{{ log.admin_username|slice:":2"|upper|default:"AD" }}</div>
+                        <div class="audit-details">
+                            <div class="audit-line">
+                                <strong>{{ log.admin_username }}</strong>
+                                <span class="audit-action-tag flag-{{ log.action_flag }}">{{ log.get_action_flag_display }}</span>
+                            </div>
+                            <div class="audit-target">{{ log.target_model }}: {{ log.object_repr|truncatechars:35 }}</div>
+                            <div class="audit-time">{{ log.action_time|timesince }} ago</div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state-box">No administrative actions logged yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Recent Payments -->
+            <div class="dashboard-panel" style="margin-top: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Transactions</h2>
+                    <a href="{% url 'findora_admin:api_payment_changelist' %}" class="panel-link">All payments →</a>
+                </div>
+                <div class="payment-mini-list">
+                    {% for payment in recent_payments %}
+                    <div class="payment-mini-item">
+                        <div class="payment-info">
+                            <div class="payment-user">{{ payment.user.username }}</div>
+                            <div class="payment-item">{{ payment.item.title|truncatechars:24 }} ({{ payment.promotion_duration }})</div>
+                        </div>
+                        <div class="payment-meta">
+                            <div class="payment-amount">NPR {{ payment.amount }}</div>
+                            <span class="badge-mini status-{{ payment.status|lower }}">{{ payment.status }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state-box">No payment transactions yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

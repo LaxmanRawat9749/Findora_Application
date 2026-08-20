@@ -24,19 +24,16 @@ class IsOwnerOrReadOnly(BasePermission):
 
 class IsAdminRole(BasePermission):
     """
-    View-level permission that restricts access to users whose
-    `role` field is set to 'admin'.
-
-    Note: This is distinct from Django's `is_staff` / `is_superuser`.
-    Findora admins are regular users with role='admin'.
+    View-level permission that restricts access to administrators.
     """
 
     def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and request.user.role == 'admin'
-        )
+        from .models import Administrator
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if isinstance(request.user, Administrator) and request.user.is_active:
+            return True
+        return getattr(request.user, 'is_staff', False) or getattr(request.user, 'role', None) == 'admin'
 
 
 class IsVerifiedUser(BasePermission):
