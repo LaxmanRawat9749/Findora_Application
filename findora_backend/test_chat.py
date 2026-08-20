@@ -1,10 +1,11 @@
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'findora_backend.settings')
 django.setup()
 
-from api.models import User, Item, Conversation, ChatMessage
+from django.contrib.auth.models import User
+from api.models import Item, Conversation, ChatMessage
 
 owner, _ = User.objects.get_or_create(username='owner', defaults={'email': 'owner@test.com', 'role': 'owner'})
 finder, _ = User.objects.get_or_create(username='finder', defaults={'email': 'finder@test.com', 'role': 'finder'})
