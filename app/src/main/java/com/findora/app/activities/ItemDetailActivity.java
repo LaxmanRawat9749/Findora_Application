@@ -220,11 +220,13 @@ public class ItemDetailActivity extends BaseActivity {
         binding.btnMarkReturned.setVisibility(View.GONE);
         binding.btnConfirmReturn.setVisibility(View.GONE);
         binding.tvReturnedBadge.setVisibility(View.GONE);
+        binding.cvRateFinder.setVisibility(View.GONE);
 
         if ("resolved".equalsIgnoreCase(item.getStatus())) {
             binding.layoutDefaultActions.setVisibility(View.GONE);
             binding.layoutFoundActions.setVisibility(View.GONE);
             binding.tvReturnedBadge.setVisibility(View.VISIBLE);
+            checkRatingStatus();
         } else {
             // Check if user is the poster of the item
             if (item.getUser() == baseSessionManager.getUserId()) {
@@ -256,6 +258,127 @@ public class ItemDetailActivity extends BaseActivity {
                     binding.btnConfirmReturn.setVisibility(View.VISIBLE);
                 }
             }
+        }
+    }
+
+    private void checkRatingStatus() {
+        if (currentItem == null) return;
+        apiService.getRatingStatus(currentItem.getId()).enqueue(new Callback<com.findora.app.models.RatingStatusResponse>() {
+            @Override
+            public void onResponse(Call<com.findora.app.models.RatingStatusResponse> call, Response<com.findora.app.models.RatingStatusResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    com.findora.app.models.RatingStatusResponse status = response.body();
+                    if (status.isCanRate() && !status.isHasRated()) {
+                        binding.cvRateFinder.setVisibility(View.VISIBLE);
+                        binding.tvRateTitle.setText("Rate the Finder");
+                        binding.tvRateSubtitle.setText("Reward your finder with positive reputation & points");
+                        binding.btnRateFinder.setText("Rate ⭐");
+                        binding.btnRateFinder.setEnabled(true);
+                        binding.btnRateFinder.setOnClickListener(v -> showRatingDialog());
+                    } else if (status.isHasRated() && status.getRating() != null) {
+                        binding.cvRateFinder.setVisibility(View.VISIBLE);
+                        binding.tvRateTitle.setText("Finder Rated");
+                        binding.tvRateSubtitle.setText("You gave " + status.getRating().getRating() + " / 5 stars ⭐");
+                        binding.btnRateFinder.setText("Rated ✓");
+                        binding.btnRateFinder.setEnabled(false);
+                    } else {
+                        binding.cvRateFinder.setVisibility(View.GONE);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<com.findora.app.models.RatingStatusResponse> call, Throwable t) {
+                // Non-critical
+            }
+        });
+    }
+
+    private int selectedRatingValue = 5;
+
+    private void showRatingDialog() {
+        if (currentItem == null) return;
+
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        com.findora.app.databinding.DialogRateFinderBinding dialogBinding =
+                com.findora.app.databinding.DialogRateFinderBinding.inflate(getLayoutInflater());
+        dialog.setContentView(dialogBinding.getRoot());
+
+        selectedRatingValue = 5;
+        updateStarViews(dialogBinding, selectedRatingValue);
+
+        dialogBinding.ivStar1.setOnClickListener(v -> { selectedRatingValue = 1; updateStarViews(dialogBinding, 1); });
+        dialogBinding.ivStar2.setOnClickListener(v -> { selectedRatingValue = 2; updateStarViews(dialogBinding, 2); });
+        dialogBinding.ivStar3.setOnClickListener(v -> { selectedRatingValue = 3; updateStarViews(dialogBinding, 3); });
+        dialogBinding.ivStar4.setOnClickListener(v -> { selectedRatingValue = 4; updateStarViews(dialogBinding, 4); });
+        dialogBinding.ivStar5.setOnClickListener(v -> { selectedRatingValue = 5; updateStarViews(dialogBinding, 5); });
+
+        dialogBinding.btnCancelRating.setOnClickListener(v -> dialog.dismiss());
+
+        dialogBinding.btnSubmitRating.setOnClickListener(v -> {
+            String review = dialogBinding.etReview.getText() != null ?
+                    dialogBinding.etReview.getText().toString().trim() : "";
+
+            dialogBinding.pbRatingLoading.setVisibility(View.VISIBLE);
+            dialogBinding.btnSubmitRating.setEnabled(false);
+
+            com.findora.app.models.RateRequest request =
+                    new com.findora.app.models.RateRequest(currentItem.getId(), selectedRatingValue, review);
+
+            apiService.rateFinder(request).enqueue(new Callback<com.findora.app.models.FinderRating>() {
+                @Override
+                public void onResponse(Call<com.findora.app.models.FinderRating> call, Response<com.findora.app.models.FinderRating> response) {
+                    dialogBinding.pbRatingLoading.setVisibility(View.GONE);
+                    if (response.isSuccessful()) {
+                        String bonusMsg = selectedRatingValue >= 4 ? " (+10 Points awarded to Finder)" : "";
+                        Toast.makeText(ItemDetailActivity.this, "Rating submitted successfully!" + bonusMsg, Toast.LENGTH_LONG).show();
+                        dialog.dismiss();
+                        checkRatingStatus();
+                    } else {
+                        dialogBinding.btnSubmitRating.setEnabled(true);
+                        Toast.makeText(ItemDetailActivity.this, "Failed to submit rating.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<com.findora.app.models.FinderRating> call, Throwable t) {
+                    dialogBinding.pbRatingLoading.setVisibility(View.GONE);
+                    dialogBinding.btnSubmitRating.setEnabled(true);
+                    Toast.makeText(ItemDetailActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+
+        dialog.show();
+    }
+
+    private void updateStarViews(com.findora.app.databinding.DialogRateFinderBinding db, int rating) {
+        ImageView[] stars = { db.ivStar1, db.ivStar2, db.ivStar3, db.ivStar4, db.ivStar5 };
+        for (int i = 0; i < 5; i++) {
+            if (i < rating) {
+                stars[i].setImageResource(android.R.drawable.star_big_on);
+            } else {
+                stars[i].setImageResource(android.R.drawable.star_big_off);
+            }
+        }
+
+        switch (rating) {
+            case 5:
+                db.tvRatingHint.setText("5 Stars — Excellent (+10 Finder Points)");
+                break;
+            case 4:
+                db.tvRatingHint.setText("4 Stars — Good (+10 Finder Points)");
+                break;
+            case 3:
+                db.tvRatingHint.setText("3 Stars — Average");
+                break;
+            case 2:
+                db.tvRatingHint.setText("2 Stars — Below Average");
+                break;
+            case 1:
+                db.tvRatingHint.setText("1 Star — Poor");
+                break;
         }
     }
 

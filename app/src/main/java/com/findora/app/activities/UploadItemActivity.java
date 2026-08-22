@@ -74,16 +74,25 @@ public class UploadItemActivity extends BaseActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
 
-        // Adjust Report Type based on role
+        // Adjust Report Type and Reward field based on role
         String role = new SessionManager(this).getRole();
         if ("owner".equalsIgnoreCase(role)) {
             binding.rbLost.setChecked(true);
             binding.rbFound.setVisibility(View.GONE);
             binding.rbFound.setEnabled(false);
+            binding.tilReward.setVisibility(View.VISIBLE);
         } else if ("finder".equalsIgnoreCase(role)) {
             binding.rbFound.setChecked(true);
             binding.rbLost.setVisibility(View.GONE);
             binding.rbLost.setEnabled(false);
+            binding.tilReward.setVisibility(View.GONE);
+            binding.etReward.setText("");
+        } else {
+            // Fallback for admin or unassigned role
+            updateRewardVisibility(binding.rbLost.isChecked());
+            binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
+                updateRewardVisibility(checkedId == R.id.rbLost);
+            });
         }
 
         // Setup image recycler view
@@ -99,6 +108,15 @@ public class UploadItemActivity extends BaseActivity {
         binding.btnSubmit.setOnClickListener(v -> submitReport());
 
         setupLaunchers();
+    }
+
+    private void updateRewardVisibility(boolean isLost) {
+        if (isLost) {
+            binding.tilReward.setVisibility(View.VISIBLE);
+        } else {
+            binding.tilReward.setVisibility(View.GONE);
+            binding.etReward.setText("");
+        }
     }
 
     private void updateImageVisibility() {
@@ -239,7 +257,7 @@ public class UploadItemActivity extends BaseActivity {
         partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
         partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
         partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
-        if (!rewardStr.isEmpty()) {
+        if (!"finder".equalsIgnoreCase(role) && !"found".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
             partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
         }
 

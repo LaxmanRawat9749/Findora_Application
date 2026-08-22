@@ -11,13 +11,29 @@ import re
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import ChatMessage, Claim, Conversation, Item, ItemImage, Notification, User
+from .models import (
+    ChatMessage,
+    Claim,
+    Conversation,
+    FinderRating,
+    FinderReputation,
+    Item,
+    ItemImage,
+    Notification,
+    PointTransaction,
+    User,
+    UserBadge,
+)
 
 
 # ─── User Serializers ─────────────────────────────────────────────────────────
 
 class UserSerializer(serializers.ModelSerializer):
-    """Read-only serializer for displaying a user's public profile data."""
+    """Read-only serializer for displaying a user's profile data."""
+    total_points = serializers.SerializerMethodField()
+    successful_returns = serializers.SerializerMethodField()
+    reputation_display = serializers.SerializerMethodField()
+    primary_badge = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -25,26 +41,53 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name',
             'phone', 'role', 'is_verified', 'profile_image',
             'emergency_contact_name', 'emergency_contact_phone',
-            'created_at',
+            'total_points', 'successful_returns', 'reputation_display',
+            'primary_badge', 'created_at',
         ]
         read_only_fields = ['id', 'is_verified', 'created_at']
+
+    def get_total_points(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.total_points if rep else 0
+
+    def get_successful_returns(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.successful_returns if rep else 0
+
+    def get_reputation_display(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.reputation_display if rep else "New Finder"
+
+    def get_primary_badge(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.primary_badge if rep else None
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
     """
-    Read-only serializer for public profiles (e.g., accessed from chat).
+    Read-only serializer for public profiles (e.g., accessed from chat or item details).
     Never exposes email, password, phone, or OTP tokens.
     """
     lost_reports = serializers.SerializerMethodField()
     found_reports = serializers.SerializerMethodField()
     recovered_items = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
+    total_points = serializers.SerializerMethodField()
+    successful_returns = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+    reputation_display = serializers.SerializerMethodField()
+    primary_badge = serializers.SerializerMethodField()
+    badges = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'role', 
-            'profile_image', 'created_at', 'lost_reports', 'found_reports', 'recovered_items'
+            'profile_image', 'created_at', 'lost_reports', 'found_reports',
+            'recovered_items', 'total_points', 'successful_returns',
+            'average_rating', 'rating_count', 'reputation_display',
+            'primary_badge', 'badges'
         ]
         
     def get_profile_image(self, obj):
@@ -61,6 +104,43 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         
     def get_recovered_items(self, obj):
         return Item.objects.filter(user=obj, status='resolved').count()
+
+    def get_total_points(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.total_points if rep else 0
+
+    def get_successful_returns(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.successful_returns if rep else 0
+
+    def get_average_rating(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.average_rating if rep else 0.0
+
+    def get_rating_count(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.rating_count if rep else 0
+
+    def get_reputation_display(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.reputation_display if rep else "New Finder"
+
+    def get_primary_badge(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.primary_badge if rep else None
+
+    def get_badges(self, obj):
+        badges = obj.badges.all().order_by('required_returns')
+        return [
+            {
+                'key': b.badge_key,
+                'name': b.name,
+                'icon': b.icon,
+                'description': b.description,
+                'required_returns': b.required_returns,
+            }
+            for b in badges
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -197,15 +277,33 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            user_role = getattr(request.user, 'role', None)
-            item_type = data.get('type')
-            
-            if item_type:
-                if user_role == 'owner' and item_type != 'lost':
-                    raise serializers.ValidationError({"type": "Owners can only report lost items."})
-                if user_role == 'finder' and item_type != 'found':
-                    raise serializers.ValidationError({"type": "Finders can only report found items."})
+        user = getattr(request, 'user', None) if request else None
+        if not user and request:
+            user = getattr(request, '_force_auth_user', None)
+
+        user_role = getattr(user, 'role', None) if user else None
+        item_type = data.get('type', getattr(self.instance, 'type', None))
+        
+        if item_type and user_role:
+            if user_role == 'owner' and item_type != 'lost':
+                raise serializers.ValidationError({"type": "Owners can only report lost items."})
+            if user_role == 'finder' and item_type != 'found':
+                raise serializers.ValidationError({"type": "Finders can only report found items."})
+
+        # Validate reward: Finder reports and found items must not have a reward amount
+        reward = data.get('reward')
+        if reward is not None:
+            try:
+                reward_num = float(reward)
+            except (ValueError, TypeError):
+                reward_num = 0.0
+            if (user_role == 'finder' or item_type == 'found') and reward_num > 0:
+                raise serializers.ValidationError({"reward": "Finder reports and found items cannot have a reward amount."})
+            if user_role == 'finder' or item_type == 'found':
+                data['reward'] = 0.00
+        elif user_role == 'finder' or item_type == 'found':
+            data['reward'] = 0.00
+
         return super().validate(data)
 
     def get_user_name(self, obj):
@@ -366,3 +464,84 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
         read_only_fields = ['user', 'type', 'message', 'related_item', 'created_at']
+
+
+# ─── Reputation & Points Serializers ──────────────────────────────────────────
+
+class UserBadgeSerializer(serializers.ModelSerializer):
+    """Serializer for earned user achievements/badges."""
+
+    class Meta:
+        model = UserBadge
+        fields = ['id', 'badge_key', 'name', 'description', 'required_returns', 'icon', 'earned_at']
+
+
+class PointTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for point history transactions."""
+    related_item_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PointTransaction
+        fields = [
+            'id', 'points', 'transaction_type', 'description',
+            'related_item', 'related_item_title', 'created_at',
+        ]
+
+    def get_related_item_title(self, obj):
+        return obj.related_item.title if obj.related_item else None
+
+
+class FinderRatingSerializer(serializers.ModelSerializer):
+    """Serializer for owner ratings and reviews on finders."""
+    owner_name = serializers.SerializerMethodField()
+    finder_name = serializers.SerializerMethodField()
+    item_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FinderRating
+        fields = [
+            'id', 'owner', 'owner_name', 'finder', 'finder_name',
+            'item', 'item_title', 'rating', 'review', 'created_at',
+        ]
+        read_only_fields = ['owner', 'finder', 'created_at']
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name() or obj.owner.username
+
+    def get_finder_name(self, obj):
+        return obj.finder.get_full_name() or obj.finder.username
+
+    def get_item_title(self, obj):
+        return obj.item.title if obj.item else None
+
+
+class RateFinderRequestSerializer(serializers.Serializer):
+    """Input serializer for rating a finder."""
+    item_id = serializers.IntegerField(required=True)
+    rating = serializers.IntegerField(min_value=1, max_value=5, required=True)
+    review = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class FinderReputationSerializer(serializers.ModelSerializer):
+    """Comprehensive serializer for a finder's reputation profile and badges."""
+    reputation_display = serializers.CharField(read_only=True)
+    primary_badge = serializers.CharField(read_only=True)
+    badges = serializers.SerializerMethodField()
+    badge_progress = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FinderReputation
+        fields = [
+            'total_points', 'successful_returns', 'rating_count', 'rating_sum',
+            'average_rating', 'reputation_display', 'primary_badge',
+            'badges', 'badge_progress', 'updated_at',
+        ]
+
+    def get_badges(self, obj):
+        user_badges = obj.user.badges.all().order_by('required_returns')
+        return UserBadgeSerializer(user_badges, many=True).data
+
+    def get_badge_progress(self, obj):
+        from .reputation_service import get_badge_progress_list
+        return get_badge_progress_list(obj.user)
+

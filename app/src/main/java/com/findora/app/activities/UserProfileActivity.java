@@ -90,6 +90,19 @@ public class UserProfileActivity extends BaseActivity {
         binding.tvFoundCount.setText(String.valueOf(profile.getFoundReports()));
         binding.tvRecoveredCount.setText(String.valueOf(profile.getRecoveredItems()));
 
+        // Bind Reputation & Points
+        binding.tvUserReputation.setText("⭐ " + profile.getReputationDisplay());
+        binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
+        binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
+
+        String badgeName = profile.getPrimaryBadge();
+        if (badgeName != null && !badgeName.isEmpty()) {
+            binding.tvUserBadgeChip.setText("🏅 " + badgeName);
+            binding.tvUserBadgeChip.setVisibility(View.VISIBLE);
+        } else {
+            binding.tvUserBadgeChip.setText("🏅 New Finder");
+        }
+
         if (profile.getProfileImage() != null && !profile.getProfileImage().isEmpty()) {
             binding.ivProfilePicture.setImageTintList(null);
             Glide.with(this)

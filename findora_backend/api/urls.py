@@ -57,4 +57,10 @@ urlpatterns = [
     # ─── Notifications ────────────────────────────────────────────────────────
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/<int:pk>/read/', views.MarkNotificationReadView.as_view(), name='notification-read'),
+
+    # ─── Reputation & Points ──────────────────────────────────────────────────
+    path('reputation/me/', views.ReputationProfileView.as_view(), name='reputation-me'),
+    path('reputation/history/', views.PointHistoryView.as_view(), name='reputation-history'),
+    path('reputation/rate/', views.RateFinderView.as_view(), name='reputation-rate'),
+    path('reputation/rating-status/', views.RatingStatusView.as_view(), name='reputation-rating-status'),
 ]

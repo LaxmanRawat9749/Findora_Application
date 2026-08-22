@@ -158,7 +158,20 @@ public class ProfileActivity extends BaseActivity {
 
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());
 
+        // Setup Badge Adapter
+        badgeAdapter = new com.findora.app.adapters.BadgeAdapter(this);
+        binding.rvProfileBadges.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+        binding.rvProfileBadges.setAdapter(badgeAdapter);
+
+        // View Point History Click
+        binding.btnViewPointHistory.setOnClickListener(v -> {
+            Intent intent = new Intent(ProfileActivity.this, PointHistoryActivity.class);
+            startActivity(intent);
+        });
+
     }
+
+    private com.findora.app.adapters.BadgeAdapter badgeAdapter;
 
     private void loadProfile() {
         apiService.getProfile().enqueue(new Callback<User>() {
@@ -186,6 +199,9 @@ public class ProfileActivity extends BaseActivity {
                         baseSessionManager.saveProfileImage("");
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
+
+                    // Load Finder Reputation & Badges
+                    loadReputation();
                 } else {
                     // Unexpected server error — fall back to cache as last resort
                     showCachedProfile();
@@ -200,6 +216,33 @@ public class ProfileActivity extends BaseActivity {
             }
         });
     }
+
+    private void loadReputation() {
+        apiService.getReputation().enqueue(new Callback<com.findora.app.models.FinderReputation>() {
+            @Override
+            public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    com.findora.app.models.FinderReputation rep = response.body();
+                    binding.tvReputationScore.setText("⭐ " + rep.getReputationDisplay());
+                    binding.tvPointsScore.setText("🏆 " + rep.getTotalPoints() + " Pts");
+                    binding.tvReturnsScore.setText("🤝 " + rep.getSuccessfulReturns());
+
+                    String badgeName = rep.getPrimaryBadge();
+                    binding.tvPrimaryBadge.setText(badgeName != null ? "🏅 " + badgeName : "🏅 Starting Out");
+
+                    if (badgeAdapter != null && rep.getBadgeProgress() != null) {
+                        badgeAdapter.setBadges(rep.getBadgeProgress());
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<com.findora.app.models.FinderReputation> call, Throwable t) {
+                // Non-critical
+            }
+        });
+    }
+
 
     /**
      * Shows cached session data as a fallback when the API is unavailable.

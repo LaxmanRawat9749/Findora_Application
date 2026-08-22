@@ -26,17 +26,39 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import ChatMessage, Conversation, Item, ItemImage, Notification, OTPToken, User
+from .models import (
+    ChatMessage,
+    Conversation,
+    FinderRating,
+    FinderReputation,
+    Item,
+    ItemImage,
+    Notification,
+    OTPToken,
+    PointTransaction,
+    User,
+    UserBadge,
+)
 from .permissions import IsAdminRole, IsOwnerOrReadOnly, IsVerifiedUser
+from .reputation_service import (
+    award_found_report_points,
+    get_or_create_reputation,
+    process_successful_return_reward,
+    submit_finder_rating,
+)
 from .serializers import (
     ChatMessageSerializer,
     ConversationSerializer,
-
+    FinderRatingSerializer,
+    FinderReputationSerializer,
     ItemSerializer,
     NotificationSerializer,
+    PointTransactionSerializer,
     ProfileUpdateSerializer,
     PublicProfileSerializer,
+    RateFinderRequestSerializer,
     RegisterSerializer,
+    UserBadgeSerializer,
     UserSerializer,
 )
 from .utils import create_otp, send_otp_email, verify_otp
@@ -644,6 +666,10 @@ class ItemListCreateView(APIView):
             for img in images:
                 ItemImage.objects.create(item=item, image=img)
                 
+            # Award points for reporting a found item
+            if item.type == 'found':
+                award_found_report_points(request.user, item)
+
             return Response(ItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -844,6 +870,16 @@ class ConfirmItemReturnView(APIView):
         item.status = 'resolved'
         item.resolved_at = timezone.now()
         item.save(update_fields=['finder_returned_confirm', 'status', 'resolved_at', 'updated_at'])
+
+        # Determine finder and owner for reputation points and rating
+        if item.type == 'lost':
+            finder_user = request.user
+            owner_user = item.user
+        else:
+            finder_user = item.user
+            owner_user = request.user
+
+        process_successful_return_reward(finder=finder_user, owner=owner_user, item=item)
 
         Notification.objects.create(
             user=item.user,
@@ -1209,3 +1245,130 @@ class MarkNotificationReadView(APIView):
         notification.is_read = True
         notification.save(update_fields=['is_read'])
         return Response({'message': 'Notification marked as read.'}, status=status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reputation & Points Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ReputationProfileView(APIView):
+    """
+    GET /api/reputation/me/
+    Retrieve the authenticated user's reputation, points, and badge status.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        rep = get_or_create_reputation(request.user)
+        serializer = FinderReputationSerializer(rep, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PointHistoryView(APIView):
+    """
+    GET /api/reputation/history/
+    Retrieve all point ledger transactions for the authenticated user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        transactions = (
+            PointTransaction.objects.filter(user=request.user)
+            .select_related('related_item')
+            .order_by('-created_at')
+        )
+        serializer = PointTransactionSerializer(transactions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class RateFinderView(APIView):
+    """
+    POST /api/reputation/rate/
+    Submit a 1-5 star rating and optional review for a Finder after a successful return.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = RateFinderRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        item_id = serializer.validated_data['item_id']
+        rating_value = serializer.validated_data['rating']
+        review_text = serializer.validated_data.get('review', '')
+
+        try:
+            item = Item.objects.get(pk=item_id)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            rating_obj = submit_finder_rating(
+                owner=request.user,
+                item=item,
+                rating_value=rating_value,
+                review_text=review_text,
+            )
+            return Response(
+                FinderRatingSerializer(rating_obj).data,
+                status=status.HTTP_201_CREATED,
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RatingStatusView(APIView):
+    """
+    GET /api/reputation/rating-status/?item_id={id}
+    Check if the current user can rate the finder on this item, or if already rated.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        item_id = request.query_params.get('item_id')
+        if not item_id:
+            return Response({'error': 'item_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            item = Item.objects.get(pk=item_id)
+        except Item.DoesNotExist:
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        is_resolved = item.status == 'resolved'
+        is_owner = False
+        finder_id = None
+
+        if item.type == 'lost':
+            is_owner = (item.user == request.user)
+            return_tx = PointTransaction.objects.filter(
+                related_item=item, transaction_type='SUCCESSFUL_RETURN'
+            ).first()
+            if return_tx:
+                finder_id = return_tx.user_id
+            else:
+                conv = Conversation.objects.filter(item=item).first()
+                if conv:
+                    finder_id = conv.finder_id
+        else:
+            finder_id = item.user_id
+            conv = Conversation.objects.filter(item=item).first()
+            if conv and conv.owner_id == request.user.id:
+                is_owner = True
+            elif item.user != request.user:
+                is_owner = True
+
+        existing_rating = FinderRating.objects.filter(owner=request.user, item=item).first()
+        can_rate = (
+            is_resolved
+            and is_owner
+            and (existing_rating is None)
+            and (finder_id is not None)
+            and (finder_id != request.user.id)
+        )
+
+        return Response({
+            'can_rate': bool(can_rate),
+            'has_rated': existing_rating is not None,
+            'rating': FinderRatingSerializer(existing_rating).data if existing_rating else None,
+        }, status=status.HTTP_200_OK)
+

@@ -167,4 +167,18 @@ public interface ApiService {
 
     @POST("payments/verify/")
     Call<PaymentResponse.Verify> verifyPayment(@Body PaymentRequest.Verify request);
+
+    // ─── Reputation & Points ─────────────────────────────────
+    @GET("reputation/me/")
+    Call<FinderReputation> getReputation();
+
+    @GET("reputation/history/")
+    Call<List<PointTransaction>> getPointHistory();
+
+    @POST("reputation/rate/")
+    Call<FinderRating> rateFinder(@Body RateRequest request);
+
+    @GET("reputation/rating-status/")
+    Call<RatingStatusResponse> getRatingStatus(@Query("item_id") int itemId);
 }
+

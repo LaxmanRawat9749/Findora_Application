@@ -114,6 +114,28 @@ public class HomeActivity extends BaseActivity {
         }
         loadItems();
         updateNotificationBadge();
+        loadPointsPill();
+    }
+
+    private void loadPointsPill() {
+        apiService.getReputation().enqueue(new Callback<com.findora.app.models.FinderReputation>() {
+            @Override
+            public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    int points = response.body().getTotalPoints();
+                    binding.tvHomePointsPill.setText("🏆 " + points + " pts");
+                    binding.tvHomePointsPill.setVisibility(View.VISIBLE);
+                    binding.tvHomePointsPill.setOnClickListener(v -> {
+                        startActivity(new Intent(HomeActivity.this, PointHistoryActivity.class));
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<com.findora.app.models.FinderReputation> call, Throwable t) {
+                // Non-critical
+            }
+        });
     }
 
     private void setupRecyclerView() {

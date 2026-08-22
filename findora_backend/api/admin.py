@@ -13,8 +13,20 @@ Enhances the default Django admin panel with:
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-
-from .models import ChatMessage, Claim, Conversation, Item, Notification, OTPToken, User
+from .models import (
+    ChatMessage,
+    Claim,
+    Conversation,
+    FinderRating,
+    FinderReputation,
+    Item,
+    Notification,
+    OTPToken,
+    Payment,
+    PointTransaction,
+    User,
+    UserBadge,
+)
 
 
 # ─── User Admin ───────────────────────────────────────────────────────────────
@@ -306,6 +318,156 @@ class OTPTokenAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         """OTPs should only be created programmatically, not via admin."""
         return False
+
+
+# ─── Reputation Admin ─────────────────────────────────────────────────────────
+
+@admin.register(FinderReputation)
+class FinderReputationAdmin(admin.ModelAdmin):
+    """Admin interface for Finder reputations and stats."""
+
+    list_display = [
+        'user', 'points_display', 'successful_returns', 'reputation_badge',
+        'rating_count', 'primary_badge', 'updated_at',
+    ]
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
+    list_filter = ['updated_at']
+    ordering = ['-total_points', '-successful_returns']
+    readonly_fields = ['updated_at']
+
+    @admin.display(description='Total Points')
+    def points_display(self, obj):
+        return format_html(
+            '<span style="font-weight:700;color:#534AB7;font-size:13px">🏆 {}</span>',
+            obj.total_points,
+        )
+
+    @admin.display(description='Reputation')
+    def reputation_badge(self, obj):
+        if obj.rating_count > 0:
+            return format_html(
+                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;'
+                'border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
+                obj.average_rating,
+            )
+        return format_html(
+            '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;'
+            'border-radius:4px">New Finder</span>'
+        )
+
+
+@admin.register(PointTransaction)
+class PointTransactionAdmin(admin.ModelAdmin):
+    """Admin interface for point transactions history and auditing."""
+
+    list_display = [
+        'user', 'points_badge', 'transaction_type', 'related_item',
+        'description_preview', 'created_at',
+    ]
+    list_filter = ['transaction_type', 'created_at']
+    search_fields = ['user__username', 'user__email', 'description', 'related_item__title']
+    readonly_fields = ['created_at']
+    ordering = ['-created_at']
+    list_per_page = 25
+    date_hierarchy = 'created_at'
+
+    @admin.display(description='Points')
+    def points_badge(self, obj):
+        if obj.points > 0:
+            color = '#16A34A'
+            bg = '#DCFCE7'
+            sign = '+'
+        elif obj.points < 0:
+            color = '#DC2626'
+            bg = '#FEE2E2'
+            sign = ''
+        else:
+            color = '#6B7280'
+            bg = '#F3F4F6'
+            sign = ''
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;'
+            'border-radius:4px;font-weight:700">{}{}</span>',
+            bg, color, sign, obj.points,
+        )
+
+    @admin.display(description='Description')
+    def description_preview(self, obj):
+        return obj.description[:60] + '…' if len(obj.description) > 60 else obj.description
+
+
+@admin.register(FinderRating)
+class FinderRatingAdmin(admin.ModelAdmin):
+    """Admin interface for Owner ratings and reviews."""
+
+    list_display = ['owner', 'finder', 'item', 'rating_stars', 'review_preview', 'created_at']
+    list_filter = ['rating', 'created_at']
+    search_fields = ['owner__username', 'finder__username', 'item__title', 'review']
+    readonly_fields = ['created_at']
+    ordering = ['-created_at']
+    list_per_page = 25
+
+    @admin.display(description='Rating')
+    def rating_stars(self, obj):
+        stars = '★' * obj.rating + '☆' * (5 - obj.rating)
+        return format_html(
+            '<span style="color:#D97706;font-size:14px;font-weight:600">{} ({})</span>',
+            stars, obj.rating,
+        )
+
+    @admin.display(description='Review')
+    def review_preview(self, obj):
+        if not obj.review:
+            return '—'
+        return obj.review[:50] + '…' if len(obj.review) > 50 else obj.review
+
+
+@admin.register(UserBadge)
+class UserBadgeAdmin(admin.ModelAdmin):
+    """Admin interface for unlocked user achievements."""
+
+    list_display = ['user', 'badge_display', 'required_returns', 'earned_at']
+    list_filter = ['badge_key', 'earned_at']
+    search_fields = ['user__username', 'name', 'badge_key']
+    readonly_fields = ['earned_at']
+    ordering = ['-earned_at']
+
+    @admin.display(description='Badge')
+    def badge_display(self, obj):
+        return format_html(
+            '<span style="font-size:13px;font-weight:600">{} {}</span>',
+            obj.icon, obj.name,
+        )
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """Admin interface for item promotion payments."""
+
+    list_display = ['id', 'user', 'item', 'amount_display', 'provider', 'status_badge', 'created_at']
+    list_filter = ['status', 'provider', 'created_at']
+    search_fields = ['user__username', 'transaction_id', 'item__title']
+    readonly_fields = ['created_at', 'verified_at']
+    ordering = ['-created_at']
+
+    @admin.display(description='Amount')
+    def amount_display(self, obj):
+        return f"Rs. {obj.amount}"
+
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colors = {
+            'PENDING': '#854F0B',
+            'COMPLETED': '#1D9E75',
+            'FAILED': '#D85A30',
+            'CANCELLED': '#666',
+        }
+        color = colors.get(obj.status, '#666')
+        return format_html(
+            '<span style="background:{};color:white;padding:2px 8px;'
+            'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
+            color, obj.status,
+        )
 
 
 # ─── Admin Site Branding ──────────────────────────────────────────────────────

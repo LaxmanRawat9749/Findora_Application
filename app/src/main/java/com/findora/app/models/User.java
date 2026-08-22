@@ -20,6 +20,14 @@ public class User {
     private String emergencyContactName;
     @SerializedName("emergency_contact_phone")
     private String emergencyContactPhone;
+    @SerializedName("total_points")
+    private int totalPoints;
+    @SerializedName("successful_returns")
+    private int successfulReturns;
+    @SerializedName("reputation_display")
+    private String reputationDisplay;
+    @SerializedName("primary_badge")
+    private String primaryBadge;
     @SerializedName("created_at")
     private String createdAt;
 
@@ -57,6 +65,18 @@ public class User {
 
     public String getEmergencyContactPhone() { return emergencyContactPhone; }
     public void setEmergencyContactPhone(String emergencyContactPhone) { this.emergencyContactPhone = emergencyContactPhone; }
+
+    public int getTotalPoints() { return totalPoints; }
+    public void setTotalPoints(int totalPoints) { this.totalPoints = totalPoints; }
+
+    public int getSuccessfulReturns() { return successfulReturns; }
+    public void setSuccessfulReturns(int successfulReturns) { this.successfulReturns = successfulReturns; }
+
+    public String getReputationDisplay() { return reputationDisplay != null ? reputationDisplay : "New Finder"; }
+    public void setReputationDisplay(String reputationDisplay) { this.reputationDisplay = reputationDisplay; }
+
+    public String getPrimaryBadge() { return primaryBadge; }
+    public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

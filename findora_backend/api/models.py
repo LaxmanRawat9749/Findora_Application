@@ -292,12 +292,15 @@ class ChatMessage(models.Model):
         return f"{self.sender.username}: {preview}"
 
 
+from .reputation_constants import TRANSACTION_TYPE_CHOICES
+
+
 class Notification(models.Model):
     """
     System notification delivered to a specific user.
 
     Types cover the full lifecycle: item matches, admin approvals/rejections,
-    new chat messages, and claim status updates.
+    new chat messages, claim status updates, reputation/points, badges, and ratings.
     """
 
     TYPE_CHOICES = [
@@ -306,6 +309,9 @@ class Notification(models.Model):
         ('rejected', 'Report Rejected'),
         ('message', 'New Message'),
         ('claim', 'Claim Update'),
+        ('reputation', 'Reputation / Points'),
+        ('badge', 'Badge Unlocked'),
+        ('rating', 'Rating'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -361,3 +367,109 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.id} for Item {self.item_id} - {self.status}"
+
+
+class FinderReputation(models.Model):
+    """
+    Tracks aggregate reputation, points, successful returns, and rating stats for a user (Finder).
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='reputation')
+    total_points = models.IntegerField(default=0)
+    successful_returns = models.IntegerField(default=0)
+    rating_count = models.IntegerField(default=0)
+    rating_sum = models.IntegerField(default=0)
+    average_rating = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'finder_reputation'
+        verbose_name = 'Finder Reputation'
+        verbose_name_plural = 'Finder Reputations'
+
+    def __str__(self):
+        return f"{self.user.username} — {self.total_points} pts, {self.successful_returns} returns, ⭐ {self.reputation_display}"
+
+    @property
+    def reputation_display(self):
+        if self.rating_count > 0:
+            return f"{self.average_rating:.1f}"
+        return "New Finder"
+
+    @property
+    def primary_badge(self):
+        latest = self.user.badges.order_by('-required_returns').first()
+        return latest.name if latest else None
+
+
+class PointTransaction(models.Model):
+    """
+    Immutable ledger of all points earned, adjusted, or penalized.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='point_transactions')
+    points = models.IntegerField()
+    transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPE_CHOICES)
+    description = models.TextField()
+    related_item = models.ForeignKey(
+        Item,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='point_transactions',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'point_transactions'
+        ordering = ['-created_at']
+        verbose_name = 'Point Transaction'
+        verbose_name_plural = 'Point Transactions'
+
+    def __str__(self):
+        sign = "+" if self.points > 0 else ""
+        return f"{self.user.username}: {sign}{self.points} ({self.transaction_type}) — {self.description[:40]}"
+
+
+class FinderRating(models.Model):
+    """
+    Rating and review given by an Owner to a Finder after a successful return.
+    """
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ratings_given')
+    finder = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ratings_received')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='ratings')
+    rating = models.IntegerField()  # 1 to 5
+    review = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'finder_ratings'
+        unique_together = ('owner', 'item')
+        ordering = ['-created_at']
+        verbose_name = 'Finder Rating'
+        verbose_name_plural = 'Finder Ratings'
+
+    def __str__(self):
+        return f"{self.owner.username} rated {self.finder.username} ⭐ {self.rating} on '{self.item.title}'"
+
+
+class UserBadge(models.Model):
+    """
+    Badges / achievements unlocked by a user.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='badges')
+    badge_key = models.CharField(max_length=50)
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    required_returns = models.IntegerField(default=1)
+    icon = models.CharField(max_length=20, default='🏅')
+    earned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_badges'
+        unique_together = ('user', 'badge_key')
+        ordering = ['required_returns']
+        verbose_name = 'User Badge'
+        verbose_name_plural = 'User Badges'
+
+    def __str__(self):
+        return f"{self.user.username} unlocked {self.name} ({self.icon})"
+
