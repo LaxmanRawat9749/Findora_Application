@@ -118,6 +118,10 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void loadPointsPill() {
+        if (!"finder".equalsIgnoreCase(baseSessionManager.getRole())) {
+            binding.tvHomePointsPill.setVisibility(View.GONE);
+            return;
+        }
         apiService.getReputation().enqueue(new Callback<com.findora.app.models.FinderReputation>() {
             @Override
             public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
@@ -128,12 +132,14 @@ public class HomeActivity extends BaseActivity {
                     binding.tvHomePointsPill.setOnClickListener(v -> {
                         startActivity(new Intent(HomeActivity.this, PointHistoryActivity.class));
                     });
+                } else {
+                    binding.tvHomePointsPill.setVisibility(View.GONE);
                 }
             }
 
             @Override
             public void onFailure(Call<com.findora.app.models.FinderReputation> call, Throwable t) {
-                // Non-critical
+                binding.tvHomePointsPill.setVisibility(View.GONE);
             }
         });
     }

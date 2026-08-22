@@ -262,7 +262,10 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void checkRatingStatus() {
-        if (currentItem == null) return;
+        if (currentItem == null || !"owner".equalsIgnoreCase(baseSessionManager.getRole())) {
+            binding.cvRateFinder.setVisibility(View.GONE);
+            return;
+        }
         apiService.getRatingStatus(currentItem.getId()).enqueue(new Callback<com.findora.app.models.RatingStatusResponse>() {
             @Override
             public void onResponse(Call<com.findora.app.models.RatingStatusResponse> call, Response<com.findora.app.models.RatingStatusResponse> response) {
@@ -331,8 +334,7 @@ public class ItemDetailActivity extends BaseActivity {
                 public void onResponse(Call<com.findora.app.models.FinderRating> call, Response<com.findora.app.models.FinderRating> response) {
                     dialogBinding.pbRatingLoading.setVisibility(View.GONE);
                     if (response.isSuccessful()) {
-                        String bonusMsg = selectedRatingValue >= 4 ? " (+10 Points awarded to Finder)" : "";
-                        Toast.makeText(ItemDetailActivity.this, "Rating submitted successfully!" + bonusMsg, Toast.LENGTH_LONG).show();
+                        Toast.makeText(ItemDetailActivity.this, "Thank you for rating the Finder.", Toast.LENGTH_SHORT).show();
                         dialog.dismiss();
                         checkRatingStatus();
                     } else {

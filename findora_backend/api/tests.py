@@ -213,6 +213,56 @@ class ReputationAndPointsTests(TestCase):
         self.assertEqual(rep.successful_returns, 0)
         self.assertEqual(rep.reputation_display, "New Finder")
 
+    def test_1b_owner_has_no_reputation_or_points_access(self):
+        """TEST 1b: Owner cannot access reputation or point history endpoints."""
+        from api.views import ReputationProfileView, PointHistoryView, RateFinderView
+        from api.serializers import UserSerializer, PublicProfileSerializer
+
+        # 1. /api/reputation/me/ returns 403 for Owner
+        view_rep = ReputationProfileView.as_view()
+        req_rep = self.factory.get('/api/reputation/me/')
+        force_authenticate(req_rep, user=self.owner)
+        res_rep = view_rep(req_rep)
+        self.assertEqual(res_rep.status_code, 403)
+
+        # 2. /api/reputation/history/ returns 403 for Owner
+        view_hist = PointHistoryView.as_view()
+        req_hist = self.factory.get('/api/reputation/history/')
+        force_authenticate(req_hist, user=self.owner)
+        res_hist = view_hist(req_hist)
+        self.assertEqual(res_hist.status_code, 403)
+
+        # 3. Serializers return None for Owner points/reputation
+        user_data = UserSerializer(self.owner).data
+        self.assertIsNone(user_data['total_points'])
+        self.assertIsNone(user_data['reputation_display'])
+
+        pub_data = PublicProfileSerializer(self.owner).data
+        self.assertIsNone(pub_data['total_points'])
+        self.assertIsNone(pub_data['reputation_display'])
+        self.assertEqual(pub_data['badges'], [])
+
+    def test_1c_finder_with_returns_no_rating_displays_not_rated_yet(self):
+        """TEST 1c: Finder with completed returns but no rating shows 'Not rated yet'."""
+        from api.reputation_service import get_or_create_reputation
+        rep = get_or_create_reputation(self.finder)
+        rep.successful_returns = 2
+        rep.rating_count = 0
+        rep.save()
+        self.assertEqual(rep.reputation_display, "Not rated yet")
+
+    def test_1d_finder_cannot_call_rate_endpoint(self):
+        """TEST 1d: Finder cannot rate anyone via /api/reputation/rate/."""
+        from api.views import RateFinderView
+        view = RateFinderView.as_view()
+        req = self.factory.post('/api/reputation/rate/', {
+            'item_id': 1,
+            'rating': 5,
+        })
+        force_authenticate(req, user=self.finder)
+        res = view(req)
+        self.assertEqual(res.status_code, 403)
+
     def test_2_found_report_awards_5_points(self):
         """TEST 2: Finder creates a valid Found Item report -> +5 Points."""
         view = ItemListCreateView.as_view()

@@ -47,18 +47,26 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'is_verified', 'created_at']
 
     def get_total_points(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     def get_reputation_display(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.reputation_display if rep else "New Finder"
 
     def get_primary_badge(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.primary_badge if rep else None
 
@@ -106,30 +114,44 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return Item.objects.filter(user=obj, status='resolved').count()
 
     def get_total_points(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     def get_average_rating(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.average_rating if rep else 0.0
 
     def get_rating_count(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.rating_count if rep else 0
 
     def get_reputation_display(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.reputation_display if rep else "New Finder"
 
     def get_primary_badge(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.primary_badge if rep else None
 
     def get_badges(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return []
         badges = obj.badges.all().order_by('required_returns')
         return [
             {

@@ -51,8 +51,9 @@ def award_found_report_points(finder, item):
     """
     Awards +5 points to the Finder when they create a valid Found Item report.
     Guarded against duplicate points (idempotent per item).
+    Only users with role='finder' receive points.
     """
-    if not finder or not item:
+    if not finder or getattr(finder, 'role', '') != 'finder' or not item:
         return False
 
     # Check if reward was already processed for this item report
@@ -96,8 +97,9 @@ def process_successful_return_reward(finder, owner, item):
     Awards +100 points, increments successful returns count, evaluates badges,
     and sends notifications upon confirmed return completion.
     Strictly idempotent to prevent duplicate points.
+    Points, returns, and badges belong ONLY to Finders (role='finder').
     """
-    if not finder or not item:
+    if not finder or getattr(finder, 'role', '') != 'finder' or not item:
         return False
 
     # Check if return reward was already processed for this item
@@ -143,7 +145,7 @@ def process_successful_return_reward(finder, owner, item):
         related_item=item,
     )
 
-    # 5. Notify Owner to Rate the Finder
+    # 5. Notify Owner to Rate the Finder (Owner receives NO points or reputation)
     if owner:
         Notification.objects.create(
             user=owner,
@@ -162,7 +164,11 @@ def check_and_award_badges(user, rep=None):
     """
     Checks if the user has reached thresholds for any badges and awards them.
     Guarantees no duplicate badge awards.
+    Badges belong ONLY to Finders (role='finder').
     """
+    if not user or getattr(user, 'role', '') != 'finder':
+        return []
+
     if rep is None:
         rep = get_or_create_reputation(user)
 
@@ -200,10 +206,13 @@ def check_and_award_badges(user, rep=None):
 def submit_finder_rating(owner, item, rating_value, review_text=''):
     """
     Submits a rating for a Finder by an Owner on a resolved item.
+    - Available ONLY after successful return (item.status == 'resolved')
+    - Only Owner can rate Finder
     - Ensures valid rating (1-5)
     - Prevents self-rating and duplicate rating
     - Updates Finder's average rating
-    - Awards +10 points if rating is 4 or 5 stars
+    - Awards +10 points to Finder if rating is 4 or 5 stars
+    - Owner receives NO points and NO reputation
     """
     try:
         rating_value = int(rating_value)
@@ -219,7 +228,9 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
     # Determine Finder
     finder = None
     if item.type == 'lost':
-        # Finder is the other party in the conversation or return transaction
+        # For a lost item: Owner is item.user, Finder is the return partner
+        if item.user != owner and getattr(owner, 'role', '') != 'owner':
+            raise ValueError("Only the owner who lost the item can rate the finder.")
         return_tx = PointTransaction.objects.filter(
             related_item=item,
             transaction_type=TX_SUCCESSFUL_RETURN,
@@ -231,11 +242,14 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
             if conv:
                 finder = conv.finder
     else:
-        # Found item: Reporter is the Finder
+        # For a found item: Reporter is the Finder, Owner is the claim/conversation partner
         finder = item.user
 
     if not finder:
         raise ValueError("Could not determine the finder for this item.")
+
+    if getattr(finder, 'role', '') != 'finder':
+        raise ValueError("Ratings can only be submitted for Finders.")
 
     if owner.id == finder.id:
         raise ValueError("You cannot rate yourself.")
@@ -260,9 +274,8 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
     rep.average_rating = round(rep.rating_sum / rep.rating_count, 1)
     rep.save(update_fields=['rating_count', 'rating_sum', 'average_rating', 'updated_at'])
 
-    # 3. Positive rating bonus (+10 points for 4 or 5 stars)
+    # 3. Positive rating bonus (+10 points for 4 or 5 stars awarded to Finder)
     if rating_value >= 4:
-        # Check duplicate bonus
         already_has_rating_bonus = PointTransaction.objects.filter(
             user=finder,
             related_item=item,
@@ -299,7 +312,11 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
 def get_badge_progress_list(user):
     """
     Returns full badge catalog with user's earned status and progress details.
+    Badges belong ONLY to Finders.
     """
+    if not user or getattr(user, 'role', '') != 'finder':
+        return []
+
     rep = get_or_create_reputation(user)
     earned_badge_keys = set(
         UserBadge.objects.filter(user=user).values_list('badge_key', flat=True)
@@ -332,7 +349,11 @@ def get_badge_progress_list(user):
 def admin_adjust_points(user, points, reason, admin_user=None):
     """
     Performs an administrative point adjustment with mandatory audit reason.
+    Points belong ONLY to Finders.
     """
+    if getattr(user, 'role', '') != 'finder':
+        raise ValueError("Points can only be adjusted for Finders.")
+
     if not reason or not reason.strip():
         raise ValueError("A reason is required for administrative point adjustments.")
 

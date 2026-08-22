@@ -200,8 +200,15 @@ public class ProfileActivity extends BaseActivity {
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
 
-                    // Load Finder Reputation & Badges
-                    loadReputation();
+                    // Load Finder Reputation & Badges ONLY if user is a Finder
+                    if ("finder".equalsIgnoreCase(user.getRole())) {
+                        binding.cvReputationSection.setVisibility(View.VISIBLE);
+                        binding.cvBadgesSection.setVisibility(View.VISIBLE);
+                        loadReputation();
+                    } else {
+                        binding.cvReputationSection.setVisibility(View.GONE);
+                        binding.cvBadgesSection.setVisibility(View.GONE);
+                    }
                 } else {
                     // Unexpected server error — fall back to cache as last resort
                     showCachedProfile();

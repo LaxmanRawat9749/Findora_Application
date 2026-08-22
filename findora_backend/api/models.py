@@ -393,6 +393,8 @@ class FinderReputation(models.Model):
     def reputation_display(self):
         if self.rating_count > 0:
             return f"{self.average_rating:.1f}"
+        if self.successful_returns > 0:
+            return "Not rated yet"
         return "New Finder"
 
     @property
