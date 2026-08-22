@@ -541,3 +541,301 @@ class ReputationAndPointsTests(TestCase):
         self.assertEqual(response.data['successful_returns'], 3)
         self.assertEqual(response.data['reputation_display'], "5.0")
 
+
+class OwnerFoundMatchingVisibilityTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner_milan = User.objects.create_user(
+            username='milan_owner',
+            email='milan@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+        self.owner_dave = User.objects.create_user(
+            username='dave_owner',
+            email='dave@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+        self.finder_hari = User.objects.create_user(
+            username='hari_finder',
+            email='hari@example.com',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+        self.finder_john = User.objects.create_user(
+            username='john_finder',
+            email='john@example.com',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+
+    def test_1_owner_with_no_lost_items_sees_empty_found_section(self):
+        """Case 1: Owner has no lost items -> Found section is empty."""
+        # Hari reported a found phone
+        Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='Found iPhone 15 Pro',
+            category='phone',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+        request = self.factory.get('/api/items/?type=found')
+        force_authenticate(request, user=self.owner_milan)
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 0)
+
+    def test_2_owner_with_lost_item_no_matching_found_items(self):
+        """Case 2: Owner has lost item but no matching found item exists -> Found section is empty."""
+        # Milan lost passport (documents)
+        Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='Lost Passport',
+            category='documents',
+            status='approved',
+        )
+        # Hari found a phone, John found keys
+        Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='Found iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        Item.objects.create(
+            user=self.finder_john,
+            type='found',
+            title='Found Honda Keys',
+            category='keys',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+        request = self.factory.get('/api/items/?type=found')
+        force_authenticate(request, user=self.owner_milan)
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 0)
+
+    def test_3_owner_with_lost_item_and_matching_found_item(self):
+        """Case 3: Owner has lost item and matching found item exists -> Found item appears."""
+        # Milan lost iPhone 15
+        Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='Lost iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # Hari found iPhone 15
+        found_iphone = Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='Found iPhone 15 Black',
+            category='phone',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+        request = self.factory.get('/api/items/?type=found')
+        force_authenticate(request, user=self.owner_milan)
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['id'], found_iphone.id)
+        self.assertEqual(response.data[0]['title'], 'Found iPhone 15 Black')
+
+    def test_4_owner_does_not_see_unrelated_found_items_of_other_owners(self):
+        """Case 4: Owner Milan does not see Found items matching other owners' lost items."""
+        # Milan lost iPhone 15 (phone)
+        Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # Dave lost Car Keys (keys)
+        Item.objects.create(
+            user=self.owner_dave,
+            type='lost',
+            title='Toyota Car Keys',
+            category='keys',
+            status='approved',
+        )
+        # Hari found iPhone 15
+        found_phone = Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # John found Toyota Keys
+        found_keys = Item.objects.create(
+            user=self.finder_john,
+            type='found',
+            title='Toyota Car Keys',
+            category='keys',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+
+        # Milan checks Found tab
+        req_milan = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_milan, user=self.owner_milan)
+        res_milan = view(req_milan)
+        self.assertEqual(res_milan.status_code, 200)
+        self.assertEqual(len(res_milan.data), 1)
+        self.assertEqual(res_milan.data[0]['id'], found_phone.id)
+
+        # Dave checks Found tab
+        req_dave = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_dave, user=self.owner_dave)
+        res_dave = view(req_dave)
+        self.assertEqual(res_dave.status_code, 200)
+        self.assertEqual(len(res_dave.data), 1)
+        self.assertEqual(res_dave.data[0]['id'], found_keys.id)
+
+    def test_5_owner_detail_view_permissions(self):
+        """Case 5: Owner can view matched found item detail; unrelated found item returns 403."""
+        # Milan lost iPhone 15
+        Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # Hari found iPhone 15
+        matched_found = Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # John found gold watch (unrelated)
+        unrelated_found = Item.objects.create(
+            user=self.finder_john,
+            type='found',
+            title='Gold Watch',
+            category='other',
+            status='approved',
+        )
+
+        view = ItemDetailView.as_view()
+
+        # Matched found item detail -> 200 OK
+        req1 = self.factory.get(f'/api/items/{matched_found.id}/')
+        force_authenticate(req1, user=self.owner_milan)
+        res1 = view(req1, pk=matched_found.id)
+        self.assertEqual(res1.status_code, 200)
+        self.assertEqual(res1.data['id'], matched_found.id)
+
+        # Unrelated found item detail -> 403 Forbidden
+        req2 = self.factory.get(f'/api/items/{unrelated_found.id}/')
+        force_authenticate(req2, user=self.owner_milan)
+        res2 = view(req2, pk=unrelated_found.id)
+        self.assertEqual(res2.status_code, 403)
+
+    def test_6_owner_all_tab_shows_own_lost_and_matched_found(self):
+        """Case 6: Owner 'All' tab returns owner's lost items + matched found items."""
+        lost_item = Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='Lost iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        found_item = Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='Found iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        # Unrelated found item
+        Item.objects.create(
+            user=self.finder_john,
+            type='found',
+            title='Found Bag',
+            category='bag',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+        request = self.factory.get('/api/items/')
+        force_authenticate(request, user=self.owner_milan)
+        response = view(request)
+
+        self.assertEqual(response.status_code, 200)
+        item_ids = [it['id'] for it in response.data]
+        self.assertIn(lost_item.id, item_ids)
+        self.assertIn(found_item.id, item_ids)
+        self.assertEqual(len(item_ids), 2)
+
+    def test_7_finder_visibility_rules_intact(self):
+        """Case 7: Finder continues to see all approved lost items and own found items."""
+        lost_1 = Item.objects.create(
+            user=self.owner_milan,
+            type='lost',
+            title='Lost iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        lost_2 = Item.objects.create(
+            user=self.owner_dave,
+            type='lost',
+            title='Lost Keys',
+            category='keys',
+            status='approved',
+        )
+        own_found = Item.objects.create(
+            user=self.finder_hari,
+            type='found',
+            title='Found iPhone 15',
+            category='phone',
+            status='approved',
+        )
+        other_found = Item.objects.create(
+            user=self.finder_john,
+            type='found',
+            title='Found Keys',
+            category='keys',
+            status='approved',
+        )
+
+        view = ItemListCreateView.as_view()
+
+        # Finder queries ?type=lost -> Sees all approved lost items
+        req_lost = self.factory.get('/api/items/?type=lost')
+        force_authenticate(req_lost, user=self.finder_hari)
+        res_lost = view(req_lost)
+        self.assertEqual(res_lost.status_code, 200)
+        lost_ids = [it['id'] for it in res_lost.data]
+        self.assertIn(lost_1.id, lost_ids)
+        self.assertIn(lost_2.id, lost_ids)
+
+        # Finder queries ?type=found -> Sees only own found items
+        req_found = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_found, user=self.finder_hari)
+        res_found = view(req_found)
+        self.assertEqual(res_found.status_code, 200)
+        found_ids = [it['id'] for it in res_found.data]
+        self.assertIn(own_found.id, found_ids)
+        self.assertNotIn(other_found.id, found_ids)
+
+

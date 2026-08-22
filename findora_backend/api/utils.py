@@ -6,12 +6,13 @@ one-time passwords used in email verification and password reset flows.
 """
 
 import logging
+import re
 import secrets
 import string
 import threading
 
+from django.db.models import Q
 from django.utils import timezone
-
 
 from .models import OTPToken
 
@@ -305,3 +306,81 @@ def verify_otp(user, otp_code, purpose):
     otp.is_used = True
     otp.save(update_fields=['is_used'])
     return True, "OTP verified successfully."
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Item Matching & Association Utilities
+# ─────────────────────────────────────────────────────────────────────────────
+
+STOP_WORDS = {
+    'lost', 'my', 'the', 'a', 'an', 'found', 'please', 'help',
+    'of', 'in', 'at', 'on', 'with', 'and', 'for', 'is', 'item',
+    'items', 'to', 'from', 'by', 'this', 'that', 'color', 'coloured'
+}
+
+
+def get_matched_found_items_query_for_owner(owner_user):
+    """
+    Constructs a Django Q filter to match found items relevant to an Owner's
+    reported lost items or explicit associations (claims, conversations, notifications).
+
+    Business rules:
+    1. If the Owner has no reported lost items (and no active conversations/claims),
+       returns an empty filter matching nothing.
+    2. Found items matching any of the Owner's lost items in category and title/keywords
+       are matched.
+    3. Direct interactions (conversations, claims) with found items are included.
+    4. Unrelated found items belonging to other categories or titles are excluded.
+    """
+    from .models import Item
+
+    owner_lost_items = Item.objects.filter(
+        user=owner_user,
+        type='lost'
+    ).exclude(status='rejected')
+
+    has_lost_items = owner_lost_items.exists()
+
+    # Direct conversation or claim association
+    direct_assoc_q = (
+        Q(conversations__owner=owner_user) |
+        Q(claims__claimant=owner_user) |
+        Q(notifications__user=owner_user, notifications__type='match')
+    )
+
+    if not has_lost_items:
+        # If no lost items, only direct associations (if any) apply; otherwise none
+        return direct_assoc_q if Item.objects.filter(type='found').filter(direct_assoc_q).exists() else Q(pk__in=[])
+
+    match_q = direct_assoc_q
+
+    for lost_item in owner_lost_items:
+        cat_q = Q(category=lost_item.category)
+
+        # Extract significant words from lost item title
+        raw_words = re.findall(r'\b\w+\b', lost_item.title.lower())
+        keywords = [w for w in raw_words if len(w) > 1 and w not in STOP_WORDS]
+
+        if keywords:
+            kw_q = Q()
+            for kw in keywords:
+                kw_q |= Q(title__icontains=kw) | Q(description__icontains=kw)
+            match_q |= (cat_q & kw_q)
+        else:
+            match_q |= cat_q
+
+    return match_q
+
+
+def is_found_item_matched_for_owner(found_item, owner_user):
+    """
+    Returns True if the given found item is matched or associated with the given Owner.
+    """
+    from .models import Item
+
+    if found_item.type != 'found':
+        return False
+
+    match_q = get_matched_found_items_query_for_owner(owner_user)
+    return Item.objects.filter(pk=found_item.pk).filter(match_q).exists()
+

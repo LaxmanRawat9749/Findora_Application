@@ -61,7 +61,13 @@ from .serializers import (
     UserBadgeSerializer,
     UserSerializer,
 )
-from .utils import create_otp, send_otp_email, verify_otp
+from .utils import (
+    create_otp,
+    get_matched_found_items_query_for_owner,
+    is_found_item_matched_for_owner,
+    send_otp_email,
+    verify_otp,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -593,9 +599,17 @@ class ItemListCreateView(APIView):
 
         # Role-based visibility rules
         if request.user.role == 'owner':
-            queryset = queryset.filter(user=request.user)
-            if item_type:
-                queryset = queryset.filter(type=item_type)
+            matched_found_q = get_matched_found_items_query_for_owner(request.user)
+            if item_type == 'lost':
+                queryset = queryset.filter(type='lost', user=request.user)
+            elif item_type == 'found':
+                queryset = queryset.filter(type='found').filter(matched_found_q)
+            else:
+                # All tab: Owner's own lost items + matched found items
+                queryset = queryset.filter(
+                    Q(type='lost', user=request.user) |
+                    (Q(type='found') & matched_found_q)
+                )
         elif request.user.role == 'finder':
             if item_type == 'found':
                 queryset = queryset.filter(type='found', user=request.user)
@@ -698,10 +712,16 @@ class ItemDetailView(APIView):
         # Enforce role-based visibility rules for detail view
         if request.user.role == 'owner':
             if item.user != request.user:
-                return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+                if item.type == 'found':
+                    if not is_found_item_matched_for_owner(item, request.user):
+                        return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+                else:
+                    return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
         elif request.user.role == 'finder':
             if item.type == 'found' and item.user != request.user:
-                return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
+                has_conv = Conversation.objects.filter(item=item, finder=request.user).exists()
+                if not has_conv:
+                    return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
