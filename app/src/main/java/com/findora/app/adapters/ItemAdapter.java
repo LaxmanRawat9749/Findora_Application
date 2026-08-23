@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide;
 import com.findora.app.R;
 import com.findora.app.databinding.ItemCardBinding;
 import com.findora.app.models.Item;
+import com.findora.app.utils.DateUtils;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,10 +73,46 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
             binding.tvTitle.setText(item.getTitle());
             binding.tvCategory.setText(item.getCategory() != null ? item.getCategory().replace('_', ' ') : "");
 
+            boolean isResolved = "resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm();
+            boolean isPendingReturn = item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm() && !isResolved;
             boolean isLost = "lost".equalsIgnoreCase(item.getType());
-            binding.tvTypeBadge.setText(isLost ? "LOST" : "FOUND");
-            binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, isLost ? R.color.light_red : R.color.light_green));
-            binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, isLost ? R.color.error_red : R.color.success_green));
+
+            if (isResolved) {
+                binding.tvTypeBadge.setText("RECOVERED");
+                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, R.color.light_green));
+                binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, R.color.success_green));
+
+                String dateStr = item.getResolvedAt() != null && !item.getResolvedAt().isEmpty() 
+                        ? item.getResolvedAt() : item.getUpdatedAt();
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    binding.tvDate.setVisibility(View.VISIBLE);
+                    binding.tvDate.setText("Recovered: " + DateUtils.formatNotificationTime(dateStr));
+                } else {
+                    binding.tvDate.setVisibility(View.GONE);
+                }
+            } else if (isPendingReturn) {
+                binding.tvTypeBadge.setText("RETURN PENDING");
+                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, R.color.light_warning));
+                binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, R.color.warning_orange));
+
+                if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
+                    binding.tvDate.setVisibility(View.VISIBLE);
+                    binding.tvDate.setText("Reported: " + DateUtils.formatNotificationTime(item.getReportedAt()));
+                } else {
+                    binding.tvDate.setVisibility(View.GONE);
+                }
+            } else {
+                binding.tvTypeBadge.setText(isLost ? "LOST" : "FOUND");
+                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, isLost ? R.color.light_red : R.color.light_purple));
+                binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, isLost ? R.color.error_red : R.color.primary_purple));
+
+                if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
+                    binding.tvDate.setVisibility(View.VISIBLE);
+                    binding.tvDate.setText("Reported: " + DateUtils.formatNotificationTime(item.getReportedAt()));
+                } else {
+                    binding.tvDate.setVisibility(View.GONE);
+                }
+            }
 
             if (item.getLocation() != null && !item.getLocation().isEmpty()) {
                 binding.layoutLocation.setVisibility(View.VISIBLE);

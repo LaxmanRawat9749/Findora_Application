@@ -149,6 +149,17 @@
                     android:textSize="11sp"
                     android:fontFamily="sans-serif" />
             </LinearLayout>
+
+            <!-- Date row -->
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="@color/text_hint"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif"
+                android:visibility="gone" />
         </LinearLayout>
 
         <!-- Reward Section -->

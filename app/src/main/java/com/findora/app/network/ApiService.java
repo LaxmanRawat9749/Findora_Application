@@ -61,6 +61,9 @@ public interface ApiService {
     @GET("profile/items/")
     Call<List<Item>> getMyReports();
 
+    @GET("profile/items/")
+    Call<List<Item>> getMyReportsFiltered(@Query("filter") String filter);
+
     // ─── Items ───────────────────────────────────────────────
     @GET("items/")
     Call<List<Item>> getItems();

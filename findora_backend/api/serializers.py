@@ -82,7 +82,7 @@ class UserSerializer(serializers.ModelSerializer):
     def get_found_reports(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        return Item.objects.filter(user=obj, type='found').count()
+        return Item.objects.filter(user=obj, type='found').exclude(status='resolved').count()
 
     def get_items_recovered(self, obj):
         if getattr(obj, 'role', '') != 'finder':
@@ -129,6 +129,8 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return Item.objects.filter(user=obj, type='lost').count()
         
     def get_found_reports(self, obj):
+        if getattr(obj, 'role', '') == 'finder':
+            return Item.objects.filter(user=obj, type='found').exclude(status='resolved').count()
         return Item.objects.filter(user=obj, type='found').count()
         
     def get_recovered_items(self, obj):
@@ -594,7 +596,7 @@ class FinderReputationSerializer(serializers.ModelSerializer):
         return Item.objects.filter(user=obj.user, type='lost').count()
 
     def get_found_reports(self, obj):
-        return Item.objects.filter(user=obj.user, type='found').count()
+        return Item.objects.filter(user=obj.user, type='found').exclude(status='resolved').count()
 
     def get_items_recovered(self, obj):
         return obj.successful_returns

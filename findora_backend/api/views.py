@@ -915,7 +915,25 @@ class MyReportsView(APIView):
 
     def get(self, request):
         now = timezone.now()
-        queryset = Item.objects.filter(user=request.user).prefetch_related('images').annotate(
+        queryset = Item.objects.filter(user=request.user).prefetch_related('images')
+
+        filter_param = (request.query_params.get('filter') or request.query_params.get('type') or '').lower()
+        status_param = (request.query_params.get('status') or '').lower()
+
+        if filter_param in ['found', 'active_found']:
+            # Active / non-recovered found reports only
+            queryset = queryset.filter(type='found').exclude(status='resolved')
+        elif filter_param in ['recovered', 'resolved', 'items_recovered']:
+            # Successfully recovered items
+            queryset = queryset.filter(status='resolved')
+        elif filter_param == 'lost':
+            queryset = queryset.filter(type='lost')
+        elif status_param == 'resolved':
+            queryset = queryset.filter(status='resolved')
+        elif status_param == 'active':
+            queryset = queryset.exclude(status='resolved')
+
+        queryset = queryset.annotate(
             active_featured=Case(
                 When(is_featured=True, featured_until__gt=now, then=Value(1)),
                 default=Value(0),

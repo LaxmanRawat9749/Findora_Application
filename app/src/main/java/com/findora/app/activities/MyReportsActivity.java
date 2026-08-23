@@ -72,7 +72,14 @@ public class MyReportsActivity extends BaseActivity {
 
     private void loadItems() {
         binding.swipeRefresh.setRefreshing(true);
-        apiService.getMyReports().enqueue(new Callback<List<Item>>() {
+        Call<List<Item>> call;
+        if (filterType != null && !filterType.isEmpty()) {
+            call = apiService.getMyReportsFiltered(filterType);
+        } else {
+            call = apiService.getMyReports();
+        }
+
+        call.enqueue(new Callback<List<Item>>() {
             @Override
             public void onResponse(Call<List<Item>> call, Response<List<Item>> response) {
                 binding.swipeRefresh.setRefreshing(false);
@@ -83,9 +90,15 @@ public class MyReportsActivity extends BaseActivity {
                         for (Item item : allItems) {
                             if ("lost".equalsIgnoreCase(filterType) && "lost".equalsIgnoreCase(item.getType())) {
                                 itemList.add(item);
-                            } else if ("found".equalsIgnoreCase(filterType) && "found".equalsIgnoreCase(item.getType())) {
+                            } else if ("found".equalsIgnoreCase(filterType) 
+                                    && "found".equalsIgnoreCase(item.getType()) 
+                                    && !"resolved".equalsIgnoreCase(item.getStatus()) 
+                                    && !item.isFinderReturnedConfirm()) {
+                                // Active non-recovered found reports only
                                 itemList.add(item);
-                            } else if ("resolved".equalsIgnoreCase(filterType) && ("resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm())) {
+                            } else if (("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)) 
+                                    && ("resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm())) {
+                                // Successfully recovered items only
                                 itemList.add(item);
                             }
                         }

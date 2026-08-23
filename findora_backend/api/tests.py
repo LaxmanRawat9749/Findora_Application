@@ -917,7 +917,7 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         )
 
     def test_1_finder_activity_counts_match_real_data(self):
-        """TEST 1: Finder with 2 lost, 15 found, and 12 successful returns shows accurate stats."""
+        """TEST 1: Finder with 2 lost, 12 active found, 3 resolved found shows 2 lost, 12 found, 3 recovered."""
         from api.views import ProfileView, ReputationProfileView, PublicProfileView
         from api.reputation_service import get_or_create_reputation
 
@@ -931,20 +931,31 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
                 status='approved',
             )
 
-        # 15 Found items
-        for i in range(15):
+        # 12 Active Found items
+        for i in range(12):
             Item.objects.create(
                 user=self.finder,
                 type='found',
-                title=f'Found Item {i}',
+                title=f'Active Found Item {i}',
                 category='electronics',
                 status='approved',
             )
 
-        # 12 Successful returns
+        # 3 Successfully Resolved Found items
+        for i in range(3):
+            Item.objects.create(
+                user=self.finder,
+                type='found',
+                title=f'Resolved Found Item {i}',
+                category='electronics',
+                status='resolved',
+                finder_returned_confirm=True,
+            )
+
+        # 3 Successful returns
         rep = get_or_create_reputation(self.finder)
-        rep.successful_returns = 12
-        rep.total_points = 1200
+        rep.successful_returns = 3
+        rep.total_points = 300
         rep.save()
 
         # Check /api/profile/
@@ -954,9 +965,9 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         res_profile = view_profile(req_profile)
         self.assertEqual(res_profile.status_code, 200)
         self.assertEqual(res_profile.data['lost_reports'], 2)
-        self.assertEqual(res_profile.data['found_reports'], 15)
-        self.assertEqual(res_profile.data['items_recovered'], 12)
-        self.assertEqual(res_profile.data['successful_returns'], 12)
+        self.assertEqual(res_profile.data['found_reports'], 12)
+        self.assertEqual(res_profile.data['items_recovered'], 3)
+        self.assertEqual(res_profile.data['successful_returns'], 3)
 
         # Check /api/reputation/me/
         view_rep = ReputationProfileView.as_view()
@@ -965,9 +976,9 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         res_rep = view_rep(req_rep)
         self.assertEqual(res_rep.status_code, 200)
         self.assertEqual(res_rep.data['lost_reports'], 2)
-        self.assertEqual(res_rep.data['found_reports'], 15)
-        self.assertEqual(res_rep.data['items_recovered'], 12)
-        self.assertEqual(res_rep.data['successful_returns'], 12)
+        self.assertEqual(res_rep.data['found_reports'], 12)
+        self.assertEqual(res_rep.data['items_recovered'], 3)
+        self.assertEqual(res_rep.data['successful_returns'], 3)
 
         # Check /api/users/{id}/public-profile/
         view_public = PublicProfileView.as_view()
@@ -976,8 +987,8 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         res_public = view_public(req_public, pk=self.finder.id)
         self.assertEqual(res_public.status_code, 200)
         self.assertEqual(res_public.data['lost_reports'], 2)
-        self.assertEqual(res_public.data['found_reports'], 15)
-        self.assertEqual(res_public.data['items_recovered'], 12)
+        self.assertEqual(res_public.data['found_reports'], 12)
+        self.assertEqual(res_public.data['items_recovered'], 3)
 
     def test_2_finder_with_no_reports_shows_zero(self):
         """TEST 2: Finder with no reports displays 0 for lost, found, and recovered."""
@@ -1002,17 +1013,27 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         self.assertEqual(res_rep.data['items_recovered'], 0)
 
     def test_3_finder_10_found_reports_3_returns(self):
-        """TEST 3: Finder has 10 Found Reports but only 3 returns -> Found=10, Recovered=3."""
+        """TEST 3: Finder has 10 Found Items (7 active, 3 returned) -> Found Reports=7, Recovered=3."""
         from api.views import ProfileView
         from api.reputation_service import get_or_create_reputation
 
-        for i in range(10):
+        for i in range(7):
             Item.objects.create(
                 user=self.finder,
                 type='found',
-                title=f'Found Bag {i}',
+                title=f'Active Found Bag {i}',
                 category='bag',
                 status='approved',
+            )
+
+        for i in range(3):
+            Item.objects.create(
+                user=self.finder,
+                type='found',
+                title=f'Recovered Bag {i}',
+                category='bag',
+                status='resolved',
+                finder_returned_confirm=True,
             )
 
         rep = get_or_create_reputation(self.finder)
@@ -1025,7 +1046,7 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         res = view(req)
 
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data['found_reports'], 10)
+        self.assertEqual(res.data['found_reports'], 7)
         self.assertEqual(res.data['items_recovered'], 3)
         self.assertNotEqual(res.data['items_recovered'], 10)
 
@@ -1053,36 +1074,28 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         self.assertEqual(res_profile.data['items_recovered'], 0)
 
     def test_5_pending_return_does_not_increment_recovered(self):
-        """TEST 5: Marking return pending does NOT increment items_recovered."""
-        from api.views import MarkItemReturnedView, ProfileView
+        """TEST 5: Marking return pending leaves item in active found_reports, NOT in items_recovered."""
+        from api.views import ProfileView
 
         item = Item.objects.create(
-            user=self.owner,
-            type='lost',
-            title='Lost Blue Backpack',
+            user=self.finder,
+            type='found',
+            title='Found Blue Backpack',
             category='bag',
             status='approved',
+            owner_returned_confirm=True,
+            finder_returned_confirm=False,
         )
-
-        view_mark = MarkItemReturnedView.as_view()
-        req_mark = self.factory.post(f'/api/items/{item.id}/mark-returned/')
-        force_authenticate(req_mark, user=self.owner)
-        res_mark = view_mark(req_mark, pk=item.id)
-        self.assertEqual(res_mark.status_code, 200)
-
-        item.refresh_from_db()
-        self.assertTrue(item.owner_returned_confirm)
-        self.assertFalse(item.finder_returned_confirm)
-        self.assertNotEqual(item.status, 'resolved')
 
         view_profile = ProfileView.as_view()
         req_profile = self.factory.get('/api/profile/')
         force_authenticate(req_profile, user=self.finder)
         res_profile = view_profile(req_profile)
+        self.assertEqual(res_profile.data['found_reports'], 1)
         self.assertEqual(res_profile.data['items_recovered'], 0)
 
-    def test_6_completed_return_increments_recovered_and_successful_returns(self):
-        """TEST 6: Return confirmed & resolved increments items_recovered & successful_returns."""
+    def test_6_completed_return_increments_recovered_and_decrements_active_found(self):
+        """TEST 6: Return confirmed & resolved moves item from found_reports to items_recovered."""
         from api.views import ConfirmItemReturnView, ProfileView
         from api.models import FinderReputation
 
@@ -1095,6 +1108,24 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
             owner_returned_confirm=True,
         )
 
+        # Finder has 1 active found item
+        found_item = Item.objects.create(
+            user=self.finder,
+            type='found',
+            title='Found Watch',
+            category='other',
+            status='approved',
+        )
+
+        # Before confirm: found_reports = 1, items_recovered = 0
+        view_profile = ProfileView.as_view()
+        req_profile = self.factory.get('/api/profile/')
+        force_authenticate(req_profile, user=self.finder)
+        res_before = view_profile(req_profile)
+        self.assertEqual(res_before.data['found_reports'], 1)
+        self.assertEqual(res_before.data['items_recovered'], 0)
+
+        # Confirm return of lost item by finder
         view_confirm = ConfirmItemReturnView.as_view()
         req_confirm = self.factory.post(f'/api/items/{item.id}/confirm-return/')
         force_authenticate(req_confirm, user=self.finder)
@@ -1108,12 +1139,22 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         rep = FinderReputation.objects.get(user=self.finder)
         self.assertEqual(rep.successful_returns, 1)
 
-        view_profile = ProfileView.as_view()
-        req_profile = self.factory.get('/api/profile/')
-        force_authenticate(req_profile, user=self.finder)
-        res_profile = view_profile(req_profile)
-        self.assertEqual(res_profile.data['items_recovered'], 1)
-        self.assertEqual(res_profile.data['successful_returns'], 1)
+        # After confirm: items_recovered = 1, found_reports = 1
+        req_profile2 = self.factory.get('/api/profile/')
+        force_authenticate(req_profile2, user=self.finder)
+        res_after = view_profile(req_profile2)
+        self.assertEqual(res_after.data['found_reports'], 1)
+        self.assertEqual(res_after.data['items_recovered'], 1)
+        self.assertEqual(res_after.data['successful_returns'], 1)
+
+        # When the found_item itself is resolved, found_reports decrements to 0
+        found_item.status = 'resolved'
+        found_item.finder_returned_confirm = True
+        found_item.save()
+
+        res_after2 = view_profile(req_profile2)
+        self.assertEqual(res_after2.data['found_reports'], 0)
+        self.assertEqual(res_after2.data['items_recovered'], 1)
 
     def test_7_finder_profile_endpoint_returns_accurate_activity(self):
         """TEST 7: GET /api/profile/ accurately provides all finder activity statistics."""
@@ -1122,8 +1163,9 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
 
         Item.objects.create(user=self.finder, type='found', title='Found Watch 1', category='other', status='approved')
         Item.objects.create(user=self.finder, type='found', title='Found Watch 2', category='other', status='approved')
+        Item.objects.create(user=self.finder, type='found', title='Found Watch 3', category='other', status='resolved')
         rep = get_or_create_reputation(self.finder)
-        rep.successful_returns = 2
+        rep.successful_returns = 1
         rep.total_points = 210
         rep.save()
 
@@ -1135,9 +1177,9 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data['found_reports'], 2)
         self.assertEqual(res.data['lost_reports'], 0)
-        self.assertEqual(res.data['items_recovered'], 2)
+        self.assertEqual(res.data['items_recovered'], 1)
         self.assertEqual(res.data['total_points'], 210)
-        self.assertEqual(res.data['successful_returns'], 2)
+        self.assertEqual(res.data['successful_returns'], 1)
 
     def test_8_owner_profile_does_not_have_finder_reputation_or_items_recovered(self):
         """TEST 8: Owner profile does not receive Finder points, reputation, or items_recovered."""
@@ -1162,6 +1204,51 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         force_authenticate(req_rep, user=self.owner)
         res_rep = view_rep(req_rep)
         self.assertEqual(res_rep.status_code, 403)
+
+    def test_9_my_reports_view_separates_found_and_recovered_items(self):
+        """TEST 9: MyReportsView cleanly filters active found reports and recovered items with zero duplication."""
+        from api.views import MyReportsView
+
+        # Create 3 active found items
+        for i in range(3):
+            Item.objects.create(
+                user=self.finder,
+                type='found',
+                title=f'Active Found Item {i}',
+                category='electronics',
+                status='approved',
+            )
+
+        # Create 2 resolved found items (recovered)
+        for i in range(2):
+            Item.objects.create(
+                user=self.finder,
+                type='found',
+                title=f'Recovered Item {i}',
+                category='electronics',
+                status='resolved',
+                finder_returned_confirm=True,
+            )
+
+        view = MyReportsView.as_view()
+
+        # Query found items -> returns only 3 active found items
+        req_found = self.factory.get('/api/profile/items/?filter=found')
+        force_authenticate(req_found, user=self.finder)
+        res_found = view(req_found)
+        self.assertEqual(res_found.status_code, 200)
+        self.assertEqual(len(res_found.data), 3)
+        for item in res_found.data:
+            self.assertNotEqual(item['status'], 'resolved')
+
+        # Query recovered items -> returns only 2 resolved items
+        req_recovered = self.factory.get('/api/profile/items/?filter=recovered')
+        force_authenticate(req_recovered, user=self.finder)
+        res_recovered = view(req_recovered)
+        self.assertEqual(res_recovered.status_code, 200)
+        self.assertEqual(len(res_recovered.data), 2)
+        for item in res_recovered.data:
+            self.assertEqual(item['status'], 'resolved')
 
 
 
