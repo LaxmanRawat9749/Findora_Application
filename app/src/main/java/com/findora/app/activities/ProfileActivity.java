@@ -169,6 +169,19 @@ public class ProfileActivity extends BaseActivity {
             startActivity(intent);
         });
 
+        // Finder Activity Stat Item Clicks -> Opens MyReportsActivity with filter
+        binding.btnLostReportsActivity.setOnClickListener(v -> openMyReportsWithFilter("lost"));
+        binding.btnFoundReportsActivity.setOnClickListener(v -> openMyReportsWithFilter("found"));
+        binding.btnItemsRecoveredActivity.setOnClickListener(v -> openMyReportsWithFilter("resolved"));
+
+    }
+
+    private void openMyReportsWithFilter(String filterType) {
+        Intent intent = new Intent(ProfileActivity.this, MyReportsActivity.class);
+        if (filterType != null) {
+            intent.putExtra(MyReportsActivity.EXTRA_FILTER_TYPE, filterType);
+        }
+        startActivity(intent);
     }
 
     private com.findora.app.adapters.BadgeAdapter badgeAdapter;
@@ -200,13 +213,20 @@ public class ProfileActivity extends BaseActivity {
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
 
-                    // Load Finder Reputation & Badges ONLY if user is a Finder
+                    // Load Finder Reputation, Activity & Badges ONLY if user is a Finder
                     if ("finder".equalsIgnoreCase(user.getRole())) {
                         binding.cvReputationSection.setVisibility(View.VISIBLE);
+                        binding.cvActivitySection.setVisibility(View.VISIBLE);
                         binding.cvBadgesSection.setVisibility(View.VISIBLE);
+
+                        binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
+                        binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
+                        binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
+
                         loadReputation();
                     } else {
                         binding.cvReputationSection.setVisibility(View.GONE);
+                        binding.cvActivitySection.setVisibility(View.GONE);
                         binding.cvBadgesSection.setVisibility(View.GONE);
                     }
                 } else {
@@ -233,6 +253,10 @@ public class ProfileActivity extends BaseActivity {
                     binding.tvReputationScore.setText("⭐ " + rep.getReputationDisplay());
                     binding.tvPointsScore.setText("🏆 " + rep.getTotalPoints() + " Pts");
                     binding.tvReturnsScore.setText("🤝 " + rep.getSuccessfulReturns());
+
+                    binding.tvLostReportsCount.setText(String.valueOf(rep.getLostReports()));
+                    binding.tvFoundReportsCount.setText(String.valueOf(rep.getFoundReports()));
+                    binding.tvItemsRecoveredCount.setText(String.valueOf(rep.getItemsRecovered()));
 
                     String badgeName = rep.getPrimaryBadge();
                     binding.tvPrimaryBadge.setText(badgeName != null ? "🏅 " + badgeName : "🏅 Starting Out");

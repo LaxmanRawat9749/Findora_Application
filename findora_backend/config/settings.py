@@ -70,12 +70,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-import dj_database_url
+import sys
 
 # ─── Database ────────────────────────────────────────────────────────────────
+# Use in-memory SQLite during automated test runs for speed and isolation.
 # DATABASE_URL is read from .env (local) or Render env vars (production).
 # When DATABASE_URL is set, use PostgreSQL; otherwise fall back to SQLite for local dev.
-if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+elif os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.parse(os.environ.get('DATABASE_URL', ''), conn_max_age=600)
     }

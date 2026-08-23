@@ -19,6 +19,12 @@ public class FinderReputation {
     private String reputationDisplay;
     @SerializedName("primary_badge")
     private String primaryBadge;
+    @SerializedName("lost_reports")
+    private int lostReports;
+    @SerializedName("found_reports")
+    private int foundReports;
+    @SerializedName("items_recovered")
+    private int itemsRecovered;
     private List<UserBadge> badges;
     @SerializedName("badge_progress")
     private List<UserBadge> badgeProgress;
@@ -55,6 +61,15 @@ public class FinderReputation {
 
     public String getPrimaryBadge() { return primaryBadge; }
     public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }
+
+    public int getLostReports() { return lostReports; }
+    public void setLostReports(int lostReports) { this.lostReports = lostReports; }
+
+    public int getFoundReports() { return foundReports; }
+    public void setFoundReports(int foundReports) { this.foundReports = foundReports; }
+
+    public int getItemsRecovered() { return itemsRecovered > 0 ? itemsRecovered : successfulReturns; }
+    public void setItemsRecovered(int itemsRecovered) { this.itemsRecovered = itemsRecovered; }
 
     public List<UserBadge> getBadges() { return badges != null ? badges : new ArrayList<>(); }
     public void setBadges(List<UserBadge> badges) { this.badges = badges; }

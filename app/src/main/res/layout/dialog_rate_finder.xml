@@ -51,40 +51,40 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="4dp"
-            android:src="@android:drawable/star_big_on"
-            app:tint="@color/warning_orange" />
+            android:src="@android:drawable/star_big_off"
+            app:tint="@color/text_disabled" />
 
         <ImageView
             android:id="@+id/ivStar2"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="4dp"
-            android:src="@android:drawable/star_big_on"
-            app:tint="@color/warning_orange" />
+            android:src="@android:drawable/star_big_off"
+            app:tint="@color/text_disabled" />
 
         <ImageView
             android:id="@+id/ivStar3"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="4dp"
-            android:src="@android:drawable/star_big_on"
-            app:tint="@color/warning_orange" />
+            android:src="@android:drawable/star_big_off"
+            app:tint="@color/text_disabled" />
 
         <ImageView
             android:id="@+id/ivStar4"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="4dp"
-            android:src="@android:drawable/star_big_on"
-            app:tint="@color/warning_orange" />
+            android:src="@android:drawable/star_big_off"
+            app:tint="@color/text_disabled" />
 
         <ImageView
             android:id="@+id/ivStar5"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="4dp"
-            android:src="@android:drawable/star_big_on"
-            app:tint="@color/warning_orange" />
+            android:src="@android:drawable/star_big_off"
+            app:tint="@color/text_disabled" />
     </LinearLayout>
 
     <TextView
@@ -93,8 +93,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:gravity="center"
-        android:text="5 Stars — Excellent (+10 Finder Points)"
-        android:textColor="@color/primary_purple"
+        android:text="Tap a star to rate"
+        android:textColor="@color/text_gray"
         android:textSize="12sp"
         android:fontFamily="sans-serif-medium" />
 

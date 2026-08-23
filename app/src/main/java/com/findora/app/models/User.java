@@ -28,6 +28,12 @@ public class User {
     private String reputationDisplay;
     @SerializedName("primary_badge")
     private String primaryBadge;
+    @SerializedName("lost_reports")
+    private int lostReports;
+    @SerializedName("found_reports")
+    private int foundReports;
+    @SerializedName("items_recovered")
+    private int itemsRecovered;
     @SerializedName("created_at")
     private String createdAt;
 
@@ -77,6 +83,15 @@ public class User {
 
     public String getPrimaryBadge() { return primaryBadge; }
     public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }
+
+    public int getLostReports() { return lostReports; }
+    public void setLostReports(int lostReports) { this.lostReports = lostReports; }
+
+    public int getFoundReports() { return foundReports; }
+    public void setFoundReports(int foundReports) { this.foundReports = foundReports; }
+
+    public int getItemsRecovered() { return itemsRecovered > 0 ? itemsRecovered : successfulReturns; }
+    public void setItemsRecovered(int itemsRecovered) { this.itemsRecovered = itemsRecovered; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

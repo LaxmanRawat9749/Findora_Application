@@ -1,6 +1,7 @@
 package com.findora.app.activities;
 
 import android.app.AlertDialog;
+import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -297,7 +298,7 @@ public class ItemDetailActivity extends BaseActivity {
         });
     }
 
-    private int selectedRatingValue = 5;
+    private int selectedRatingValue = 0;
 
     private void showRatingDialog() {
         if (currentItem == null) return;
@@ -308,7 +309,7 @@ public class ItemDetailActivity extends BaseActivity {
                 com.findora.app.databinding.DialogRateFinderBinding.inflate(getLayoutInflater());
         dialog.setContentView(dialogBinding.getRoot());
 
-        selectedRatingValue = 5;
+        selectedRatingValue = 0;
         updateStarViews(dialogBinding, selectedRatingValue);
 
         dialogBinding.ivStar1.setOnClickListener(v -> { selectedRatingValue = 1; updateStarViews(dialogBinding, 1); });
@@ -320,6 +321,11 @@ public class ItemDetailActivity extends BaseActivity {
         dialogBinding.btnCancelRating.setOnClickListener(v -> dialog.dismiss());
 
         dialogBinding.btnSubmitRating.setOnClickListener(v -> {
+            if (selectedRatingValue < 1 || selectedRatingValue > 5) {
+                Toast.makeText(ItemDetailActivity.this, "Please select a rating.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             String review = dialogBinding.etReview.getText() != null ?
                     dialogBinding.etReview.getText().toString().trim() : "";
 
@@ -357,29 +363,43 @@ public class ItemDetailActivity extends BaseActivity {
 
     private void updateStarViews(com.findora.app.databinding.DialogRateFinderBinding db, int rating) {
         ImageView[] stars = { db.ivStar1, db.ivStar2, db.ivStar3, db.ivStar4, db.ivStar5 };
+        int yellowColor = ContextCompat.getColor(this, R.color.warning_orange);
+        int grayColor = ContextCompat.getColor(this, R.color.text_disabled);
+
         for (int i = 0; i < 5; i++) {
             if (i < rating) {
                 stars[i].setImageResource(android.R.drawable.star_big_on);
+                stars[i].setImageTintList(ColorStateList.valueOf(yellowColor));
             } else {
                 stars[i].setImageResource(android.R.drawable.star_big_off);
+                stars[i].setImageTintList(ColorStateList.valueOf(grayColor));
             }
         }
 
         switch (rating) {
             case 5:
                 db.tvRatingHint.setText("5 Stars — Excellent (+10 Finder Points)");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.primary_purple));
                 break;
             case 4:
                 db.tvRatingHint.setText("4 Stars — Good (+10 Finder Points)");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.primary_purple));
                 break;
             case 3:
                 db.tvRatingHint.setText("3 Stars — Average");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.text_gray));
                 break;
             case 2:
                 db.tvRatingHint.setText("2 Stars — Below Average");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.text_gray));
                 break;
             case 1:
                 db.tvRatingHint.setText("1 Star — Poor");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.text_gray));
+                break;
+            default:
+                db.tvRatingHint.setText("Tap a star to rate");
+                db.tvRatingHint.setTextColor(ContextCompat.getColor(this, R.color.text_gray));
                 break;
         }
     }

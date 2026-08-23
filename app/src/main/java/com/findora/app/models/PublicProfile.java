@@ -23,6 +23,8 @@ public class PublicProfile {
     private int foundReports;
     @SerializedName("recovered_items")
     private int recoveredItems;
+    @SerializedName("items_recovered")
+    private int itemsRecovered;
 
     @SerializedName("total_points")
     private int totalPoints;
@@ -51,7 +53,8 @@ public class PublicProfile {
     public String getCreatedAt() { return createdAt; }
     public int getLostReports() { return lostReports; }
     public int getFoundReports() { return foundReports; }
-    public int getRecoveredItems() { return recoveredItems; }
+    public int getRecoveredItems() { return recoveredItems > 0 ? recoveredItems : itemsRecovered; }
+    public int getItemsRecovered() { return itemsRecovered > 0 ? itemsRecovered : (recoveredItems > 0 ? recoveredItems : successfulReturns); }
 
     public int getTotalPoints() { return totalPoints; }
     public int getSuccessfulReturns() { return successfulReturns; }
