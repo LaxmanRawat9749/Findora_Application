@@ -19,12 +19,20 @@ public class PublicProfile {
     
     @SerializedName("lost_reports")
     private int lostReports;
+    @SerializedName("lost_reports_count")
+    private Integer lostReportsCount;
+
     @SerializedName("found_reports")
     private int foundReports;
+    @SerializedName("found_reports_count")
+    private Integer foundReportsCount;
+
     @SerializedName("recovered_items")
     private int recoveredItems;
     @SerializedName("items_recovered")
     private int itemsRecovered;
+    @SerializedName("recovered_items_count")
+    private Integer recoveredItemsCount;
 
     @SerializedName("total_points")
     private int totalPoints;
@@ -51,10 +59,19 @@ public class PublicProfile {
     public String getRole() { return role; }
     public String getProfileImage() { return profileImage; }
     public String getCreatedAt() { return createdAt; }
-    public int getLostReports() { return lostReports; }
-    public int getFoundReports() { return foundReports; }
-    public int getRecoveredItems() { return recoveredItems > 0 ? recoveredItems : itemsRecovered; }
-    public int getItemsRecovered() { return itemsRecovered > 0 ? itemsRecovered : (recoveredItems > 0 ? recoveredItems : successfulReturns); }
+
+    public int getLostReports() {
+        return lostReportsCount != null ? lostReportsCount : lostReports;
+    }
+    public int getFoundReports() {
+        return foundReportsCount != null ? foundReportsCount : foundReports;
+    }
+    public int getRecoveredItems() {
+        return recoveredItemsCount != null ? recoveredItemsCount : (itemsRecovered > 0 ? itemsRecovered : recoveredItems);
+    }
+    public int getItemsRecovered() {
+        return recoveredItemsCount != null ? recoveredItemsCount : (itemsRecovered > 0 ? itemsRecovered : recoveredItems);
+    }
 
     public int getTotalPoints() { return totalPoints; }
     public int getSuccessfulReturns() { return successfulReturns; }

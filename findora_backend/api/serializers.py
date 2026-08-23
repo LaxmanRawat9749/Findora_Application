@@ -35,8 +35,11 @@ class UserSerializer(serializers.ModelSerializer):
     reputation_display = serializers.SerializerMethodField()
     primary_badge = serializers.SerializerMethodField()
     lost_reports = serializers.SerializerMethodField()
+    lost_reports_count = serializers.SerializerMethodField()
     found_reports = serializers.SerializerMethodField()
+    found_reports_count = serializers.SerializerMethodField()
     items_recovered = serializers.SerializerMethodField()
+    recovered_items_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -45,8 +48,9 @@ class UserSerializer(serializers.ModelSerializer):
             'phone', 'role', 'is_verified', 'profile_image',
             'emergency_contact_name', 'emergency_contact_phone',
             'total_points', 'successful_returns', 'reputation_display',
-            'primary_badge', 'lost_reports', 'found_reports',
-            'items_recovered', 'created_at',
+            'primary_badge', 'lost_reports', 'lost_reports_count',
+            'found_reports', 'found_reports_count',
+            'items_recovered', 'recovered_items_count', 'created_at',
         ]
         read_only_fields = ['id', 'is_verified', 'created_at']
 
@@ -77,18 +81,26 @@ class UserSerializer(serializers.ModelSerializer):
     def get_lost_reports(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        return Item.objects.filter(user=obj, type='lost').count()
+        return Item.objects.filter(user=obj, type='lost').distinct().count()
+
+    def get_lost_reports_count(self, obj):
+        return self.get_lost_reports(obj)
 
     def get_found_reports(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        return Item.objects.filter(user=obj, type='found').exclude(status='resolved').count()
+        return Item.objects.filter(user=obj, type='found').distinct().count()
+
+    def get_found_reports_count(self, obj):
+        return self.get_found_reports(obj)
 
     def get_items_recovered(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        rep = getattr(obj, 'reputation', None)
-        return rep.successful_returns if rep else 0
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
+
+    def get_recovered_items_count(self, obj):
+        return self.get_items_recovered(obj)
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
@@ -97,9 +109,12 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     Never exposes email, password, phone, or OTP tokens.
     """
     lost_reports = serializers.SerializerMethodField()
+    lost_reports_count = serializers.SerializerMethodField()
     found_reports = serializers.SerializerMethodField()
+    found_reports_count = serializers.SerializerMethodField()
     recovered_items = serializers.SerializerMethodField()
     items_recovered = serializers.SerializerMethodField()
+    recovered_items_count = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
     total_points = serializers.SerializerMethodField()
     successful_returns = serializers.SerializerMethodField()
@@ -113,8 +128,10 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'role', 
-            'profile_image', 'created_at', 'lost_reports', 'found_reports',
-            'recovered_items', 'items_recovered', 'total_points', 'successful_returns',
+            'profile_image', 'created_at', 'lost_reports', 'lost_reports_count',
+            'found_reports', 'found_reports_count',
+            'recovered_items', 'items_recovered', 'recovered_items_count',
+            'total_points', 'successful_returns',
             'average_rating', 'rating_count', 'reputation_display',
             'primary_badge', 'badges'
         ]
@@ -126,20 +143,26 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return None
 
     def get_lost_reports(self, obj):
-        return Item.objects.filter(user=obj, type='lost').count()
+        return Item.objects.filter(user=obj, type='lost').distinct().count()
+
+    def get_lost_reports_count(self, obj):
+        return self.get_lost_reports(obj)
         
     def get_found_reports(self, obj):
-        if getattr(obj, 'role', '') == 'finder':
-            return Item.objects.filter(user=obj, type='found').exclude(status='resolved').count()
-        return Item.objects.filter(user=obj, type='found').count()
+        return Item.objects.filter(user=obj, type='found').distinct().count()
+
+    def get_found_reports_count(self, obj):
+        return self.get_found_reports(obj)
         
     def get_recovered_items(self, obj):
         if getattr(obj, 'role', '') == 'finder':
-            rep = getattr(obj, 'reputation', None)
-            return rep.successful_returns if rep else 0
-        return Item.objects.filter(user=obj, status='resolved').count()
+            return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
+        return Item.objects.filter(user=obj, status='resolved').distinct().count()
 
     def get_items_recovered(self, obj):
+        return self.get_recovered_items(obj)
+
+    def get_recovered_items_count(self, obj):
         return self.get_recovered_items(obj)
 
     def get_total_points(self, obj):
@@ -578,8 +601,11 @@ class FinderReputationSerializer(serializers.ModelSerializer):
     reputation_display = serializers.CharField(read_only=True)
     primary_badge = serializers.CharField(read_only=True)
     lost_reports = serializers.SerializerMethodField()
+    lost_reports_count = serializers.SerializerMethodField()
     found_reports = serializers.SerializerMethodField()
+    found_reports_count = serializers.SerializerMethodField()
     items_recovered = serializers.SerializerMethodField()
+    recovered_items_count = serializers.SerializerMethodField()
     badges = serializers.SerializerMethodField()
     badge_progress = serializers.SerializerMethodField()
 
@@ -588,18 +614,29 @@ class FinderReputationSerializer(serializers.ModelSerializer):
         fields = [
             'total_points', 'successful_returns', 'rating_count', 'rating_sum',
             'average_rating', 'reputation_display', 'primary_badge',
-            'lost_reports', 'found_reports', 'items_recovered',
+            'lost_reports', 'lost_reports_count',
+            'found_reports', 'found_reports_count',
+            'items_recovered', 'recovered_items_count',
             'badges', 'badge_progress', 'updated_at',
         ]
 
     def get_lost_reports(self, obj):
-        return Item.objects.filter(user=obj.user, type='lost').count()
+        return Item.objects.filter(user=obj.user, type='lost').distinct().count()
+
+    def get_lost_reports_count(self, obj):
+        return self.get_lost_reports(obj)
 
     def get_found_reports(self, obj):
-        return Item.objects.filter(user=obj.user, type='found').exclude(status='resolved').count()
+        return Item.objects.filter(user=obj.user, type='found').distinct().count()
+
+    def get_found_reports_count(self, obj):
+        return self.get_found_reports(obj)
 
     def get_items_recovered(self, obj):
-        return obj.successful_returns
+        return Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()
+
+    def get_recovered_items_count(self, obj):
+        return self.get_items_recovered(obj)
 
     def get_badges(self, obj):
         user_badges = obj.user.badges.all().order_by('required_returns')

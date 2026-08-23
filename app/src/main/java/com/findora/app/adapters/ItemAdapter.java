@@ -86,7 +86,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                         ? item.getResolvedAt() : item.getUpdatedAt();
                 if (dateStr != null && !dateStr.isEmpty()) {
                     binding.tvDate.setVisibility(View.VISIBLE);
-                    binding.tvDate.setText("Recovered: " + DateUtils.formatNotificationTime(dateStr));
+                    binding.tvDate.setText("Returned: " + DateUtils.formatNotificationTime(dateStr));
                 } else {
                     binding.tvDate.setVisibility(View.GONE);
                 }
@@ -97,7 +97,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
 
                 if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
                     binding.tvDate.setVisibility(View.VISIBLE);
-                    binding.tvDate.setText("Reported: " + DateUtils.formatNotificationTime(item.getReportedAt()));
+                    binding.tvDate.setText((isLost ? "Reported: " : "Found: ") + DateUtils.formatNotificationTime(item.getReportedAt()));
                 } else {
                     binding.tvDate.setVisibility(View.GONE);
                 }
@@ -108,7 +108,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
 
                 if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
                     binding.tvDate.setVisibility(View.VISIBLE);
-                    binding.tvDate.setText("Reported: " + DateUtils.formatNotificationTime(item.getReportedAt()));
+                    binding.tvDate.setText((isLost ? "Reported: " : "Found: ") + DateUtils.formatNotificationTime(item.getReportedAt()));
                 } else {
                     binding.tvDate.setVisibility(View.GONE);
                 }

@@ -21,10 +21,19 @@ public class FinderReputation {
     private String primaryBadge;
     @SerializedName("lost_reports")
     private int lostReports;
+    @SerializedName("lost_reports_count")
+    private Integer lostReportsCount;
+
     @SerializedName("found_reports")
     private int foundReports;
+    @SerializedName("found_reports_count")
+    private Integer foundReportsCount;
+
     @SerializedName("items_recovered")
     private int itemsRecovered;
+    @SerializedName("recovered_items_count")
+    private Integer recoveredItemsCount;
+
     private List<UserBadge> badges;
     @SerializedName("badge_progress")
     private List<UserBadge> badgeProgress;
@@ -62,13 +71,19 @@ public class FinderReputation {
     public String getPrimaryBadge() { return primaryBadge; }
     public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }
 
-    public int getLostReports() { return lostReports; }
+    public int getLostReports() {
+        return lostReportsCount != null ? lostReportsCount : lostReports;
+    }
     public void setLostReports(int lostReports) { this.lostReports = lostReports; }
 
-    public int getFoundReports() { return foundReports; }
+    public int getFoundReports() {
+        return foundReportsCount != null ? foundReportsCount : foundReports;
+    }
     public void setFoundReports(int foundReports) { this.foundReports = foundReports; }
 
-    public int getItemsRecovered() { return itemsRecovered > 0 ? itemsRecovered : successfulReturns; }
+    public int getItemsRecovered() {
+        return recoveredItemsCount != null ? recoveredItemsCount : itemsRecovered;
+    }
     public void setItemsRecovered(int itemsRecovered) { this.itemsRecovered = itemsRecovered; }
 
     public List<UserBadge> getBadges() { return badges != null ? badges : new ArrayList<>(); }

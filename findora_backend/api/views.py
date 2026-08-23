@@ -920,18 +920,18 @@ class MyReportsView(APIView):
         filter_param = (request.query_params.get('filter') or request.query_params.get('type') or '').lower()
         status_param = (request.query_params.get('status') or '').lower()
 
-        if filter_param in ['found', 'active_found']:
-            # Active / non-recovered found reports only
-            queryset = queryset.filter(type='found').exclude(status='resolved')
+        if filter_param == 'found':
+            # All found items reported by this finder
+            queryset = queryset.filter(type='found')
         elif filter_param in ['recovered', 'resolved', 'items_recovered']:
-            # Successfully recovered items
-            queryset = queryset.filter(status='resolved')
+            # Successfully recovered found items by this finder
+            queryset = queryset.filter(type='found', status='resolved')
         elif filter_param == 'lost':
             queryset = queryset.filter(type='lost')
         elif status_param == 'resolved':
-            queryset = queryset.filter(status='resolved')
+            queryset = queryset.filter(type='found', status='resolved')
         elif status_param == 'active':
-            queryset = queryset.exclude(status='resolved')
+            queryset = queryset.filter(type='found').exclude(status='resolved')
 
         queryset = queryset.annotate(
             active_featured=Case(

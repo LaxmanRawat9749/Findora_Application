@@ -176,6 +176,12 @@ public class ProfileActivity extends BaseActivity {
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadProfile();
+    }
+
     private void openMyReportsWithFilter(String filterType) {
         Intent intent = new Intent(ProfileActivity.this, MyReportsActivity.class);
         if (filterType != null) {

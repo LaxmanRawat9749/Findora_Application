@@ -90,15 +90,13 @@ public class MyReportsActivity extends BaseActivity {
                         for (Item item : allItems) {
                             if ("lost".equalsIgnoreCase(filterType) && "lost".equalsIgnoreCase(item.getType())) {
                                 itemList.add(item);
-                            } else if ("found".equalsIgnoreCase(filterType) 
-                                    && "found".equalsIgnoreCase(item.getType()) 
-                                    && !"resolved".equalsIgnoreCase(item.getStatus()) 
-                                    && !item.isFinderReturnedConfirm()) {
-                                // Active non-recovered found reports only
+                            } else if ("found".equalsIgnoreCase(filterType) && "found".equalsIgnoreCase(item.getType())) {
+                                // All found reports created by this finder
                                 itemList.add(item);
                             } else if (("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)) 
+                                    && "found".equalsIgnoreCase(item.getType())
                                     && ("resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm())) {
-                                // Successfully recovered items only
+                                // Successfully recovered found items only
                                 itemList.add(item);
                             }
                         }
