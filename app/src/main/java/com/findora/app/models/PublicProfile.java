@@ -46,6 +46,8 @@ public class PublicProfile {
     private int ratingCount;
     @SerializedName("reputation_display")
     private String reputationDisplay;
+    @SerializedName("is_trusted_finder")
+    private boolean isTrustedFinder;
     @SerializedName("primary_badge")
     private String primaryBadge;
     private List<UserBadge> badges;
@@ -88,6 +90,9 @@ public class PublicProfile {
         }
         return ratingCount > 0 ? String.format("%.1f", averageRating) : "New Finder";
     }
+
+    public boolean isTrustedFinder() { return isTrustedFinder; }
+    public void setTrustedFinder(boolean trustedFinder) { isTrustedFinder = trustedFinder; }
 
     public String getPrimaryBadge() { return primaryBadge; }
     public List<UserBadge> getBadges() { return badges != null ? badges : new ArrayList<>(); }

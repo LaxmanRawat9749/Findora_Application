@@ -28,6 +28,8 @@ public class User {
     private Integer successfulReturnsCount;
     @SerializedName("reputation_display")
     private String reputationDisplay;
+    @SerializedName("is_trusted_finder")
+    private boolean isTrustedFinder;
     @SerializedName("primary_badge")
     private String primaryBadge;
     @SerializedName("lost_reports")
@@ -93,6 +95,9 @@ public class User {
 
     public String getReputationDisplay() { return reputationDisplay != null ? reputationDisplay : "New Finder"; }
     public void setReputationDisplay(String reputationDisplay) { this.reputationDisplay = reputationDisplay; }
+
+    public boolean isTrustedFinder() { return isTrustedFinder; }
+    public void setTrustedFinder(boolean trustedFinder) { isTrustedFinder = trustedFinder; }
 
     public String getPrimaryBadge() { return primaryBadge; }
     public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }

@@ -157,29 +157,58 @@
                     android:orientation="vertical"
                     android:padding="@dimen/spacing_large">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="FINDORA REPUTATION &amp; IMPACT"
-                        android:textColor="@color/text_gray"
-                        android:textSize="11sp"
-                        android:letterSpacing="0.06"
-                        android:fontFamily="sans-serif-bold" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <!-- 2x2 Impact Stats Grid -->
-                    <GridLayout
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="FINDORA REPUTATION &amp; IMPACT"
+                            android:textColor="@color/text_gray"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.06"
+                            android:fontFamily="sans-serif-bold" />
+
+                        <!-- Trusted Finder Status Chip -->
+                        <LinearLayout
+                            android:id="@+id/layoutTrustedFinderBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_trusted_finder_chip"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="4dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/tvTrustedFinderStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-bold"
+                                android:text="✓ Trusted Finder"
+                                android:textColor="@color/success_green"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 3-Column Impact Stats Grid -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
-                        android:columnCount="2"
-                        android:rowCount="2">
+                        android:orientation="horizontal"
+                        android:weightSum="3">
 
                         <!-- Reputation -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_columnWeight="1"
-                            android:layout_marginBottom="12dp"
+                            android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
@@ -203,8 +232,7 @@
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_columnWeight="1"
-                            android:layout_marginBottom="12dp"
+                            android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
@@ -229,7 +257,7 @@
                             android:id="@+id/btnSuccessfulReturnsActivity"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_columnWeight="1"
+                            android:layout_weight="1"
                             android:clickable="true"
                             android:focusable="true"
                             android:foreground="?attr/selectableItemBackground"
@@ -251,31 +279,7 @@
                                 android:textColor="@color/text_gray"
                                 android:textSize="12sp" />
                         </LinearLayout>
-
-                        <!-- Primary Badge -->
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_columnWeight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/tvPrimaryBadge"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="🏅 Starting Out"
-                                android:textColor="@color/text_dark"
-                                android:textSize="15sp"
-                                android:fontFamily="sans-serif-bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Current Badge"
-                                android:textColor="@color/text_gray"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-                    </GridLayout>
+                    </LinearLayout>
 
                     <!-- View Points History Button -->
                     <com.google.android.material.button.MaterialButton
@@ -439,50 +443,6 @@
                                 android:fontFamily="sans-serif-medium" />
                         </LinearLayout>
                     </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Badges & Achievements Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cvBadgesSection"
-                style="@style/Widget.Findora.Card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_medium"
-                app:cardElevation="1dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="@color/card_border"
-                app:cardBackgroundColor="@color/card_background">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/spacing_large">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="BADGES &amp; ACHIEVEMENTS"
-                        android:textColor="@color/text_gray"
-                        android:textSize="11sp"
-                        android:letterSpacing="0.06"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Earn badges by completing successful returns"
-                        android:textColor="@color/text_hint"
-                        android:textSize="12sp" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvProfileBadges"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:nestedScrollingEnabled="false" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

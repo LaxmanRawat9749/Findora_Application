@@ -595,6 +595,125 @@ class ReputationAndPointsTests(TestCase):
         self.assertEqual(response.data['reputation_display'], "5.0")
 
 
+class TrustedFinderEvaluationTests(TestCase):
+    """Tests for the Trusted Finder trust recognition logic."""
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.finder = User.objects.create_user(
+            username='hari_finder',
+            email='hari@example.com',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+        self.owner = User.objects.create_user(
+            username='mali_owner',
+            email='mali@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+
+    def _setup_finder(self, returns_count, rating_val, rating_cnt=1):
+        from api.reputation_service import get_or_create_reputation
+        Item.objects.filter(user=self.finder).delete()
+        for i in range(returns_count):
+            Item.objects.create(
+                user=self.finder,
+                type='found',
+                title=f'Found Item {i}',
+                status='resolved',
+                finder_returned_confirm=True,
+                owner_returned_confirm=True,
+            )
+        rep = get_or_create_reputation(self.finder)
+        rep.successful_returns = returns_count
+        rep.rating_count = rating_cnt
+        rep.rating_sum = int(rating_val * rating_cnt) if rating_cnt > 0 else 0
+        rep.average_rating = float(rating_val) if rating_cnt > 0 else 0.0
+        rep.save()
+        return rep
+
+    def test_01_trusted_finder_qualifies_exact_minimum(self):
+        """TEST 1: Rating = 4.0, Returns = 4 -> Trusted Finder = True."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=4, rating_val=4.0, rating_cnt=1)
+        data = UserSerializer(self.finder).data
+        self.assertTrue(data['is_trusted_finder'])
+        self.assertEqual(data['successful_returns'], 4)
+
+    def test_02_trusted_finder_qualifies_high_stats(self):
+        """TEST 2: Rating = 4.5, Returns = 10 -> Trusted Finder = True."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=10, rating_val=4.5, rating_cnt=2)
+        data = UserSerializer(self.finder).data
+        self.assertTrue(data['is_trusted_finder'])
+
+    def test_03_trusted_finder_fails_insufficient_returns(self):
+        """TEST 3: Rating = 5.0, Returns = 3 -> Trusted Finder = False."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=3, rating_val=5.0, rating_cnt=1)
+        data = UserSerializer(self.finder).data
+        self.assertFalse(data['is_trusted_finder'])
+
+    def test_04_trusted_finder_fails_low_rating(self):
+        """TEST 4: Rating = 3.9, Returns = 10 -> Trusted Finder = False."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=10, rating_val=3.9, rating_cnt=10)
+        data = UserSerializer(self.finder).data
+        self.assertFalse(data['is_trusted_finder'])
+
+    def test_05_trusted_finder_fails_both_insufficient(self):
+        """TEST 5: Rating = 3.9, Returns = 3 -> Trusted Finder = False."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=3, rating_val=3.9, rating_cnt=1)
+        data = UserSerializer(self.finder).data
+        self.assertFalse(data['is_trusted_finder'])
+
+    def test_06_trusted_finder_fails_no_rating(self):
+        """TEST 6: No rating (rating_count=0), Returns = 10 -> Trusted Finder = False."""
+        from api.serializers import UserSerializer
+        self._setup_finder(returns_count=10, rating_val=0.0, rating_cnt=0)
+        data = UserSerializer(self.finder).data
+        self.assertFalse(data['is_trusted_finder'])
+
+    def test_07_owner_viewing_public_profile_sees_trusted_status(self):
+        """TEST 7: Owner viewing Finder Public Profile sees is_trusted_finder = True."""
+        from api.views import PublicProfileView
+        self._setup_finder(returns_count=4, rating_val=4.0, rating_cnt=1)
+
+        view = PublicProfileView.as_view()
+        request = self.factory.get(f'/api/users/{self.finder.id}/public-profile/')
+        force_authenticate(request, user=self.owner)
+        response = view(request, pk=self.finder.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['is_trusted_finder'])
+        self.assertEqual(response.data['successful_returns'], 4)
+
+    def test_08_finder_viewing_own_profile_sees_trusted_status(self):
+        """TEST 8: Finder viewing /api/profile/ and /api/reputation/me/ sees is_trusted_finder = True."""
+        from api.views import ProfileView, ReputationProfileView
+        self._setup_finder(returns_count=4, rating_val=4.0, rating_cnt=1)
+
+        # ProfileView
+        view1 = ProfileView.as_view()
+        req1 = self.factory.get('/api/profile/')
+        force_authenticate(req1, user=self.finder)
+        res1 = view1(req1)
+        self.assertEqual(res1.status_code, 200)
+        self.assertTrue(res1.data['is_trusted_finder'])
+
+        # ReputationProfileView
+        view2 = ReputationProfileView.as_view()
+        req2 = self.factory.get('/api/reputation/me/')
+        force_authenticate(req2, user=self.finder)
+        res2 = view2(req2)
+        self.assertEqual(res2.status_code, 200)
+        self.assertTrue(res2.data['is_trusted_finder'])
+
+
 class OwnerFoundMatchingVisibilityTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()

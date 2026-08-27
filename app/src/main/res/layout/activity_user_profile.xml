@@ -199,7 +199,7 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- Top Badge Chip -->
+                    <!-- Trusted Finder Status Chip -->
                     <TextView
                         android:id="@+id/tvUserBadgeChip"
                         android:layout_width="wrap_content"
@@ -208,11 +208,12 @@
                         android:layout_marginTop="12dp"
                         android:paddingHorizontal="12dp"
                         android:paddingVertical="4dp"
-                        android:background="@drawable/bg_circle_light_purple"
-                        android:text="🏅 Starting Out"
-                        android:textColor="@color/primary_purple"
+                        android:background="@drawable/bg_trusted_finder_chip"
+                        android:text="✓ Trusted Finder"
+                        android:textColor="@color/success_green"
                         android:textSize="12sp"
-                        android:fontFamily="sans-serif-bold" />
+                        android:fontFamily="sans-serif-bold"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

@@ -19,6 +19,8 @@ public class FinderReputation {
     private double averageRating;
     @SerializedName("reputation_display")
     private String reputationDisplay;
+    @SerializedName("is_trusted_finder")
+    private boolean isTrustedFinder;
     @SerializedName("primary_badge")
     private String primaryBadge;
     @SerializedName("lost_reports")
@@ -71,6 +73,9 @@ public class FinderReputation {
         return ratingCount > 0 ? String.format("%.1f", averageRating) : "New Finder";
     }
     public void setReputationDisplay(String reputationDisplay) { this.reputationDisplay = reputationDisplay; }
+
+    public boolean isTrustedFinder() { return isTrustedFinder; }
+    public void setTrustedFinder(boolean trustedFinder) { isTrustedFinder = trustedFinder; }
 
     public String getPrimaryBadge() { return primaryBadge; }
     public void setPrimaryBadge(String primaryBadge) { this.primaryBadge = primaryBadge; }

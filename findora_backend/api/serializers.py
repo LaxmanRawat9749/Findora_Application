@@ -34,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
     successful_returns = serializers.SerializerMethodField()
     successful_returns_count = serializers.SerializerMethodField()
     reputation_display = serializers.SerializerMethodField()
+    is_trusted_finder = serializers.SerializerMethodField()
     primary_badge = serializers.SerializerMethodField()
     lost_reports = serializers.SerializerMethodField()
     lost_reports_count = serializers.SerializerMethodField()
@@ -49,12 +50,21 @@ class UserSerializer(serializers.ModelSerializer):
             'phone', 'role', 'is_verified', 'profile_image',
             'emergency_contact_name', 'emergency_contact_phone',
             'total_points', 'successful_returns', 'successful_returns_count',
-            'reputation_display',
+            'reputation_display', 'is_trusted_finder',
             'primary_badge', 'lost_reports', 'lost_reports_count',
             'found_reports', 'found_reports_count',
             'items_recovered', 'recovered_items_count', 'created_at',
         ]
         read_only_fields = ['id', 'is_verified', 'created_at']
+
+    def get_is_trusted_finder(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return False
+        rep = getattr(obj, 'reputation', None)
+        if not rep or rep.rating_count == 0 or rep.average_rating < 4.0:
+            return False
+        resolved_count = Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
+        return resolved_count >= 4
 
     def get_total_points(self, obj):
         if getattr(obj, 'role', '') != 'finder':
@@ -126,6 +136,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
     reputation_display = serializers.SerializerMethodField()
+    is_trusted_finder = serializers.SerializerMethodField()
     primary_badge = serializers.SerializerMethodField()
     badges = serializers.SerializerMethodField()
 
@@ -137,9 +148,18 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'found_reports', 'found_reports_count',
             'recovered_items', 'items_recovered', 'recovered_items_count',
             'total_points', 'successful_returns', 'successful_returns_count',
-            'average_rating', 'rating_count', 'reputation_display',
+            'average_rating', 'rating_count', 'reputation_display', 'is_trusted_finder',
             'primary_badge', 'badges'
         ]
+
+    def get_is_trusted_finder(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return False
+        rep = getattr(obj, 'reputation', None)
+        if not rep or rep.rating_count == 0 or rep.average_rating < 4.0:
+            return False
+        resolved_count = Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
+        return resolved_count >= 4
         
     def get_profile_image(self, obj):
         request = self.context.get('request')
@@ -604,9 +624,10 @@ class RateFinderRequestSerializer(serializers.Serializer):
 
 
 class FinderReputationSerializer(serializers.ModelSerializer):
-    """Comprehensive serializer for a finder's reputation profile and badges."""
+    """Comprehensive serializer for a finder's reputation profile."""
     reputation_display = serializers.CharField(read_only=True)
     primary_badge = serializers.CharField(read_only=True)
+    is_trusted_finder = serializers.SerializerMethodField()
     successful_returns = serializers.SerializerMethodField()
     successful_returns_count = serializers.SerializerMethodField()
     lost_reports = serializers.SerializerMethodField()
@@ -623,12 +644,18 @@ class FinderReputationSerializer(serializers.ModelSerializer):
         fields = [
             'total_points', 'successful_returns', 'successful_returns_count',
             'rating_count', 'rating_sum',
-            'average_rating', 'reputation_display', 'primary_badge',
+            'average_rating', 'reputation_display', 'is_trusted_finder', 'primary_badge',
             'lost_reports', 'lost_reports_count',
             'found_reports', 'found_reports_count',
             'items_recovered', 'recovered_items_count',
             'badges', 'badge_progress', 'updated_at',
         ]
+
+    def get_is_trusted_finder(self, obj):
+        if obj.rating_count == 0 or obj.average_rating < 4.0:
+            return False
+        resolved_count = Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()
+        return resolved_count >= 4
 
     def get_successful_returns(self, obj):
         return Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()

@@ -158,11 +158,6 @@ public class ProfileActivity extends BaseActivity {
 
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());
 
-        // Setup Badge Adapter
-        badgeAdapter = new com.findora.app.adapters.BadgeAdapter(this);
-        binding.rvProfileBadges.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
-        binding.rvProfileBadges.setAdapter(badgeAdapter);
-
         // View Point History Click
         binding.btnViewPointHistory.setOnClickListener(v -> {
             Intent intent = new Intent(ProfileActivity.this, PointHistoryActivity.class);
@@ -220,21 +215,25 @@ public class ProfileActivity extends BaseActivity {
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
 
-                    // Load Finder Reputation, Activity & Badges ONLY if user is a Finder
+                    // Load Finder Reputation & Activity ONLY if user is a Finder
                     if ("finder".equalsIgnoreCase(user.getRole())) {
                         binding.cvReputationSection.setVisibility(View.VISIBLE);
                         binding.cvActivitySection.setVisibility(View.VISIBLE);
-                        binding.cvBadgesSection.setVisibility(View.VISIBLE);
 
                         binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
                         binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
                         binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
 
+                        if (user.isTrustedFinder()) {
+                            binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+                        } else {
+                            binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+                        }
+
                         loadReputation();
                     } else {
                         binding.cvReputationSection.setVisibility(View.GONE);
                         binding.cvActivitySection.setVisibility(View.GONE);
-                        binding.cvBadgesSection.setVisibility(View.GONE);
                     }
                 } else {
                     // Unexpected server error — fall back to cache as last resort
@@ -265,11 +264,10 @@ public class ProfileActivity extends BaseActivity {
                     binding.tvFoundReportsCount.setText(String.valueOf(rep.getFoundReports()));
                     binding.tvItemsRecoveredCount.setText(String.valueOf(rep.getItemsRecovered()));
 
-                    String badgeName = rep.getPrimaryBadge();
-                    binding.tvPrimaryBadge.setText(badgeName != null ? "🏅 " + badgeName : "🏅 Starting Out");
-
-                    if (badgeAdapter != null && rep.getBadgeProgress() != null) {
-                        badgeAdapter.setBadges(rep.getBadgeProgress());
+                    if (rep.isTrustedFinder()) {
+                        binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+                    } else {
+                        binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
                     }
                 }
             }

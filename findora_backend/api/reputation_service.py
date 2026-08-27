@@ -130,10 +130,7 @@ def process_successful_return_reward(finder, owner, item):
     rep.successful_returns += 1
     rep.save(update_fields=['total_points', 'successful_returns', 'updated_at'])
 
-    # 3. Evaluate Badges
-    check_and_award_badges(finder, rep)
-
-    # 4. Notify Finder
+    # 3. Notify Finder
     Notification.objects.create(
         user=finder,
         type='reputation',

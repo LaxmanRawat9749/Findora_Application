@@ -398,6 +398,11 @@ class FinderReputation(models.Model):
         return "New Finder"
 
     @property
+    def is_trusted_finder(self):
+        resolved_count = Item.objects.filter(user=self.user, type='found', status='resolved').distinct().count()
+        return bool(self.rating_count > 0 and self.average_rating >= 4.0 and resolved_count >= 4)
+
+    @property
     def primary_badge(self):
         latest = self.user.badges.order_by('-required_returns').first()
         return latest.name if latest else None

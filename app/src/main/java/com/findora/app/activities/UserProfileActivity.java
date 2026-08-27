@@ -97,12 +97,10 @@ public class UserProfileActivity extends BaseActivity {
             binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
             binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
 
-            String badgeName = profile.getPrimaryBadge();
-            if (badgeName != null && !badgeName.isEmpty()) {
-                binding.tvUserBadgeChip.setText("🏅 " + badgeName);
+            if (profile.isTrustedFinder()) {
                 binding.tvUserBadgeChip.setVisibility(View.VISIBLE);
             } else {
-                binding.tvUserBadgeChip.setText("🏅 New Finder");
+                binding.tvUserBadgeChip.setVisibility(View.GONE);
             }
         } else {
             binding.cvReputationInfo.setVisibility(View.GONE);
