@@ -321,12 +321,13 @@ def get_badge_progress_list(user):
     earned_badge_keys = set(
         UserBadge.objects.filter(user=user).values_list('badge_key', flat=True)
     )
+    resolved_returns = Item.objects.filter(user=user, type='found', status='resolved').distinct().count()
 
     badges_data = []
     for b in BADGES:
         is_earned = b['key'] in earned_badge_keys
         req = b['required_returns']
-        cur = min(rep.successful_returns, req)
+        cur = min(resolved_returns, req)
         progress_text = f"{cur} / {req}" if not is_earned else "Completed ✓"
         progress_percent = int((cur / req) * 100) if req > 0 else 100
 

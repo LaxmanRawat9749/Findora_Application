@@ -573,6 +573,9 @@ class ReputationAndPointsTests(TestCase):
         from api.views import PublicProfileView
         from api.reputation_service import get_or_create_reputation
 
+        for i in range(3):
+            Item.objects.create(user=self.finder, type='found', title=f'Resolved Item {i}', status='resolved')
+
         rep = get_or_create_reputation(self.finder)
         rep.total_points = 250
         rep.successful_returns = 3

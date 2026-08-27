@@ -65,11 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
     def get_successful_returns(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        resolved_count = Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
-        rep = getattr(obj, 'reputation', None)
-        if rep and rep.successful_returns > resolved_count:
-            return rep.successful_returns
-        return resolved_count
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
@@ -183,11 +179,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     def get_successful_returns(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return None
-        resolved_count = Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
-        rep = getattr(obj, 'reputation', None)
-        if rep and rep.successful_returns > resolved_count:
-            return rep.successful_returns
-        return resolved_count
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
@@ -615,6 +607,7 @@ class FinderReputationSerializer(serializers.ModelSerializer):
     """Comprehensive serializer for a finder's reputation profile and badges."""
     reputation_display = serializers.CharField(read_only=True)
     primary_badge = serializers.CharField(read_only=True)
+    successful_returns = serializers.SerializerMethodField()
     successful_returns_count = serializers.SerializerMethodField()
     lost_reports = serializers.SerializerMethodField()
     lost_reports_count = serializers.SerializerMethodField()
@@ -637,9 +630,11 @@ class FinderReputationSerializer(serializers.ModelSerializer):
             'badges', 'badge_progress', 'updated_at',
         ]
 
+    def get_successful_returns(self, obj):
+        return Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()
+
     def get_successful_returns_count(self, obj):
-        resolved_count = Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()
-        return max(obj.successful_returns, resolved_count)
+        return self.get_successful_returns(obj)
 
     def get_lost_reports(self, obj):
         return Item.objects.filter(user=obj.user, type='lost').distinct().count()
