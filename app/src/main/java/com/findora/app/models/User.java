@@ -24,6 +24,8 @@ public class User {
     private int totalPoints;
     @SerializedName("successful_returns")
     private int successfulReturns;
+    @SerializedName("successful_returns_count")
+    private Integer successfulReturnsCount;
     @SerializedName("reputation_display")
     private String reputationDisplay;
     @SerializedName("primary_badge")
@@ -84,7 +86,9 @@ public class User {
     public int getTotalPoints() { return totalPoints; }
     public void setTotalPoints(int totalPoints) { this.totalPoints = totalPoints; }
 
-    public int getSuccessfulReturns() { return successfulReturns; }
+    public int getSuccessfulReturns() {
+        return successfulReturnsCount != null ? successfulReturnsCount : successfulReturns;
+    }
     public void setSuccessfulReturns(int successfulReturns) { this.successfulReturns = successfulReturns; }
 
     public String getReputationDisplay() { return reputationDisplay != null ? reputationDisplay : "New Finder"; }

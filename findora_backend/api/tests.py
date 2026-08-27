@@ -1148,5 +1148,72 @@ class FinderActivityAndRecoveryDetailsTests(TestCase):
         res_rep = view_rep(req_rep)
         self.assertEqual(res_rep.status_code, 403)
 
+    def test_10_successful_returns_filter_shows_only_recovered_items(self):
+        """TEST 10: MyReportsView with filter=successful_returns returns ONLY resolved found items."""
+        from api.views import MyReportsView, ProfileView
+
+        # Hari has 3 found items: 2 returned, 1 pending
+        Item.objects.create(
+            user=self.finder, type='found', title='Found Wallet', category='wallet',
+            status='resolved', finder_returned_confirm=True
+        )
+        Item.objects.create(
+            user=self.finder, type='found', title='Found iPhone 15', category='phone',
+            status='resolved', finder_returned_confirm=True
+        )
+        Item.objects.create(
+            user=self.finder, type='found', title='Found Backpack', category='bag',
+            status='approved', owner_returned_confirm=True, finder_returned_confirm=False
+        )
+
+        view_profile = ProfileView.as_view()
+        req_profile = self.factory.get('/api/profile/')
+        force_authenticate(req_profile, user=self.finder)
+        res_profile = view_profile(req_profile)
+        self.assertEqual(res_profile.data['found_reports'], 3)
+        self.assertEqual(res_profile.data['successful_returns'], 2)
+        self.assertEqual(res_profile.data['successful_returns_count'], 2)
+
+        view_reports = MyReportsView.as_view()
+
+        # filter=successful_returns
+        req_sr = self.factory.get('/api/profile/items/?filter=successful_returns')
+        force_authenticate(req_sr, user=self.finder)
+        res_sr = view_reports(req_sr)
+        self.assertEqual(len(res_sr.data), 2)
+        titles = [i['title'] for i in res_sr.data]
+        self.assertIn('Found Wallet', titles)
+        self.assertIn('Found iPhone 15', titles)
+        self.assertNotIn('Found Backpack', titles)
+
+        # filter=found returns all 3
+        req_found = self.factory.get('/api/profile/items/?filter=found')
+        force_authenticate(req_found, user=self.finder)
+        res_found = view_reports(req_found)
+        self.assertEqual(len(res_found.data), 3)
+
+    def test_11_zero_successful_returns_when_none_resolved(self):
+        """TEST 11: Finder with 3 unreturned items has 0 successful returns."""
+        from api.views import MyReportsView, ProfileView
+
+        for i in range(3):
+            Item.objects.create(
+                user=self.finder, type='found', title=f'Item {i}', category='other', status='approved'
+            )
+
+        view_profile = ProfileView.as_view()
+        req_profile = self.factory.get('/api/profile/')
+        force_authenticate(req_profile, user=self.finder)
+        res_profile = view_profile(req_profile)
+        self.assertEqual(res_profile.data['found_reports'], 3)
+        self.assertEqual(res_profile.data['successful_returns'], 0)
+
+        view_reports = MyReportsView.as_view()
+        req_sr = self.factory.get('/api/profile/items/?filter=successful_returns')
+        force_authenticate(req_sr, user=self.finder)
+        res_sr = view_reports(req_sr)
+        self.assertEqual(len(res_sr.data), 0)
+
+
 
 

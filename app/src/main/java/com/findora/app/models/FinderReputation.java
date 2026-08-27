@@ -9,6 +9,8 @@ public class FinderReputation {
     private int totalPoints;
     @SerializedName("successful_returns")
     private int successfulReturns;
+    @SerializedName("successful_returns_count")
+    private Integer successfulReturnsCount;
     @SerializedName("rating_count")
     private int ratingCount;
     @SerializedName("rating_sum")
@@ -48,7 +50,9 @@ public class FinderReputation {
     public int getTotalPoints() { return totalPoints; }
     public void setTotalPoints(int totalPoints) { this.totalPoints = totalPoints; }
 
-    public int getSuccessfulReturns() { return successfulReturns; }
+    public int getSuccessfulReturns() {
+        return successfulReturnsCount != null ? successfulReturnsCount : successfulReturns;
+    }
     public void setSuccessfulReturns(int successfulReturns) { this.successfulReturns = successfulReturns; }
 
     public int getRatingCount() { return ratingCount; }

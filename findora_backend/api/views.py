@@ -923,7 +923,7 @@ class MyReportsView(APIView):
         if filter_param == 'found':
             # All found items reported by this finder
             queryset = queryset.filter(type='found')
-        elif filter_param in ['recovered', 'resolved', 'items_recovered']:
+        elif filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns']:
             # Successfully recovered found items by this finder
             queryset = queryset.filter(type='found', status='resolved')
         elif filter_param == 'lost':
@@ -939,7 +939,7 @@ class MyReportsView(APIView):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-        ).order_by('-active_featured', '-reported_at')
+        ).order_by('-active_featured', '-reported_at').distinct()
         serializer = ItemSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 

@@ -170,9 +170,10 @@ public class ProfileActivity extends BaseActivity {
         });
 
         // Finder Activity Stat Item Clicks -> Opens MyReportsActivity with filter
+        binding.btnSuccessfulReturnsActivity.setOnClickListener(v -> openMyReportsWithFilter("successful_returns"));
         binding.btnLostReportsActivity.setOnClickListener(v -> openMyReportsWithFilter("lost"));
         binding.btnFoundReportsActivity.setOnClickListener(v -> openMyReportsWithFilter("found"));
-        binding.btnItemsRecoveredActivity.setOnClickListener(v -> openMyReportsWithFilter("resolved"));
+        binding.btnItemsRecoveredActivity.setOnClickListener(v -> openMyReportsWithFilter("successful_returns"));
 
     }
 

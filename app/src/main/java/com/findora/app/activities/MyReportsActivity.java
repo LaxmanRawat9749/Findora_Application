@@ -42,8 +42,11 @@ public class MyReportsActivity extends BaseActivity {
             binding.toolbar.setTitle("My Lost Reports");
         } else if ("found".equalsIgnoreCase(filterType)) {
             binding.toolbar.setTitle("My Found Reports");
-        } else if ("resolved".equalsIgnoreCase(filterType)) {
-            binding.toolbar.setTitle("My Recovered Items");
+        } else if ("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)
+                || "successful_returns".equalsIgnoreCase(filterType) || "items_recovered".equalsIgnoreCase(filterType)) {
+            binding.toolbar.setTitle("Successful Returns");
+        } else {
+            binding.toolbar.setTitle("My Reports");
         }
 
         apiService = RetrofitClient.getInstance(this).getApi();
@@ -93,7 +96,8 @@ public class MyReportsActivity extends BaseActivity {
                             } else if ("found".equalsIgnoreCase(filterType) && "found".equalsIgnoreCase(item.getType())) {
                                 // All found reports created by this finder
                                 itemList.add(item);
-                            } else if (("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)) 
+                            } else if (("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)
+                                    || "successful_returns".equalsIgnoreCase(filterType) || "items_recovered".equalsIgnoreCase(filterType)) 
                                     && "found".equalsIgnoreCase(item.getType())
                                     && ("resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm())) {
                                 // Successfully recovered found items only

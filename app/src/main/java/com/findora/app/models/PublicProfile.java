@@ -38,6 +38,8 @@ public class PublicProfile {
     private int totalPoints;
     @SerializedName("successful_returns")
     private int successfulReturns;
+    @SerializedName("successful_returns_count")
+    private Integer successfulReturnsCount;
     @SerializedName("average_rating")
     private double averageRating;
     @SerializedName("rating_count")
@@ -74,7 +76,9 @@ public class PublicProfile {
     }
 
     public int getTotalPoints() { return totalPoints; }
-    public int getSuccessfulReturns() { return successfulReturns; }
+    public int getSuccessfulReturns() {
+        return successfulReturnsCount != null ? successfulReturnsCount : successfulReturns;
+    }
     public double getAverageRating() { return averageRating; }
     public int getRatingCount() { return ratingCount; }
 
