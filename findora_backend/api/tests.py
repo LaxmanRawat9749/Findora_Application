@@ -306,3 +306,59 @@ class DynamicRoleSystemTests(TestCase):
         self.assertEqual(res_get2.status_code, 200)
         self.assertEqual(len(res_get2.data), 1)
         self.assertEqual(res_get2.data[0]['message'], 'Hi Milan, I have your wallet safe!')
+
+    def test_admin_user_changelist_and_changeform(self):
+        """
+        Verify Django Admin views for User and related models render successfully
+        without any format_html or template rendering exceptions.
+        """
+        from django.test import Client
+        admin_user = User.objects.create_superuser(
+            username='super_admin', email='super@test.com', password='SuperPassword123!'
+        )
+        normal_user = User.objects.create_user(
+            username='active_user', email='active@test.com', password='UserPass123!',
+            is_verified=True
+        )
+        rep = FinderReputation.objects.create(
+            user=normal_user, total_points=50, average_rating=4.5, rating_count=2, successful_returns=2
+        )
+
+        client = Client()
+        client.force_login(admin_user)
+
+        # 1. Admin User changelist view
+        res_list = client.get('/admin/api/user/')
+        self.assertEqual(res_list.status_code, 200)
+
+        # 2. Admin User changeform (detail/edit page)
+        res_change = client.get(f'/admin/api/user/{normal_user.id}/change/')
+        self.assertEqual(res_change.status_code, 200)
+
+        # 3. Admin User add form
+        res_add = client.get('/admin/api/user/add/')
+        self.assertEqual(res_add.status_code, 200)
+
+        # 4. Save/update user via Admin
+        res_post_change = client.post(f'/admin/api/user/{normal_user.id}/change/', {
+            'username': 'active_user',
+            'email': 'active@test.com',
+            'first_name': 'Active',
+            'last_name': 'User',
+            'phone': '9800000099',
+            'role': 'user',
+            'is_active': 'on',
+            'is_verified': 'on',
+            'failed_login_attempts': 0,
+        })
+        # Successful change redirects to changelist (302)
+        self.assertIn(res_post_change.status_code, [200, 302])
+
+        # 5. Admin FinderReputation changelist view (tests average_rating formatting)
+        res_rep = client.get('/admin/api/finderreputation/')
+        self.assertEqual(res_rep.status_code, 200)
+
+        # 6. Admin Item changelist view
+        res_item = client.get('/admin/api/item/')
+        self.assertEqual(res_item.status_code, 200)
+
