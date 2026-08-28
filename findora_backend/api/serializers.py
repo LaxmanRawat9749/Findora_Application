@@ -58,24 +58,34 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'is_verified', 'created_at']
 
     def get_is_trusted_finder(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return False
         rep = getattr(obj, 'reputation', None)
         return rep.is_trusted_finder if rep else False
 
     def get_total_points(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
         rep = getattr(obj, 'reputation', None)
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
         return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
 
     def get_reputation_display(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return "Not applicable"
         rep = getattr(obj, 'reputation', None)
         return rep.reputation_display if rep else "New Finder"
 
     def get_primary_badge(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.primary_badge if rep else None
 
@@ -134,6 +144,8 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_is_trusted_finder(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return False
         rep = getattr(obj, 'reputation', None)
         return rep.is_trusted_finder if rep else False
         
@@ -165,32 +177,46 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return self.get_recovered_items(obj)
 
     def get_total_points(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
         rep = getattr(obj, 'reputation', None)
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
         return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
 
     def get_average_rating(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.average_rating if rep else 0.0
 
     def get_rating_count(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.rating_count if rep else 0
 
     def get_reputation_display(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.reputation_display if rep else "New Finder"
 
     def get_primary_badge(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return None
         rep = getattr(obj, 'reputation', None)
         return rep.primary_badge if rep else None
 
     def get_badges(self, obj):
+        if getattr(obj, 'role', '') != 'finder':
+            return []
         badges = obj.badges.all().order_by('required_returns')
         return [
             {
@@ -214,7 +240,7 @@ class RegisterSerializer(serializers.ModelSerializer):
       - password: passes Django's AUTH_PASSWORD_VALIDATORS (min 8 chars, etc.)
       - confirm_password: must match password
       - phone: exactly 10 digits
-      - role: optional, defaults to 'user' (admin cannot self-register)
+      - role: must be 'owner' or 'finder' (admin cannot self-register)
     """
 
     password = serializers.CharField(
@@ -223,7 +249,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         style={'input_type': 'password'},
     )
     confirm_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
-    role = serializers.CharField(required=False, default='user')
+    role = serializers.CharField(required=True)
 
     class Meta:
         model = User
@@ -254,7 +280,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             value = value.lower().strip()
         if value == 'admin':
             raise serializers.ValidationError("Cannot register as admin.")
-        return value or 'user'
+        if value not in ['owner', 'finder']:
+            raise serializers.ValidationError("Role must be 'owner' or 'finder'.")
+        return value
 
     def validate(self, data):
         errors = {}
@@ -284,8 +312,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             errors['email'] = ['Email already exists.']
 
         role = data.get('role')
-        if role == 'admin':
+        if not role:
+            errors['role'] = ["Role is required ('owner' or 'finder')."]
+        elif role == 'admin':
             errors['role'] = ["Cannot register as admin."]
+        elif role not in ['owner', 'finder']:
+            errors['role'] = ["Role must be 'owner' or 'finder'."]
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -300,7 +332,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             phone=validated_data.get('phone', ''),
-            role='user',
+            role=validated_data.get('role', 'owner'),
             is_verified=False,
         )
         return user
@@ -338,7 +370,7 @@ class ItemSerializer(serializers.ModelSerializer):
     """
     Full item serializer.
 
-    Adds computed fields for the reporter's display name and contextual role
+    Adds computed fields for the reporter's display name and role
     so the Android app can show them without a separate profile request.
     """
 
@@ -354,20 +386,32 @@ class ItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'status', 'reported_at', 'updated_at', 'is_featured', 'featured_until']
 
     def validate(self, data):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        if not user and request:
+            user = getattr(request, '_force_auth_user', None)
+
+        user_role = getattr(user, 'role', None) if user else None
         item_type = data.get('type', getattr(self.instance, 'type', None))
 
-        # Validate reward: Found items must not have a reward amount; lost items can optionally have a reward
+        if item_type and user_role:
+            if user_role == 'owner' and item_type != 'lost':
+                raise serializers.ValidationError({"type": "Owners can only report lost items."})
+            if user_role == 'finder' and item_type != 'found':
+                raise serializers.ValidationError({"type": "Finders can only report found items."})
+
+        # Validate reward: Finder reports and found items must not have a reward amount
         reward = data.get('reward')
         if reward is not None:
             try:
                 reward_num = float(reward)
             except (ValueError, TypeError):
                 reward_num = 0.0
-            if item_type == 'found' and reward_num > 0:
-                raise serializers.ValidationError({"reward": "Found item reports cannot have a reward amount."})
-            if item_type == 'found':
+            if (user_role == 'finder' or item_type == 'found') and reward_num > 0:
+                raise serializers.ValidationError({"reward": "Finder reports and found items cannot have a reward amount."})
+            if user_role == 'finder' or item_type == 'found':
                 data['reward'] = 0.00
-        elif item_type == 'found':
+        elif user_role == 'finder' or item_type == 'found':
             data['reward'] = 0.00
 
         return super().validate(data)
@@ -376,7 +420,7 @@ class ItemSerializer(serializers.ModelSerializer):
         return obj.user.get_full_name() or obj.user.username
 
     def get_user_role(self, obj):
-        return 'Owner' if obj.type == 'lost' else 'Finder'
+        return obj.user.role
 
     def get_user_profile_image(self, obj):
         request = self.context.get('request')
@@ -444,12 +488,7 @@ class ConversationSerializer(serializers.ModelSerializer):
         return user.get_full_name() or user.username
 
     def get_other_user_role(self, obj):
-        other = self.get_other_user(obj)
-        if other.id == obj.owner_id:
-            return 'Owner'
-        elif other.id == obj.finder_id:
-            return 'Finder'
-        return 'User'
+        return self.get_other_user(obj).role
 
     def get_other_user_profile_image(self, obj):
         user = self.get_other_user(obj)
@@ -512,12 +551,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return obj.sender.get_full_name() or obj.sender.username
 
     def get_sender_role(self, obj):
-        if obj.conversation:
-            if obj.sender_id == obj.conversation.owner_id:
-                return 'Owner'
-            elif obj.sender_id == obj.conversation.finder_id:
-                return 'Finder'
-        return 'User'
+        return obj.sender.role
 
     def get_sender_profile_image(self, obj):
         request = self.context.get('request')

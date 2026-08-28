@@ -75,11 +75,8 @@ public class ChatActivity extends BaseActivity {
         conversationId = getIntent().getIntExtra(Constants.EXTRA_CONVERSATION_ID, -1);
         int itemId = getIntent().getIntExtra("ITEM_ID", -1);
         int ownerId = getIntent().getIntExtra("OWNER_ID", -1);
+        int finderId = getIntent().getIntExtra("FINDER_ID", -1);
         String otherUserName = getIntent().getStringExtra("other_user_name");
-        String otherUserRole = getIntent().getStringExtra("other_user_role");
-        if (otherUserRole == null) {
-            otherUserRole = getIntent().getStringExtra(Constants.EXTRA_OTHER_USER_ROLE);
-        }
 
         if (conversationId == -1) {
             Toast.makeText(this, "Error: Invalid chat context.", Toast.LENGTH_SHORT).show();
@@ -92,10 +89,6 @@ public class ChatActivity extends BaseActivity {
             binding.toolbar.setTitle(""); // Clear default title to prevent overlap
         } else {
             binding.toolbar.setTitle("");
-        }
-
-        if (otherUserRole != null && !otherUserRole.isEmpty()) {
-            binding.tvChatRole.setText(otherUserRole);
         }
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
@@ -472,14 +465,11 @@ public class ChatActivity extends BaseActivity {
                     binding.tvChatName.setText(otherUser.getFirstName() != null && !otherUser.getFirstName().isEmpty() ? 
                         otherUser.getFirstName() + " " + otherUser.getLastName() : otherUser.getUsername());
                     
-                    CharSequence existingRole = binding.tvChatRole.getText();
-                    if (existingRole == null || existingRole.toString().trim().isEmpty()) {
-                        String roleText = otherUser.getRole();
-                        if (roleText != null && !roleText.isEmpty()) {
-                            roleText = roleText.substring(0, 1).toUpperCase() + roleText.substring(1).toLowerCase();
-                        }
-                        binding.tvChatRole.setText(roleText != null ? roleText : "Member");
+                    String roleText = otherUser.getRole();
+                    if (roleText != null) {
+                        roleText = roleText.substring(0, 1).toUpperCase() + roleText.substring(1).toLowerCase();
                     }
+                    binding.tvChatRole.setText(roleText);
                     
                     if (otherUser.getProfileImage() != null && !otherUser.getProfileImage().isEmpty()) {
                         binding.ivChatAvatar.setImageTintList(null);

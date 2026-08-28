@@ -74,25 +74,30 @@ public class UploadItemActivity extends BaseActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
 
-        // Report Type and Reward field setup: both Lost and Found options are available to every user
-        String initialType = getIntent().getStringExtra("EXTRA_REPORT_TYPE");
-        if (initialType == null) {
-            initialType = getIntent().getStringExtra("type");
-        }
-        if ("found".equalsIgnoreCase(initialType)) {
-            binding.rbFound.setChecked(true);
-        } else {
+        // Adjust Report Type and Reward field based on role
+        String role = new SessionManager(this).getRole();
+        if ("owner".equalsIgnoreCase(role)) {
             binding.rbLost.setChecked(true);
+            binding.rbFound.setVisibility(View.GONE);
+            binding.rbFound.setEnabled(false);
+            binding.rbLost.setVisibility(View.VISIBLE);
+            binding.rbLost.setEnabled(true);
+            binding.tilReward.setVisibility(View.VISIBLE);
+        } else if ("finder".equalsIgnoreCase(role)) {
+            binding.rbFound.setChecked(true);
+            binding.rbLost.setVisibility(View.GONE);
+            binding.rbLost.setEnabled(false);
+            binding.rbFound.setVisibility(View.VISIBLE);
+            binding.rbFound.setEnabled(true);
+            binding.tilReward.setVisibility(View.GONE);
+            binding.etReward.setText("");
+        } else {
+            // Fallback for admin or unassigned role
+            updateRewardVisibility(binding.rbLost.isChecked());
+            binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
+                updateRewardVisibility(checkedId == R.id.rbLost);
+            });
         }
-        binding.rbLost.setVisibility(View.VISIBLE);
-        binding.rbLost.setEnabled(true);
-        binding.rbFound.setVisibility(View.VISIBLE);
-        binding.rbFound.setEnabled(true);
-
-        updateRewardVisibility(binding.rbLost.isChecked());
-        binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
-            updateRewardVisibility(checkedId == R.id.rbLost);
-        });
 
         // Setup image recycler view
         imageAdapter = new UploadImageAdapter(selectedImages, position -> {
@@ -222,7 +227,15 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void submitReport() {
-        String type = binding.rbLost.isChecked() ? "lost" : "found";
+        String role = new SessionManager(this).getRole();
+        String type;
+        if ("owner".equalsIgnoreCase(role)) {
+            type = "lost";
+        } else if ("finder".equalsIgnoreCase(role)) {
+            type = "found";
+        } else {
+            type = binding.rbLost.isChecked() ? "lost" : "found";
+        }
         String title = binding.etTitle.getText().toString().trim();
         String location = binding.etLocation.getText().toString().trim();
         String rewardStr = binding.etReward.getText().toString().trim();
@@ -248,7 +261,7 @@ public class UploadItemActivity extends BaseActivity {
         partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
         partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
         partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
-        if ("lost".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
+        if (!"finder".equalsIgnoreCase(role) && !"found".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
             partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
         }
 

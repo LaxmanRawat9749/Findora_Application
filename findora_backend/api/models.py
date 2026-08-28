@@ -28,15 +28,14 @@ class User(AbstractUser):
     """
 
     ROLE_CHOICES = [
-        ('user', 'User'),
-        ('admin', 'Admin'),
         ('owner', 'Owner'),
         ('finder', 'Finder'),
+        ('admin', 'Admin'),
     ]
 
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, blank=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='owner')
     is_verified = models.BooleanField(default=False)
     failed_login_attempts = models.IntegerField(default=0)
     is_locked = models.BooleanField(default=False)
@@ -86,6 +85,8 @@ class User(AbstractUser):
 
     @property
     def is_trusted_finder(self):
+        if self.role != 'finder':
+            return False
         rep = getattr(self, 'reputation', None)
         return rep.is_trusted_finder if rep else False
 

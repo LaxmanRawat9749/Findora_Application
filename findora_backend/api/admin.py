@@ -112,15 +112,10 @@ class FindoraUserAdmin(UserAdmin):
     @admin.display(description='Status')
     def account_status(self, obj):
         if obj.is_locked:
-            bg, fg, text = '#FEE2E2', '#DC2626', 'Locked'
-        elif not obj.is_verified:
-            bg, fg, text = '#FEF3C7', '#D97706', 'Unverified'
-        else:
-            bg, fg, text = '#DCFCE7', '#16A34A', 'Active'
-        return format_html(
-            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span>',
-            bg, fg, text
-        )
+            return format_html('<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:4px;font-weight:600">Locked</span>')
+        if not obj.is_verified:
+            return format_html('<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">Unverified</span>')
+        return format_html('<span style="background:#DCFCE7;color:#16A34A;padding:2px 8px;border-radius:4px;font-weight:600">Active</span>')
 
     @admin.display(description='Lost Reports')
     def lost_reports_count(self, obj):
@@ -132,11 +127,15 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Returns')
     def successful_returns_count(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     @admin.display(description='Points')
     def points_display(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         pts = rep.total_points if rep else 0
         return format_html(
@@ -146,16 +145,16 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Reputation')
     def reputation_display(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         if rep and rep.rating_count > 0:
-            rating_str = f"{rep.average_rating:.1f}"
             return format_html(
-                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">⭐ {}</span>',
-                rating_str,
+                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
+                rep.average_rating,
             )
         return format_html(
-            '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">{}</span>',
-            'New'
+            '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">New</span>'
         )
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
@@ -442,16 +441,14 @@ class FinderReputationAdmin(admin.ModelAdmin):
     @admin.display(description='Reputation')
     def reputation_badge(self, obj):
         if obj.rating_count > 0:
-            rating_str = f"{obj.average_rating:.1f}"
             return format_html(
                 '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;'
-                'border-radius:4px;font-weight:600">⭐ {}</span>',
-                rating_str,
+                'border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
+                obj.average_rating,
             )
         return format_html(
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;'
-            'border-radius:4px">{}</span>',
-            'New'
+            'border-radius:4px">New</span>'
         )
 
 

@@ -154,10 +154,9 @@ public class ItemDetailActivity extends BaseActivity {
         binding.tvCategory.setText(item.getCategory() != null ?
                 item.getCategory().replace('_', ' ') : "");
 
-        String roleDisplay = "lost".equalsIgnoreCase(item.getType()) ? "Owner" : "Finder";
         String reporterText = "Reported by " +
                 (item.getUserName() != null ? item.getUserName() : "Unknown") +
-                " (" + roleDisplay + ")";
+                " (" + (item.getUserRole() != null ? item.getUserRole() : "") + ")";
         binding.tvReporter.setText(reporterText);
         
         if (item.getUserProfileImage() != null && !item.getUserProfileImage().isEmpty()) {
@@ -264,7 +263,7 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void checkRatingStatus() {
-        if (currentItem == null) {
+        if (currentItem == null || !"owner".equalsIgnoreCase(baseSessionManager.getRole())) {
             binding.cvRateFinder.setVisibility(View.GONE);
             return;
         }

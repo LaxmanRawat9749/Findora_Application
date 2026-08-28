@@ -14,8 +14,6 @@ public class Constants {
     public static final String EXTRA_ITEM_ID = "extra_item_id";
     public static final String EXTRA_RECEIVER_ID = "extra_receiver_id";
     public static final String EXTRA_CONVERSATION_ID = "extra_conversation_id";
-    public static final String EXTRA_OTHER_USER_ROLE = "other_user_role";
-    public static final String EXTRA_OTHER_USER_NAME = "other_user_name";
 
     public static final String EXTRA_EMAIL        = "email";
     public static final String EXTRA_OTP_PURPOSE  = "otp_purpose";

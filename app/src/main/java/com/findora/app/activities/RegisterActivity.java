@@ -110,6 +110,7 @@ public class RegisterActivity extends AppCompatActivity {
         String phone           = binding.etPhone.getText().toString().trim();
         String password        = binding.etPassword.getText().toString().trim();
         String confirmPassword = binding.etConfirmPassword.getText().toString().trim();
+        String role            = binding.rbOwner.isChecked() ? "owner" : "finder";
 
         // ── Step 1: Required fields ────────────────────────────────────
         boolean hasRequiredError = false;
@@ -162,7 +163,7 @@ public class RegisterActivity extends AppCompatActivity {
         setLoading(true);
 
         RegisterRequest request = new RegisterRequest(
-                username, email, password, confirmPassword, firstName, lastName, phone
+                username, email, password, confirmPassword, firstName, lastName, phone, role
         );
 
         apiService.register(request).enqueue(new Callback<MessageResponse>() {
