@@ -75,10 +75,7 @@ public class UserProfileActivity extends BaseActivity {
         binding.tvFullName.setText(profile.getFullName());
         binding.tvUsername.setText("@" + profile.getUsername());
         
-        String role = profile.getRole();
-        if (role != null && !role.isEmpty()) {
-            binding.chipRole.setText(role.substring(0, 1).toUpperCase() + role.substring(1));
-        }
+        binding.chipRole.setText("User");
 
         String createdAt = profile.getCreatedAt();
         if (createdAt != null && createdAt.length() >= 10) {
@@ -90,20 +87,16 @@ public class UserProfileActivity extends BaseActivity {
         binding.tvFoundCount.setText(String.valueOf(profile.getFoundReports()));
         binding.tvRecoveredCount.setText(String.valueOf(profile.getRecoveredItems()));
 
-        // Bind Reputation & Points ONLY for Finders
-        if ("finder".equalsIgnoreCase(profile.getRole())) {
-            binding.cvReputationInfo.setVisibility(View.VISIBLE);
-            binding.tvUserReputation.setText("⭐ " + profile.getReputationDisplay());
-            binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
-            binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
+        // Always display Reputation & Points for unified normal user
+        binding.cvReputationInfo.setVisibility(View.VISIBLE);
+        binding.tvUserReputation.setText("⭐ " + profile.getReputationDisplay());
+        binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
+        binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
 
-            if (profile.isTrustedFinder()) {
-                binding.tvUserBadgeChip.setVisibility(View.VISIBLE);
-            } else {
-                binding.tvUserBadgeChip.setVisibility(View.GONE);
-            }
+        if (profile.isTrustedFinder()) {
+            binding.tvUserBadgeChip.setVisibility(View.VISIBLE);
         } else {
-            binding.cvReputationInfo.setVisibility(View.GONE);
+            binding.tvUserBadgeChip.setVisibility(View.GONE);
         }
 
         if (profile.getProfileImage() != null && !profile.getProfileImage().isEmpty()) {

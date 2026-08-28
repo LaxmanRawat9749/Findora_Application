@@ -16,6 +16,11 @@ public class RegisterRequest {
     private String role;
 
     public RegisterRequest(String username, String email, String password, String confirmPassword,
+                           String firstName, String lastName, String phone) {
+        this(username, email, password, confirmPassword, firstName, lastName, phone, "user");
+    }
+
+    public RegisterRequest(String username, String email, String password, String confirmPassword,
                            String firstName, String lastName, String phone, String role) {
         this.username = username;
         this.email = email;

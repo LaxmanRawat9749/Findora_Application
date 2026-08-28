@@ -2,7 +2,8 @@
 Findora Django Admin Configuration.
 
 Enhances the default Django admin panel with:
-  - Custom list displays with colored status badges
+  - Unified User list display (Normal Users & Admins) showing activity, points & reputation
+  - Item list display showing contextual reporter roles (Owner / Finder)
   - Search and filter capabilities for all models
   - Bulk admin actions (approve, reject, verify, unlock)
   - Inline claim display on item detail pages
@@ -36,13 +37,14 @@ class FindoraUserAdmin(UserAdmin):
     """
     Admin interface for Findora users.
 
-    Extends Django's built-in UserAdmin to expose Findora-specific
-    fields: role, verification status, account locking, and emergency contacts.
+    Displays user-centric activity metrics (Lost reports, Found reports,
+    successful returns, points, and reputation) without permanent role silos.
     """
 
     list_display = [
-        'username', 'email', 'full_name', 'role',
-        'is_verified', 'is_locked', 'failed_login_attempts',
+        'full_name', 'username', 'email', 'account_status',
+        'lost_reports_count', 'found_reports_count', 'successful_returns_count',
+        'points_display', 'reputation_display',
         'is_active', 'created_at',
     ]
     list_filter = ['role', 'is_verified', 'is_locked', 'is_active', 'created_at']
@@ -92,7 +94,49 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Full Name')
     def full_name(self, obj):
-        return obj.get_full_name() or '—'
+        return obj.get_full_name() or obj.username
+
+    @admin.display(description='Status')
+    def account_status(self, obj):
+        if obj.is_locked:
+            return format_html('<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:4px;font-weight:600">Locked</span>')
+        if not obj.is_verified:
+            return format_html('<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">Unverified</span>')
+        return format_html('<span style="background:#DCFCE7;color:#16A34A;padding:2px 8px;border-radius:4px;font-weight:600">Active</span>')
+
+    @admin.display(description='Lost Reports')
+    def lost_reports_count(self, obj):
+        return obj.items.filter(type='lost').count()
+
+    @admin.display(description='Found Reports')
+    def found_reports_count(self, obj):
+        return obj.items.filter(type='found').count()
+
+    @admin.display(description='Returns')
+    def successful_returns_count(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        return rep.successful_returns if rep else 0
+
+    @admin.display(description='Points')
+    def points_display(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        pts = rep.total_points if rep else 0
+        return format_html(
+            '<span style="font-weight:700;color:#534AB7;font-size:13px">🪙 {}</span>',
+            pts,
+        )
+
+    @admin.display(description='Reputation')
+    def reputation_display(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        if rep and rep.rating_count > 0:
+            return format_html(
+                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
+                rep.average_rating,
+            )
+        return format_html(
+            '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">New</span>'
+        )
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
@@ -199,89 +243,122 @@ class ItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='Reported By')
     def reporter(self, obj):
-        return f"{obj.user.get_full_name() or obj.user.username} ({obj.user.role})"
+        context_role = 'Owner' if obj.type == 'lost' else 'Finder'
+        return f"{obj.user.get_full_name() or obj.user.username} ({context_role})"
 
     @admin.display(description='Reward')
     def reward_display(self, obj):
-        return f"Rs. {obj.reward}" if obj.reward > 0 else '—'
+        if obj.reward and obj.reward > 0:
+            return format_html(
+                '<span style="color:#16A34A;font-weight:700">Rs. {}</span>',
+                obj.reward,
+            )
+        return '—'
 
     @admin.display(description='Image Preview')
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" style="max-height:150px;border-radius:8px;'
-                'box-shadow:0 2px 8px rgba(0,0,0,0.15)"/>',
+                '<img src="{}" style="max-height:200px;border-radius:8px;" />',
                 obj.image.url,
             )
-        return '—'
+        return 'No image uploaded.'
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
     @admin.action(description='Approve selected items')
     def approve_items(self, request, queryset):
-        count = queryset.update(status='approved')
-        self.message_user(request, f'{count} item(s) approved successfully.')
+        updated = queryset.update(status='approved')
+        for item in queryset:
+            Notification.objects.create(
+                user=item.user,
+                type='approved',
+                message=f'Your report for "{item.title}" has been approved.',
+                related_item=item,
+            )
+        self.message_user(request, f'{updated} item(s) approved.')
 
     @admin.action(description='Reject selected items')
     def reject_items(self, request, queryset):
-        count = queryset.update(status='rejected')
-        self.message_user(request, f'{count} item(s) rejected.')
+        updated = queryset.update(status='rejected')
+        for item in queryset:
+            Notification.objects.create(
+                user=item.user,
+                type='rejected',
+                message=f'Your report for "{item.title}" was rejected.',
+                related_item=item,
+            )
+        self.message_user(request, f'{updated} item(s) rejected.')
 
     @admin.action(description='Mark selected items as resolved')
     def mark_resolved(self, request, queryset):
-        count = queryset.update(status='resolved')
-        self.message_user(request, f'{count} item(s) marked as resolved.')
+        updated = queryset.update(status='resolved')
+        self.message_user(request, f'{updated} item(s) marked as resolved.')
 
 
 # ─── Claim Admin ──────────────────────────────────────────────────────────────
 
 @admin.register(Claim)
 class ClaimAdmin(admin.ModelAdmin):
-    """Admin interface for ownership claims."""
+    """Admin interface for managing ownership claims."""
 
     list_display = ['item', 'claimant', 'status', 'claimed_at']
     list_filter = ['status', 'claimed_at']
-    search_fields = ['item__title', 'claimant__username', 'claimant__email']
-    readonly_fields = ['item', 'claimant', 'claimed_at']
+    search_fields = ['item__title', 'claimant__username', 'claimant__email', 'proof_description']
+    readonly_fields = ['claimed_at']
     ordering = ['-claimed_at']
-
     actions = ['approve_claims', 'reject_claims']
 
     @admin.action(description='Approve selected claims')
     def approve_claims(self, request, queryset):
-        count = queryset.update(status='approved')
-        self.message_user(request, f'{count} claim(s) approved.')
+        for claim in queryset:
+            claim.status = 'approved'
+            claim.save()
+            claim.item.status = 'resolved'
+            claim.item.save()
+            Notification.objects.create(
+                user=claim.claimant,
+                type='claim',
+                message=f'Your claim on "{claim.item.title}" was approved!',
+                related_item=claim.item,
+            )
+        self.message_user(request, f'{queryset.count()} claim(s) approved.')
 
     @admin.action(description='Reject selected claims')
     def reject_claims(self, request, queryset):
-        count = queryset.update(status='rejected')
-        self.message_user(request, f'{count} claim(s) rejected.')
+        updated = queryset.update(status='rejected')
+        for claim in queryset:
+            Notification.objects.create(
+                user=claim.claimant,
+                type='claim',
+                message=f'Your claim on "{claim.item.title}" was rejected.',
+                related_item=claim.item,
+            )
+        self.message_user(request, f'{updated} claim(s) rejected.')
 
 
 # ─── Chat Admin ───────────────────────────────────────────────────────────────
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):
-    """Admin interface for conversations."""
-
-    list_display = ['item', 'owner', 'finder', 'created_at']
-    list_filter = ['created_at']
+    """Admin interface for Chat Conversations."""
+    list_display = ['id', 'item', 'owner', 'finder', 'created_at']
     search_fields = ['item__title', 'owner__username', 'finder__username']
-    readonly_fields = ['item', 'owner', 'finder', 'created_at']
+    list_filter = ['created_at']
     ordering = ['-created_at']
 
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
-    """Admin interface for chat messages (read-only moderation view)."""
+    """Admin interface for direct chat messages between users."""
 
     list_display = ['conversation', 'sender', 'message_preview', 'is_read', 'sent_at']
     list_filter = ['is_read', 'sent_at']
     search_fields = ['sender__username', 'message', 'conversation__item__title']
-    readonly_fields = ['conversation', 'sender', 'message', 'sent_at']
+    readonly_fields = ['conversation', 'sender', 'message', 'is_read', 'sent_at']
     ordering = ['-sent_at']
 
-    @admin.display(description='Message')
+    @admin.display(description='Message Preview')
     def message_preview(self, obj):
         return obj.message[:60] + '…' if len(obj.message) > 60 else obj.message
 
@@ -324,7 +401,7 @@ class OTPTokenAdmin(admin.ModelAdmin):
 
 @admin.register(FinderReputation)
 class FinderReputationAdmin(admin.ModelAdmin):
-    """Admin interface for Finder reputations and stats."""
+    """Admin interface for user reputations and stats."""
 
     list_display = [
         'user', 'points_display', 'successful_returns', 'reputation_badge',
@@ -338,7 +415,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
     @admin.display(description='Total Points')
     def points_display(self, obj):
         return format_html(
-            '<span style="font-weight:700;color:#534AB7;font-size:13px">🏆 {}</span>',
+            '<span style="font-weight:700;color:#534AB7;font-size:13px">🪙 {}</span>',
             obj.total_points,
         )
 
@@ -352,7 +429,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
             )
         return format_html(
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;'
-            'border-radius:4px">New Finder</span>'
+            'border-radius:4px">New</span>'
         )
 
 

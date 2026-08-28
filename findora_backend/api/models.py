@@ -28,14 +28,13 @@ class User(AbstractUser):
     """
 
     ROLE_CHOICES = [
-        ('owner', 'Owner'),
-        ('finder', 'Finder'),
+        ('user', 'User'),
         ('admin', 'Admin'),
     ]
 
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, blank=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='owner')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
     is_verified = models.BooleanField(default=False)
     failed_login_attempts = models.IntegerField(default=0)
     is_locked = models.BooleanField(default=False)

@@ -263,7 +263,7 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void checkRatingStatus() {
-        if (currentItem == null || !"owner".equalsIgnoreCase(baseSessionManager.getRole())) {
+        if (currentItem == null) {
             binding.cvRateFinder.setVisibility(View.GONE);
             return;
         }

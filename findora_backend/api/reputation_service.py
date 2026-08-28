@@ -7,6 +7,11 @@ Provides atomic, idempotent operations for:
   - Badge evaluations and unlocks
   - Owner ratings and reputation updates
   - Notification dispatches
+
+In the action-based role architecture:
+  - Points and returns are earned when a user acts as a Finder.
+  - Ratings are submitted when a user acts as an Owner for a resolved return.
+  - Reputation profile and badge progress are computed from the user's Finder activity.
 """
 
 import logging
@@ -49,11 +54,10 @@ def get_or_create_reputation(user):
 @transaction.atomic
 def award_found_report_points(finder, item):
     """
-    Awards +5 points to the Finder when they create a valid Found Item report.
+    Awards +5 points to the user acting as Finder when they create a valid Found Item report.
     Guarded against duplicate points (idempotent per item).
-    Only users with role='finder' receive points.
     """
-    if not finder or getattr(finder, 'role', '') != 'finder' or not item:
+    if not finder or not item:
         return False
 
     # Check if reward was already processed for this item report
@@ -97,12 +101,11 @@ def process_successful_return_reward(finder, owner, item):
     Awards +100 points, increments successful returns count, evaluates badges,
     and sends notifications upon confirmed return completion.
     Strictly idempotent to prevent duplicate points.
-    Points, returns, and badges belong ONLY to Finders (role='finder').
     """
-    if not finder or getattr(finder, 'role', '') != 'finder' or not item:
+    if not finder or not item:
         return False
 
-    # Check if return reward was already processed for this item
+    # 1. Idempotency Check: Prevent duplicate points award for the same return
     already_awarded = PointTransaction.objects.filter(
         user=finder,
         related_item=item,
@@ -111,11 +114,12 @@ def process_successful_return_reward(finder, owner, item):
 
     if already_awarded:
         logger.warning(
-            f"Attempted duplicate return points award for user {finder.id} and item {item.id}"
+            "Attempted duplicate return points award for user %s and item %s",
+            finder.pk, item.pk,
         )
         return False
 
-    # 1. Create Point Transaction (+100)
+    # 2. Record Transaction in Ledger
     PointTransaction.objects.create(
         user=finder,
         points=POINTS_SUCCESSFUL_RETURN,
@@ -124,25 +128,31 @@ def process_successful_return_reward(finder, owner, item):
         related_item=item,
     )
 
-    # 2. Update Finder Reputation
+    # 3. Update Finder Reputation Aggregate
     rep = get_or_create_reputation(finder)
     rep.total_points += POINTS_SUCCESSFUL_RETURN
     rep.successful_returns += 1
     rep.save(update_fields=['total_points', 'successful_returns', 'updated_at'])
 
-    # 3. Notify Finder
+    # 4. Check & Award Badges
+    new_badges = check_and_award_badges(finder, rep)
+
+    # 5. Send Notifications
+    badge_note = ""
+    if new_badges:
+        badge_note = f"\n🏆 New Badge Unlocked: {new_badges[0].name}!"
+
     Notification.objects.create(
         user=finder,
         type='reputation',
         message=(
-            f"🎉 You earned {POINTS_SUCCESSFUL_RETURN} Findora Points!\n\n"
-            f"Your successful return of '{item.title}' has been confirmed.\n\n"
-            f"Total Points: {rep.total_points}"
+            f"🤝 Successful Return!\n\n"
+            f"You earned +{POINTS_SUCCESSFUL_RETURN} Points for returning '{item.title}'."
+            f"{badge_note}\nTotal Points: {rep.total_points}"
         ),
         related_item=item,
     )
 
-    # 5. Notify Owner to Rate the Finder (Owner receives NO points or reputation)
     if owner:
         Notification.objects.create(
             user=owner,
@@ -161,9 +171,8 @@ def check_and_award_badges(user, rep=None):
     """
     Checks if the user has reached thresholds for any badges and awards them.
     Guarantees no duplicate badge awards.
-    Badges belong ONLY to Finders (role='finder').
     """
-    if not user or getattr(user, 'role', '') != 'finder':
+    if not user:
         return []
 
     if rep is None:
@@ -222,11 +231,11 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
     if item.status != 'resolved':
         raise ValueError("Cannot rate before the item return is completed.")
 
-    # Determine Finder
+    # Determine Finder and Owner
     finder = None
     if item.type == 'lost':
         # For a lost item: Owner is item.user, Finder is the return partner
-        if item.user != owner and getattr(owner, 'role', '') != 'owner':
+        if item.user != owner:
             raise ValueError("Only the owner who lost the item can rate the finder.")
         return_tx = PointTransaction.objects.filter(
             related_item=item,
@@ -237,16 +246,15 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
         else:
             conv = Conversation.objects.filter(item=item).first()
             if conv:
-                finder = conv.finder
+                finder = conv.finder if conv.owner == owner else conv.owner
     else:
         # For a found item: Reporter is the Finder, Owner is the claim/conversation partner
         finder = item.user
+        if owner == finder:
+            raise ValueError("Finder cannot rate themselves.")
 
     if not finder:
         raise ValueError("Could not determine the finder for this item.")
-
-    if getattr(finder, 'role', '') != 'finder':
-        raise ValueError("Ratings can only be submitted for Finders.")
 
     if owner.id == finder.id:
         raise ValueError("You cannot rate yourself.")
@@ -309,9 +317,8 @@ def submit_finder_rating(owner, item, rating_value, review_text=''):
 def get_badge_progress_list(user):
     """
     Returns full badge catalog with user's earned status and progress details.
-    Badges belong ONLY to Finders.
     """
-    if not user or getattr(user, 'role', '') != 'finder':
+    if not user:
         return []
 
     rep = get_or_create_reputation(user)
@@ -325,7 +332,7 @@ def get_badge_progress_list(user):
         is_earned = b['key'] in earned_badge_keys
         req = b['required_returns']
         cur = min(resolved_returns, req)
-        progress_text = f"{cur} / {req}" if not is_earned else "Completed ✓"
+        progress_text = f"{cur} / {req}" if not is_earned else "Completed ✔"
         progress_percent = int((cur / req) * 100) if req > 0 else 100
 
         badges_data.append({
@@ -347,11 +354,7 @@ def get_badge_progress_list(user):
 def admin_adjust_points(user, points, reason, admin_user=None):
     """
     Performs an administrative point adjustment with mandatory audit reason.
-    Points belong ONLY to Finders.
     """
-    if getattr(user, 'role', '') != 'finder':
-        raise ValueError("Points can only be adjusted for Finders.")
-
     if not reason or not reason.strip():
         raise ValueError("A reason is required for administrative point adjustments.")
 

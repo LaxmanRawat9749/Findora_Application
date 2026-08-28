@@ -118,20 +118,20 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void loadPointsPill() {
-        if (!"finder".equalsIgnoreCase(baseSessionManager.getRole())) {
-            binding.tvHomePointsPill.setVisibility(View.GONE);
-            return;
-        }
         apiService.getReputation().enqueue(new Callback<com.findora.app.models.FinderReputation>() {
             @Override
             public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     int points = response.body().getTotalPoints();
-                    binding.tvHomePointsPill.setText("🏆 " + points + " pts");
-                    binding.tvHomePointsPill.setVisibility(View.VISIBLE);
-                    binding.tvHomePointsPill.setOnClickListener(v -> {
-                        startActivity(new Intent(HomeActivity.this, PointHistoryActivity.class));
-                    });
+                    if (points > 0) {
+                        binding.tvHomePointsPill.setText("🪙 " + points + " pts");
+                        binding.tvHomePointsPill.setVisibility(View.VISIBLE);
+                        binding.tvHomePointsPill.setOnClickListener(v -> {
+                            startActivity(new Intent(HomeActivity.this, PointHistoryActivity.class));
+                        });
+                    } else {
+                        binding.tvHomePointsPill.setVisibility(View.GONE);
+                    }
                 } else {
                     binding.tvHomePointsPill.setVisibility(View.GONE);
                 }
