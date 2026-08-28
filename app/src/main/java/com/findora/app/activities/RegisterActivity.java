@@ -110,7 +110,7 @@ public class RegisterActivity extends AppCompatActivity {
         String phone           = binding.etPhone.getText().toString().trim();
         String password        = binding.etPassword.getText().toString().trim();
         String confirmPassword = binding.etConfirmPassword.getText().toString().trim();
-        String role            = "user";
+        String role            = binding.rbOwner.isChecked() ? "owner" : "finder";
 
         // ── Step 1: Required fields ────────────────────────────────────
         boolean hasRequiredError = false;

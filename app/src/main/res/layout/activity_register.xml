@@ -161,6 +161,43 @@
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Role -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        android:text="Primary Role"
+                        android:textColor="@color/text_gray"
+                        android:textSize="@dimen/text_caption"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <RadioGroup
+                        android:id="@+id/rgRole"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_small"
+                        android:orientation="horizontal">
+
+                        <RadioButton
+                            android:id="@+id/rbOwner"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:checked="true"
+                            android:text="Owner (Lost)"
+                            android:textColor="@color/text_dark"
+                            android:buttonTint="@color/primary_purple" />
+
+                        <RadioButton
+                            android:id="@+id/rbFinder"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Finder (Found)"
+                            android:textColor="@color/text_dark"
+                            android:buttonTint="@color/primary_purple" />
+                    </RadioGroup>
+
                     <!-- Password -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilPassword"

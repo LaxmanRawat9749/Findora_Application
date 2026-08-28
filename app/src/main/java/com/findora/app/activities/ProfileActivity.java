@@ -196,7 +196,7 @@ public class ProfileActivity extends BaseActivity {
                     User user = response.body();
                     binding.tvFullName.setText(user.getFullName());
                     binding.tvEmail.setText(user.getEmail());
-                    binding.tvRole.setText("Normal User");
+                    binding.tvRole.setText("Role: " + capitalize(user.getRole()));
                     if (user.getUsername() != null) {
                         binding.etCurrentUsername.setText(user.getUsername());
                         baseSessionManager.saveUsername(user.getUsername());
@@ -215,21 +215,35 @@ public class ProfileActivity extends BaseActivity {
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     }
 
-                    // Always display Activity & Reputation sections for unified normal user
-                    binding.cvReputationSection.setVisibility(View.VISIBLE);
-                    binding.cvActivitySection.setVisibility(View.VISIBLE);
+                    // Load Finder Reputation & Activity ONLY if user is a Finder
+                    if ("finder".equalsIgnoreCase(user.getRole())) {
+                        binding.cvReputationSection.setVisibility(View.VISIBLE);
+                        binding.cvActivitySection.setVisibility(View.VISIBLE);
+                        binding.btnLostReportsActivity.setVisibility(View.GONE);
+                        binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
+                        binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
 
-                    binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
-                    binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
-                    binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
+                        binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
+                        binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
 
-                    if (user.isTrustedFinder()) {
-                        binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+                        if (user.isTrustedFinder()) {
+                            binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+                        } else {
+                            binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+                        }
+
+                        loadReputation();
                     } else {
+                        // Owner profile view
+                        binding.cvReputationSection.setVisibility(View.GONE);
                         binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
-                    }
+                        binding.cvActivitySection.setVisibility(View.VISIBLE);
+                        binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
+                        binding.btnFoundReportsActivity.setVisibility(View.GONE);
+                        binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
 
-                    loadReputation();
+                        binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
+                    }
                 } else {
                     // Unexpected server error — fall back to cache as last resort
                     showCachedProfile();
@@ -255,7 +269,6 @@ public class ProfileActivity extends BaseActivity {
                     binding.tvPointsScore.setText("🏆 " + rep.getTotalPoints() + " Pts");
                     binding.tvReturnsScore.setText("🤝 " + rep.getSuccessfulReturns());
 
-                    binding.tvLostReportsCount.setText(String.valueOf(rep.getLostReports()));
                     binding.tvFoundReportsCount.setText(String.valueOf(rep.getFoundReports()));
                     binding.tvItemsRecoveredCount.setText(String.valueOf(rep.getItemsRecovered()));
 
@@ -287,7 +300,21 @@ public class ProfileActivity extends BaseActivity {
 
         if (!cachedName.isEmpty()) binding.tvFullName.setText(cachedName);
         if (!cachedEmail.isEmpty()) binding.tvEmail.setText(cachedEmail);
-        if (!cachedRole.isEmpty()) binding.tvRole.setText("Role: " + capitalize(cachedRole));
+        if (!cachedRole.isEmpty()) {
+            binding.tvRole.setText("Role: " + capitalize(cachedRole));
+            if ("finder".equalsIgnoreCase(cachedRole)) {
+                binding.cvReputationSection.setVisibility(View.VISIBLE);
+                binding.btnLostReportsActivity.setVisibility(View.GONE);
+                binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
+                binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
+            } else {
+                binding.cvReputationSection.setVisibility(View.GONE);
+                binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+                binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
+                binding.btnFoundReportsActivity.setVisibility(View.GONE);
+                binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
+            }
+        }
         if (!cachedUsername.isEmpty()) binding.etCurrentUsername.setText(cachedUsername);
         
         String cachedImage = baseSessionManager.getProfileImage();

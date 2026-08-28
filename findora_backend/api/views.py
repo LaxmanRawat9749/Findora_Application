@@ -587,26 +587,30 @@ class ItemListCreateView(APIView):
         item_type = request.query_params.get('type', '').strip()
         search = request.query_params.get('search', '').strip()
 
-        if request.user.role == 'admin':
-            if item_type:
-                queryset = queryset.filter(type=item_type)
-        else:
-            # Action-Based / User-Centric Visibility:
+        # Role-based visibility rules
+        if request.user.role == 'owner':
             matched_found_q = get_matched_found_items_query_for_owner(request.user)
             if item_type == 'lost':
-                # Anyone can browse approved lost items to help find them
                 queryset = queryset.filter(type='lost')
             elif item_type == 'found':
-                # Found items reported by user OR matched with user's lost reports / conversations
-                queryset = queryset.filter(type='found').filter(
-                    Q(user=request.user) | matched_found_q
-                )
+                queryset = queryset.filter(type='found').filter(matched_found_q)
             else:
-                # All tab: All approved lost items + user's found items + matched found items
+                # All tab: Approved lost items + matched found items
                 queryset = queryset.filter(
                     Q(type='lost') |
-                    (Q(type='found') & (Q(user=request.user) | matched_found_q))
+                    (Q(type='found') & matched_found_q)
                 )
+        elif request.user.role == 'finder':
+            if item_type == 'found':
+                queryset = queryset.filter(type='found')
+            elif item_type == 'lost':
+                queryset = queryset.filter(type='lost')
+            else:
+                queryset = queryset.filter(Q(type='lost') | Q(type='found'))
+        else:
+            # Fallback for admins
+            if item_type:
+                queryset = queryset.filter(type=item_type)
 
         now = timezone.now()
         
@@ -1261,10 +1265,16 @@ class ReputationProfileView(APIView):
     """
     GET /api/reputation/me/
     Retrieve the authenticated user's reputation, points, and badge status.
+    Available ONLY for Finders.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        if request.user.role != 'finder':
+            return Response(
+                {'error': 'Reputation and points are only available for Finders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         rep = get_or_create_reputation(request.user)
         serializer = FinderReputationSerializer(rep, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1274,10 +1284,16 @@ class PointHistoryView(APIView):
     """
     GET /api/reputation/history/
     Retrieve all point ledger transactions for the authenticated user.
+    Available ONLY for Finders.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        if request.user.role != 'finder':
+            return Response(
+                {'error': 'Point history is only available for Finders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         transactions = (
             PointTransaction.objects.filter(user=request.user)
             .select_related('related_item')
@@ -1291,10 +1307,17 @@ class RateFinderView(APIView):
     """
     POST /api/reputation/rate/
     Submit a 1-5 star rating and optional review for a Finder after a successful return.
+    Available ONLY for Owners rating Finders on resolved items.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        if request.user.role != 'owner':
+            return Response(
+                {'error': 'Only Owners can rate Finders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = RateFinderRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1327,10 +1350,18 @@ class RatingStatusView(APIView):
     """
     GET /api/reputation/rating-status/?item_id={id}
     Check if the current user can rate the finder on this item, or if already rated.
+    Only Owners can rate Finders on resolved items.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        if request.user.role != 'owner':
+            return Response({
+                'can_rate': False,
+                'has_rated': False,
+                'rating': None,
+            }, status=status.HTTP_200_OK)
+
         item_id = request.query_params.get('item_id')
         if not item_id:
             return Response({'error': 'item_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1354,32 +1385,26 @@ class RatingStatusView(APIView):
             else:
                 conv = Conversation.objects.filter(item=item).first()
                 if conv:
-                    finder_id = conv.finder_id if conv.owner == request.user else conv.owner_id
+                    finder_id = conv.finder_id
         else:
-            # For found item: reporter is finder, claimant / conversation partner is owner
             finder_id = item.user_id
-            conv = Conversation.objects.filter(item=item, owner=request.user).first()
-            has_claim = Claim.objects.filter(item=item, claimant=request.user).exists()
-            is_owner = bool(conv or has_claim)
-
-        if not is_owner:
-            return Response({
-                'can_rate': False,
-                'has_rated': False,
-                'rating': None,
-            }, status=status.HTTP_200_OK)
+            conv = Conversation.objects.filter(item=item).first()
+            if conv and conv.owner_id == request.user.id:
+                is_owner = True
+            elif item.user != request.user:
+                is_owner = True
 
         existing_rating = FinderRating.objects.filter(owner=request.user, item=item).first()
-        if existing_rating:
-            return Response({
-                'can_rate': False,
-                'has_rated': True,
-                'rating': FinderRatingSerializer(existing_rating).data,
-            }, status=status.HTTP_200_OK)
+        can_rate = (
+            is_resolved
+            and is_owner
+            and (existing_rating is None)
+            and (finder_id is not None)
+            and (finder_id != request.user.id)
+        )
 
-        can_rate = is_resolved and (finder_id is not None) and (finder_id != request.user.id)
         return Response({
-            'can_rate': can_rate,
-            'has_rated': False,
-            'rating': None,
+            'can_rate': bool(can_rate),
+            'has_rated': existing_rating is not None,
+            'rating': FinderRatingSerializer(existing_rating).data if existing_rating else None,
         }, status=status.HTTP_200_OK)

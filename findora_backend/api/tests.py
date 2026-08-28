@@ -1,5 +1,6 @@
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.exceptions import ValidationError
 from api.models import (
     User, Item, FinderReputation, PointTransaction, FinderRating,
     UserBadge, Conversation, Notification
@@ -21,204 +22,243 @@ from api.reputation_service import (
 from api.reputation_constants import BADGES
 
 
-class ActionBasedRoleAndItemTests(TestCase):
+class PermanentRoleRegistrationAndEnforcementTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.milan = User.objects.create_user(
-            username='milan',
-            email='milan@example.com',
-            password='Password123!',
-            role='user',
-            is_verified=True
-        )
-        self.hari = User.objects.create_user(
-            username='hari',
-            email='hari@example.com',
-            password='Password123!',
-            role='user',
-            is_verified=True
-        )
 
-    def test_single_user_can_report_both_lost_and_found_items(self):
-        """Milan as a normal user can report a lost item (as Owner) and a found item (as Finder)."""
-        view = ItemListCreateView.as_view()
-
-        # 1. Milan reports a lost phone
-        req_lost = self.factory.post('/api/items/', {
-            'type': 'lost',
-            'title': 'Lost iPhone 15',
-            'description': 'Blue iPhone 15 lost in library',
-            'category': 'phone',
-            'location': 'Library 2nd Floor',
-            'reward': '1000.00'
+    def test_register_as_owner(self):
+        """User registers with role='owner'. Account has permanent role 'owner'."""
+        view = RegisterView.as_view()
+        req = self.factory.post('/api/register/', {
+            'username': 'ram_owner',
+            'email': 'ram@example.com',
+            'password': 'Password123!',
+            'confirm_password': 'Password123!',
+            'first_name': 'Ram',
+            'last_name': 'Thapa',
+            'phone': '9800000001',
+            'role': 'owner'
         })
-        force_authenticate(req_lost, user=self.milan)
-        res_lost = view(req_lost)
-        self.assertEqual(res_lost.status_code, 201)
-        self.assertEqual(res_lost.data['type'], 'lost')
-        self.assertEqual(float(res_lost.data['reward']), 1000.0)
-        self.assertEqual(res_lost.data['user_role'], 'owner')
+        res = view(req)
+        self.assertEqual(res.status_code, 201)
+        user = User.objects.get(username='ram_owner')
+        self.assertEqual(user.role, 'owner')
 
-        # 2. Milan reports a found wallet
-        req_found = self.factory.post('/api/items/', {
-            'type': 'found',
-            'title': 'Found Black Wallet',
-            'description': 'Found brown leather wallet',
-            'category': 'wallet',
-            'location': 'Cafeteria'
+    def test_register_as_finder(self):
+        """User registers with role='finder'. Account has permanent role 'finder'."""
+        view = RegisterView.as_view()
+        req = self.factory.post('/api/register/', {
+            'username': 'shyam_finder',
+            'email': 'shyam@example.com',
+            'password': 'Password123!',
+            'confirm_password': 'Password123!',
+            'first_name': 'Shyam',
+            'last_name': 'Gurung',
+            'phone': '9800000002',
+            'role': 'finder'
         })
-        force_authenticate(req_found, user=self.milan)
-        res_found = view(req_found)
-        self.assertEqual(res_found.status_code, 201)
-        self.assertEqual(res_found.data['type'], 'found')
-        self.assertEqual(float(res_found.data['reward']), 0.0)
-        self.assertEqual(res_found.data['user_role'], 'finder')
+        res = view(req)
+        self.assertEqual(res.status_code, 201)
+        user = User.objects.get(username='shyam_finder')
+        self.assertEqual(user.role, 'finder')
 
-        # Milan has 1 lost report and 1 found report
-        self.assertEqual(Item.objects.filter(user=self.milan, type='lost').count(), 1)
-        self.assertEqual(Item.objects.filter(user=self.milan, type='found').count(), 1)
+    def test_register_as_admin_rejected(self):
+        """Registration with role='admin' must be rejected."""
+        view = RegisterView.as_view()
+        req = self.factory.post('/api/register/', {
+            'username': 'fake_admin',
+            'email': 'admin@example.com',
+            'password': 'Password123!',
+            'confirm_password': 'Password123!',
+            'first_name': 'Fake',
+            'last_name': 'Admin',
+            'phone': '9800000003',
+            'role': 'admin'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(User.objects.filter(username='fake_admin').exists())
 
-    def test_found_item_cannot_have_reward(self):
-        """Found item report with reward > 0 must fail validation."""
+    def test_owner_can_report_lost_item_with_optional_reward(self):
+        """Owner can report a lost item and optionally offer a monetary reward."""
+        owner = User.objects.create_user(
+            username='owner1', email='owner1@example.com', password='Password123!', role='owner', is_verified=True
+        )
         request = self.factory.post('/api/items/')
-        force_authenticate(request, user=self.milan)
-        request.user = self.milan
-        
+        force_authenticate(request, user=owner)
+        request.user = owner
+
+        data = {
+            'type': 'lost',
+            'title': 'Lost Dell XPS 15',
+            'description': 'Silver laptop lost in library',
+            'category': 'electronics',
+            'location': 'Library Hall B',
+            'reward': '1500.00'
+        }
+        serializer = ItemSerializer(data=data, context={'request': request})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        item = serializer.save(user=owner)
+        self.assertEqual(item.type, 'lost')
+        self.assertEqual(float(item.reward), 1500.00)
+        self.assertEqual(ItemSerializer(item, context={'request': request}).data['user_role'], 'owner')
+
+    def test_owner_cannot_report_found_item(self):
+        """Owner attempting to report a found item must fail validation."""
+        owner = User.objects.create_user(
+            username='owner2', email='owner2@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        request = self.factory.post('/api/items/')
+        force_authenticate(request, user=owner)
+        request.user = owner
+
         data = {
             'type': 'found',
-            'title': 'Found Watch',
-            'description': 'Found silver watch',
-            'category': 'other',
-            'location': 'Park',
-            'reward': '500'
+            'title': 'Found Dell Laptop',
+            'description': 'Found silver laptop',
+            'category': 'electronics',
+            'location': 'Library'
         }
-        
+        serializer = ItemSerializer(data=data, context={'request': request})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('type', serializer.errors)
+
+    def test_finder_can_report_found_item_and_earns_5_points(self):
+        """Finder can report a found item and earns 5 Finder points. Found item reward is 0."""
+        finder = User.objects.create_user(
+            username='finder1', email='finder1@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        view = ItemListCreateView.as_view()
+        req = self.factory.post('/api/items/', {
+            'type': 'found',
+            'title': 'Found iPhone 14 Pro',
+            'description': 'Deep purple iPhone found on bus seat',
+            'category': 'phone',
+            'location': 'Bus No. 4',
+            'reward': '0.00'
+        })
+        force_authenticate(req, user=finder)
+        res = view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['type'], 'found')
+        self.assertEqual(float(res.data['reward']), 0.00)
+        self.assertEqual(res.data['user_role'], 'finder')
+
+        # Check reputation awarded 5 points
+        rep = FinderReputation.objects.get(user=finder)
+        self.assertEqual(rep.total_points, 5)
+
+    def test_finder_cannot_report_lost_item(self):
+        """Finder attempting to report a lost item must fail validation."""
+        finder = User.objects.create_user(
+            username='finder2', email='finder2@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        request = self.factory.post('/api/items/')
+        force_authenticate(request, user=finder)
+        request.user = finder
+
+        data = {
+            'type': 'lost',
+            'title': 'Lost Keys',
+            'description': 'Lost my room keys',
+            'category': 'keys',
+            'location': 'Park'
+        }
+        serializer = ItemSerializer(data=data, context={'request': request})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('type', serializer.errors)
+
+    def test_found_item_cannot_have_reward_for_finder(self):
+        """Found item report cannot specify a reward amount > 0."""
+        finder = User.objects.create_user(
+            username='finder3', email='finder3@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        request = self.factory.post('/api/items/')
+        force_authenticate(request, user=finder)
+        request.user = finder
+
+        data = {
+            'type': 'found',
+            'title': 'Found Backpack',
+            'description': 'Black backpack with books',
+            'category': 'bag',
+            'location': 'Campus Gate',
+            'reward': '500.00'
+        }
         serializer = ItemSerializer(data=data, context={'request': request})
         self.assertFalse(serializer.is_valid())
         self.assertIn('reward', serializer.errors)
 
-    def test_lost_item_can_have_optional_reward(self):
-        """Lost item report can specify a monetary reward."""
-        request = self.factory.post('/api/items/')
-        force_authenticate(request, user=self.milan)
-        request.user = self.milan
-        
-        data = {
-            'type': 'lost',
-            'title': 'Lost Keys',
-            'description': 'House keys with red keychain',
-            'category': 'keys',
-            'location': 'Bus Stop',
-            'reward': '300.00'
-        }
-        
-        serializer = ItemSerializer(data=data, context={'request': request})
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        item = serializer.save(user=self.milan)
-        self.assertEqual(item.type, 'lost')
-        self.assertEqual(float(item.reward), 300.0)
 
-    def test_registration_creates_normal_user_without_permanent_owner_finder(self):
-        """Registration creates a normal user with role='user'."""
-        view = RegisterView.as_view()
-        req = self.factory.post('/api/register/', {
-            'username': 'sita_sharma',
-            'email': 'sita@example.com',
-            'password': 'Password123!',
-            'confirm_password': 'Password123!',
-            'first_name': 'Sita',
-            'last_name': 'Sharma',
-            'phone': '9800000001'
-        })
-        res = view(req)
-        self.assertEqual(res.status_code, 201)
-        created_user = User.objects.get(username='sita_sharma')
-        self.assertEqual(created_user.role, 'user')
-
-
-class RoleSwitchingAndReturnWorkflowTests(TestCase):
+class ReturnWorkflowAndReputationTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.milan = User.objects.create_user(
-            username='milan', email='milan@example.com', password='Password123!', role='user', is_verified=True
+        self.owner = User.objects.create_user(
+            username='balimante', email='bali@example.com', password='Password123!', role='owner', is_verified=True
         )
-        self.hari = User.objects.create_user(
-            username='hari', email='hari@example.com', password='Password123!', role='user', is_verified=True
+        self.finder = User.objects.create_user(
+            username='bijar', email='bijar@example.com', password='Password123!', role='finder', is_verified=True
         )
 
-    def test_user_switches_roles_across_multiple_reports(self):
-        """Milan reports 2 Lost items (Owner) and 2 Found items (Finder)."""
-        lost1 = Item.objects.create(user=self.milan, type='lost', title='Lost iPhone', category='phone', status='approved')
-        found1 = Item.objects.create(user=self.milan, type='found', title='Found Watch', category='other', status='approved')
-        lost2 = Item.objects.create(user=self.milan, type='lost', title='Lost Wallet', category='wallet', status='approved')
-        found2 = Item.objects.create(user=self.milan, type='found', title='Found Keys', category='keys', status='approved')
-
-        # Serializer reports correct contextual role
-        self.assertEqual(ItemSerializer(lost1).data['user_role'], 'owner')
-        self.assertEqual(ItemSerializer(found1).data['user_role'], 'finder')
-        self.assertEqual(ItemSerializer(lost2).data['user_role'], 'owner')
-        self.assertEqual(ItemSerializer(found2).data['user_role'], 'finder')
-
-        # Milan's profile aggregates both counts
-        user_data = UserSerializer(self.milan).data
-        self.assertEqual(user_data['lost_reports_count'], 2)
-        self.assertEqual(user_data['found_reports_count'], 2)
-
-    def test_complete_return_workflow_and_finder_points(self):
-        """Milan lost phone (Owner). Hari found phone (Finder). Return completed -> Hari gets +100 points, Milan rates Hari."""
-        # 1. Milan reports lost phone
+    def test_complete_return_awards_100_points_and_owner_rates_finder(self):
+        """Lost phone return workflow: Finder gets 100 pts, Owner rates 5 stars (+10 bonus pts)."""
         lost_item = Item.objects.create(
-            user=self.milan, type='lost', title='Milan Lost Phone', category='phone', status='approved'
+            user=self.owner, type='lost', title='Lost Gold Watch', category='watch', status='approved'
         )
+        conv = Conversation.objects.create(item=lost_item, owner=self.owner, finder=self.finder)
 
-        # 2. Conversation between Milan (Owner) and Hari (Finder)
-        conv = Conversation.objects.create(item=lost_item, owner=self.milan, finder=self.hari)
-
-        # 3. Milan marks returned
+        # 1. Owner marks returned
         mark_view = MarkItemReturnedView.as_view()
         req_mark = self.factory.post(f'/api/items/{lost_item.id}/mark-returned/')
-        force_authenticate(req_mark, user=self.milan)
+        force_authenticate(req_mark, user=self.owner)
         res_mark = mark_view(req_mark, pk=lost_item.id)
         self.assertEqual(res_mark.status_code, 200)
 
-        # 4. Hari confirms return
+        # 2. Finder confirms return
         confirm_view = ConfirmItemReturnView.as_view()
         req_confirm = self.factory.post(f'/api/items/{lost_item.id}/confirm-return/')
-        force_authenticate(req_confirm, user=self.hari)
+        force_authenticate(req_confirm, user=self.finder)
         res_confirm = confirm_view(req_confirm, pk=lost_item.id)
         self.assertEqual(res_confirm.status_code, 200)
 
-        # Hari receives +100 Points and +1 Successful Return
-        rep_hari = FinderReputation.objects.get(user=self.hari)
-        self.assertEqual(rep_hari.total_points, 100)
-        self.assertEqual(rep_hari.successful_returns, 1)
+        # Finder received 100 points
+        rep = FinderReputation.objects.get(user=self.finder)
+        self.assertEqual(rep.total_points, 100)
+        self.assertEqual(rep.successful_returns, 1)
 
-        # Milan (Owner) rates Hari (Finder) with 5 stars -> Hari receives +10 bonus points
+        # Check Owner rating status
+        status_view = RatingStatusView.as_view()
+        req_status = self.factory.get(f'/api/reputation/rating-status/?item_id={lost_item.id}')
+        force_authenticate(req_status, user=self.owner)
+        res_status = status_view(req_status)
+        self.assertEqual(res_status.status_code, 200)
+        self.assertTrue(res_status.data['can_rate'])
+        self.assertFalse(res_status.data['has_rated'])
+
+        # Owner rates Finder 5 stars
         rate_view = RateFinderView.as_view()
         req_rate = self.factory.post('/api/reputation/rate/', {
             'item_id': lost_item.id,
             'rating': 5,
-            'review': 'Great finder, returned immediately!'
+            'review': 'Extremely helpful and polite finder!'
         })
-        force_authenticate(req_rate, user=self.milan)
+        force_authenticate(req_rate, user=self.owner)
         res_rate = rate_view(req_rate)
         self.assertEqual(res_rate.status_code, 201)
 
-        rep_hari.refresh_from_db()
-        self.assertEqual(rep_hari.total_points, 110)
-        self.assertEqual(rep_hari.average_rating, 5.0)
+        # Finder received +10 bonus points for 5-star rating (100 + 10 = 110)
+        rep.refresh_from_db()
+        self.assertEqual(rep.total_points, 110)
+        self.assertEqual(rep.average_rating, 5.0)
+        self.assertEqual(rep.rating_count, 1)
 
-    def test_non_owner_cannot_rate_finder(self):
-        """A user who is not the owner for that item cannot rate the finder."""
+    def test_finder_cannot_rate_owner(self):
+        """Finder attempting to rate the Owner must be forbidden."""
         lost_item = Item.objects.create(
-            user=self.milan, type='lost', title='Milan Lost Phone', category='phone', status='resolved'
+            user=self.owner, type='lost', title='Lost Tablet', category='electronics', status='resolved'
         )
         PointTransaction.objects.create(
-            user=self.hari, points=100, transaction_type='SUCCESSFUL_RETURN', related_item=lost_item
-        )
-
-        third_user = User.objects.create_user(
-            username='random_user', email='random@example.com', password='Password123!', role='user', is_verified=True
+            user=self.finder, points=100, transaction_type='SUCCESSFUL_RETURN', related_item=lost_item
         )
 
         rate_view = RateFinderView.as_view()
@@ -226,115 +266,100 @@ class RoleSwitchingAndReturnWorkflowTests(TestCase):
             'item_id': lost_item.id,
             'rating': 5
         })
-        force_authenticate(req_rate, user=third_user)
+        force_authenticate(req_rate, user=self.finder)
         res_rate = rate_view(req_rate)
-        self.assertEqual(res_rate.status_code, 400)
+        self.assertEqual(res_rate.status_code, 403)
 
-
-class ReputationAndBadgeTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username='test_user', email='test@example.com', password='Password123!', role='user', is_verified=True
-        )
-        self.other_user = User.objects.create_user(
-            username='other_user', email='other@example.com', password='Password123!', role='user', is_verified=True
-        )
-        self.factory = APIRequestFactory()
-
-    def test_reputation_me_and_history_accessible_to_normal_user(self):
-        """Any normal user can access /api/reputation/me/ and /api/reputation/history/."""
+    def test_owner_reputation_and_points_access_forbidden(self):
+        """Owners cannot access /api/reputation/me/ or /api/reputation/history/."""
         view_rep = ReputationProfileView.as_view()
         req_rep = self.factory.get('/api/reputation/me/')
-        force_authenticate(req_rep, user=self.user)
+        force_authenticate(req_rep, user=self.owner)
         res_rep = view_rep(req_rep)
-        self.assertEqual(res_rep.status_code, 200)
-        self.assertEqual(res_rep.data['total_points'], 0)
+        self.assertEqual(res_rep.status_code, 403)
 
         view_hist = PointHistoryView.as_view()
         req_hist = self.factory.get('/api/reputation/history/')
-        force_authenticate(req_hist, user=self.user)
+        force_authenticate(req_hist, user=self.owner)
         res_hist = view_hist(req_hist)
-        self.assertEqual(res_hist.status_code, 200)
+        self.assertEqual(res_hist.status_code, 403)
 
-    def test_found_report_awards_5_points_to_normal_user(self):
-        """Reporting a found item awards +5 points."""
-        item = Item.objects.create(
-            user=self.user, type='found', title='Found Glasses', category='other', status='approved'
-        )
-        awarded = award_found_report_points(self.user, item)
-        self.assertTrue(awarded)
-
-        rep = get_or_create_reputation(self.user)
-        self.assertEqual(rep.total_points, 5)
-
-        # Duplicate award prevented
-        awarded_again = award_found_report_points(self.user, item)
-        self.assertFalse(awarded_again)
-        rep.refresh_from_db()
-        self.assertEqual(rep.total_points, 5)
-
-    def test_badge_unlock_progression(self):
-        """User unlocks First Return badge after 1 return, Helpful Finder after 5, Trusted Finder after 10."""
-        rep = get_or_create_reputation(self.user)
-        rep.successful_returns = 1
+    def test_trusted_finder_qualification(self):
+        """Trusted Finder requires rating >= 4.0 and successful returns > 3 (min 4 returns)."""
+        rep = get_or_create_reputation(self.finder)
+        rep.rating_count = 2
+        rep.rating_sum = 10
+        rep.average_rating = 5.0
+        rep.successful_returns = 3
         rep.save()
-        badges1 = check_and_award_badges(self.user, rep)
-        self.assertEqual(len(badges1), 1)
-        self.assertEqual(badges1[0].badge_key, 'FIRST_RETURN')
 
-        rep.successful_returns = 5
+        # 3 returns is not > 3
+        self.assertFalse(rep.is_trusted_finder)
+        self.assertFalse(self.finder.is_trusted_finder)
+
+        # 4 returns is > 3
+        rep.successful_returns = 4
         rep.save()
-        badges2 = check_and_award_badges(self.user, rep)
-        self.assertEqual(len(badges2), 1)
-        self.assertEqual(badges2[0].badge_key, 'HELPFUL_FINDER')
+        self.assertTrue(rep.is_trusted_finder)
+        self.assertTrue(self.finder.is_trusted_finder)
 
-        rep.successful_returns = 10
+        # Low rating drops trusted finder status
+        rep.average_rating = 3.5
         rep.save()
-        badges3 = check_and_award_badges(self.user, rep)
-        self.assertEqual(len(badges3), 1)
-        self.assertEqual(badges3[0].badge_key, 'TRUSTED_FINDER')
+        self.assertFalse(rep.is_trusted_finder)
 
 
-class MatchingAndVisibilityTests(TestCase):
+class ItemMatchingAndRoleVisibilityTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.alice = User.objects.create_user(
-            username='alice', email='alice@example.com', password='Password123!', role='user', is_verified=True
+        self.owner = User.objects.create_user(
+            username='thor_owner', email='thor@example.com', password='Password123!', role='owner', is_verified=True
         )
-        self.bob = User.objects.create_user(
-            username='bob', email='bob@example.com', password='Password123!', role='user', is_verified=True
-        )
-
-        # Alice lost a blue iPhone
-        self.alice_lost_phone = Item.objects.create(
-            user=self.alice, type='lost', title='Blue iPhone 13', category='phone', status='approved'
-        )
-        # Bob found an iPhone
-        self.bob_found_phone = Item.objects.create(
-            user=self.bob, type='found', title='Found iPhone 13 in Park', category='phone', status='approved'
-        )
-        # Bob found an unrelated keys
-        self.bob_found_keys = Item.objects.create(
-            user=self.bob, type='found', title='Found Car Keys', category='keys', status='approved'
+        self.finder = User.objects.create_user(
+            username='iron_finder', email='iron@example.com', password='Password123!', role='finder', is_verified=True
         )
 
-    def test_public_lost_items_visible_to_all(self):
-        """Any user browsing lost items sees approved lost items."""
-        view = ItemListCreateView.as_view()
-        req = self.factory.get('/api/items/?type=lost')
-        force_authenticate(req, user=self.bob)
-        res = view(req)
-        self.assertEqual(res.status_code, 200)
-        item_ids = [item['id'] for item in res.data]
-        self.assertIn(self.alice_lost_phone.id, item_ids)
+        # Thor lost an iPhone 13
+        self.lost_phone = Item.objects.create(
+            user=self.owner, type='lost', title='Black iPhone 13 Pro', category='phone', status='approved'
+        )
+        # Iron found an iPhone
+        self.matched_found_phone = Item.objects.create(
+            user=self.finder, type='found', title='Found iPhone 13 in Park', category='phone', status='approved'
+        )
+        # Iron found unrelated sunglasses
+        self.unmatched_found_glasses = Item.objects.create(
+            user=self.finder, type='found', title='Found RayBan Sunglasses', category='other', status='approved'
+        )
 
-    def test_matched_found_items_visible_to_owner(self):
-        """Alice sees Bob's found iPhone because it matches her lost iPhone category and keywords."""
+    def test_owner_sees_only_matched_found_items(self):
+        """Owner browsing found items only sees found items matching their lost reports."""
         view = ItemListCreateView.as_view()
         req = self.factory.get('/api/items/?type=found')
-        force_authenticate(req, user=self.alice)
+        force_authenticate(req, user=self.owner)
         res = view(req)
         self.assertEqual(res.status_code, 200)
         item_ids = [item['id'] for item in res.data]
-        self.assertIn(self.bob_found_phone.id, item_ids)
-        self.assertNotIn(self.bob_found_keys.id, item_ids)
+        self.assertIn(self.matched_found_phone.id, item_ids)
+        self.assertNotIn(self.unmatched_found_glasses.id, item_ids)
+
+    def test_finder_sees_all_found_and_lost_items(self):
+        """Finder browsing items can see all approved lost and found items."""
+        view = ItemListCreateView.as_view()
+
+        # Lost items
+        req_lost = self.factory.get('/api/items/?type=lost')
+        force_authenticate(req_lost, user=self.finder)
+        res_lost = view(req_lost)
+        self.assertEqual(res_lost.status_code, 200)
+        lost_ids = [item['id'] for item in res_lost.data]
+        self.assertIn(self.lost_phone.id, lost_ids)
+
+        # Found items
+        req_found = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_found, user=self.finder)
+        res_found = view(req_found)
+        self.assertEqual(res_found.status_code, 200)
+        found_ids = [item['id'] for item in res_found.data]
+        self.assertIn(self.matched_found_phone.id, found_ids)
+        self.assertIn(self.unmatched_found_glasses.id, found_ids)

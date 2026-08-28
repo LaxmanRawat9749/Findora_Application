@@ -74,22 +74,30 @@ public class UploadItemActivity extends BaseActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
 
-        // Action-Based Report Type: All users can report either Lost or Found items
-        String initialType = getIntent().getStringExtra("REPORT_TYPE");
-        if ("found".equalsIgnoreCase(initialType)) {
-            binding.rbFound.setChecked(true);
-        } else {
+        // Adjust Report Type and Reward field based on role
+        String role = new SessionManager(this).getRole();
+        if ("owner".equalsIgnoreCase(role)) {
             binding.rbLost.setChecked(true);
+            binding.rbFound.setVisibility(View.GONE);
+            binding.rbFound.setEnabled(false);
+            binding.rbLost.setVisibility(View.VISIBLE);
+            binding.rbLost.setEnabled(true);
+            binding.tilReward.setVisibility(View.VISIBLE);
+        } else if ("finder".equalsIgnoreCase(role)) {
+            binding.rbFound.setChecked(true);
+            binding.rbLost.setVisibility(View.GONE);
+            binding.rbLost.setEnabled(false);
+            binding.rbFound.setVisibility(View.VISIBLE);
+            binding.rbFound.setEnabled(true);
+            binding.tilReward.setVisibility(View.GONE);
+            binding.etReward.setText("");
+        } else {
+            // Fallback for admin or unassigned role
+            updateRewardVisibility(binding.rbLost.isChecked());
+            binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
+                updateRewardVisibility(checkedId == R.id.rbLost);
+            });
         }
-        binding.rbLost.setVisibility(View.VISIBLE);
-        binding.rbLost.setEnabled(true);
-        binding.rbFound.setVisibility(View.VISIBLE);
-        binding.rbFound.setEnabled(true);
-
-        updateRewardVisibility(binding.rbLost.isChecked());
-        binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
-            updateRewardVisibility(checkedId == R.id.rbLost);
-        });
 
         // Setup image recycler view
         imageAdapter = new UploadImageAdapter(selectedImages, position -> {

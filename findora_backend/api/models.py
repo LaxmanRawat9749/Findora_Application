@@ -28,13 +28,14 @@ class User(AbstractUser):
     """
 
     ROLE_CHOICES = [
-        ('user', 'User'),
+        ('owner', 'Owner'),
+        ('finder', 'Finder'),
         ('admin', 'Admin'),
     ]
 
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, blank=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='owner')
     is_verified = models.BooleanField(default=False)
     failed_login_attempts = models.IntegerField(default=0)
     is_locked = models.BooleanField(default=False)
@@ -81,6 +82,13 @@ class User(AbstractUser):
         self.is_locked = False
         self.locked_until = None
         self.save(update_fields=['failed_login_attempts', 'is_locked', 'locked_until'])
+
+    @property
+    def is_trusted_finder(self):
+        if self.role != 'finder':
+            return False
+        rep = getattr(self, 'reputation', None)
+        return rep.is_trusted_finder if rep else False
 
 
 class OTPToken(models.Model):
@@ -398,8 +406,11 @@ class FinderReputation(models.Model):
 
     @property
     def is_trusted_finder(self):
-        resolved_count = Item.objects.filter(user=self.user, type='found', status='resolved').distinct().count()
-        return bool(self.rating_count > 0 and self.average_rating >= 4.0 and resolved_count >= 4)
+        returns_count = max(
+            self.successful_returns,
+            Item.objects.filter(user=self.user, type='found', status='resolved').distinct().count()
+        )
+        return bool(self.rating_count > 0 and self.average_rating >= 4.0 and returns_count > 3)
 
     @property
     def primary_badge(self):

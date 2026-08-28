@@ -42,7 +42,7 @@ class FindoraUserAdmin(UserAdmin):
     """
 
     list_display = [
-        'full_name', 'username', 'email', 'account_status',
+        'full_name', 'username', 'email', 'role_badge', 'account_status',
         'lost_reports_count', 'found_reports_count', 'successful_returns_count',
         'points_display', 'reputation_display',
         'is_active', 'created_at',
@@ -96,6 +96,19 @@ class FindoraUserAdmin(UserAdmin):
     def full_name(self, obj):
         return obj.get_full_name() or obj.username
 
+    @admin.display(description='Role')
+    def role_badge(self, obj):
+        colors = {
+            'owner': ('#EDE9FE', '#6D28D9'),
+            'finder': ('#DCFCE7', '#16A34A'),
+            'admin': ('#FEF3C7', '#D97706'),
+        }
+        bg, fg = colors.get(obj.role, ('#F3F4F6', '#6B7280'))
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span>',
+            bg, fg, obj.role.capitalize()
+        )
+
     @admin.display(description='Status')
     def account_status(self, obj):
         if obj.is_locked:
@@ -114,11 +127,15 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Returns')
     def successful_returns_count(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     @admin.display(description='Points')
     def points_display(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         pts = rep.total_points if rep else 0
         return format_html(
@@ -128,6 +145,8 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Reputation')
     def reputation_display(self, obj):
+        if obj.role != 'finder':
+            return '-'
         rep = getattr(obj, 'reputation', None)
         if rep and rep.rating_count > 0:
             return format_html(
