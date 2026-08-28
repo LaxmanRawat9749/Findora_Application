@@ -271,7 +271,7 @@ class LoginView(APIView):
 
         return Response(
             {
-                'user': UserSerializer(auth_user).data,
+                'user': UserSerializer(auth_user, context={'request': request}).data,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
             },
@@ -533,23 +533,50 @@ class ProfileImageView(APIView):
     DELETE /api/profile/image/ — Remove profile image.
     """
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         return self.put(request)
 
+    def patch(self, request):
+        return self.put(request)
+
     def put(self, request):
-        image = request.FILES.get('image')
+        image = (
+            request.FILES.get('image')
+            or request.FILES.get('profileImage')
+            or request.FILES.get('profile_image')
+            or request.FILES.get('profile_picture')
+        )
         if not image:
             return Response({'error': 'Image file is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        # Validate file size (max 5 MB)
+        if image.size > 5 * 1024 * 1024:
+            return Response({'error': 'Image file must be smaller than 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file extension
+        ext = image.name.split('.')[-1].lower() if '.' in image.name else ''
+        if ext not in ['jpg', 'jpeg', 'png', 'webp']:
+            return Response({'error': 'Unsupported format. Allowed: JPG, JPEG, PNG, WEBP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Remove old image file if replacing
+        if request.user.profile_image:
+            try:
+                request.user.profile_image.delete(save=False)
+            except Exception:
+                pass
+
         request.user.profile_image = image
         request.user.save(update_fields=['profile_image'])
         return Response(UserSerializer(request.user, context={'request': request}).data, status=status.HTTP_200_OK)
 
     def delete(self, request):
         if request.user.profile_image:
-            request.user.profile_image.delete(save=False)
+            try:
+                request.user.profile_image.delete(save=False)
+            except Exception:
+                pass
             request.user.profile_image = None
             request.user.save(update_fields=['profile_image'])
         return Response({'message': 'Profile image removed successfully.'}, status=status.HTTP_200_OK)

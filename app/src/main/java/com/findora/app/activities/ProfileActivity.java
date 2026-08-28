@@ -530,59 +530,95 @@ public class ProfileActivity extends BaseActivity {
     }
     
     private void uploadProfilePicture(Uri uri) {
+        File tempFile = null;
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
-            File tempFile = new File(getCacheDir(), "upload_profile.jpg");
+            if (inputStream == null) {
+                Toast.makeText(this, "Could not read selected image", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            tempFile = new File(getCacheDir(), "upload_profile_" + System.currentTimeMillis() + ".jpg");
             FileOutputStream out = new FileOutputStream(tempFile);
-            byte[] buf = new byte[1024];
+            byte[] buf = new byte[8192];
             int len;
             while ((len = inputStream.read(buf)) > 0) {
                 out.write(buf, 0, len);
             }
             out.close();
             inputStream.close();
-            
+
             RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), tempFile);
-            MultipartBody.Part body = MultipartBody.Part.createFormData("profileImage", tempFile.getName(), requestFile);
-            
+            MultipartBody.Part body = MultipartBody.Part.createFormData("image", tempFile.getName(), requestFile);
+
+            final File fileToDelete = tempFile;
             apiService.updateProfileImage(body).enqueue(new Callback<User>() {
                 @Override
                 public void onResponse(Call<User> call, Response<User> response) {
+                    if (fileToDelete.exists()) {
+                        fileToDelete.delete();
+                    }
                     if (response.isSuccessful() && response.body() != null) {
+                        User user = response.body();
                         Toast.makeText(ProfileActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
-                        baseSessionManager.saveProfileImage(response.body().getProfileImage());
+                        if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
+                            baseSessionManager.saveProfileImage(user.getProfileImage());
+                            Glide.with(ProfileActivity.this)
+                                    .load(user.getProfileImage())
+                                    .circleCrop()
+                                    .placeholder(R.drawable.ic_person)
+                                    .error(R.drawable.ic_person)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .into(binding.ivProfilePicture);
+                        }
                         loadProfile();
                     } else {
+                        String errorDetails = "";
+                        try {
+                            if (response.errorBody() != null) {
+                                errorDetails = response.errorBody().string();
+                            }
+                        } catch (Exception ignored) {}
+                        android.util.Log.e("ProfileActivity", "Upload failed (HTTP " + response.code() + "): " + errorDetails);
                         Toast.makeText(ProfileActivity.this, "Failed to update profile picture", Toast.LENGTH_SHORT).show();
                     }
                 }
-                
+
                 @Override
                 public void onFailure(Call<User> call, Throwable t) {
-                    Toast.makeText(ProfileActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                    if (fileToDelete.exists()) {
+                        fileToDelete.delete();
+                    }
+                    android.util.Log.e("ProfileActivity", "Upload network failure", t);
+                    Toast.makeText(ProfileActivity.this, "Network error. Please try again.", Toast.LENGTH_SHORT).show();
                 }
             });
         } catch (Exception e) {
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
+            android.util.Log.e("ProfileActivity", "Error processing image", e);
             Toast.makeText(this, "Error processing image", Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     private void removeProfilePicture() {
         apiService.deleteProfileImage().enqueue(new Callback<User>() {
             @Override
             public void onResponse(Call<User> call, Response<User> response) {
-                if (response.isSuccessful() && response.body() != null) {
+                if (response.isSuccessful()) {
                     Toast.makeText(ProfileActivity.this, "Profile picture removed", Toast.LENGTH_SHORT).show();
                     baseSessionManager.saveProfileImage("");
+                    binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
                     loadProfile();
                 } else {
                     Toast.makeText(ProfileActivity.this, "Failed to remove profile picture", Toast.LENGTH_SHORT).show();
                 }
             }
-            
+
             @Override
             public void onFailure(Call<User> call, Throwable t) {
-                Toast.makeText(ProfileActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                Toast.makeText(ProfileActivity.this, "Network error. Please try again.", Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -30,6 +30,7 @@ from .models import (
 
 class UserSerializer(serializers.ModelSerializer):
     """Read-only serializer for displaying a user's profile data."""
+    profile_image = serializers.SerializerMethodField()
     total_points = serializers.SerializerMethodField()
     successful_returns = serializers.SerializerMethodField()
     successful_returns_count = serializers.SerializerMethodField()
@@ -56,6 +57,14 @@ class UserSerializer(serializers.ModelSerializer):
             'items_recovered', 'recovered_items_count', 'created_at',
         ]
         read_only_fields = ['id', 'is_verified', 'created_at']
+
+    def get_profile_image(self, obj):
+        request = self.context.get('request')
+        if obj.profile_image and request:
+            return request.build_absolute_uri(obj.profile_image.url)
+        elif obj.profile_image:
+            return obj.profile_image.url
+        return None
 
     def get_is_trusted_finder(self, obj):
         if getattr(obj, 'role', '') != 'finder':
