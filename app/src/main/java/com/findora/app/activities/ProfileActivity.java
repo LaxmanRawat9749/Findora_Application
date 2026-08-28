@@ -287,7 +287,7 @@ public class ProfileActivity extends BaseActivity {
 
         if (!cachedName.isEmpty()) binding.tvFullName.setText(cachedName);
         if (!cachedEmail.isEmpty()) binding.tvEmail.setText(cachedEmail);
-        binding.tvRole.setText("Normal User");
+        if (!cachedRole.isEmpty()) binding.tvRole.setText("Role: " + capitalize(cachedRole));
         if (!cachedUsername.isEmpty()) binding.etCurrentUsername.setText(cachedUsername);
         
         String cachedImage = baseSessionManager.getProfileImage();

@@ -219,7 +219,15 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void submitReport() {
-        String type = binding.rbLost.isChecked() ? "lost" : "found";
+        String role = new SessionManager(this).getRole();
+        String type;
+        if ("owner".equalsIgnoreCase(role)) {
+            type = "lost";
+        } else if ("finder".equalsIgnoreCase(role)) {
+            type = "found";
+        } else {
+            type = binding.rbLost.isChecked() ? "lost" : "found";
+        }
         String title = binding.etTitle.getText().toString().trim();
         String location = binding.etLocation.getText().toString().trim();
         String rewardStr = binding.etReward.getText().toString().trim();
@@ -245,7 +253,7 @@ public class UploadItemActivity extends BaseActivity {
         partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
         partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
         partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
-        if ("lost".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
+        if (!"finder".equalsIgnoreCase(role) && !"found".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
             partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
         }
 

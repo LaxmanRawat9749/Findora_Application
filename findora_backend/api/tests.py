@@ -11,8 +11,7 @@ from api.serializers import (
 from api.views import (
     ItemListCreateView, ItemDetailView, MarkItemReturnedView,
     ConfirmItemReturnView, ReputationProfileView, PointHistoryView,
-    RateFinderView, RatingStatusView, MyReportsView, RegisterView,
-    ChatProfileView
+    RateFinderView, RatingStatusView, MyReportsView, RegisterView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -230,31 +229,6 @@ class RoleSwitchingAndReturnWorkflowTests(TestCase):
         force_authenticate(req_rate, user=third_user)
         res_rate = rate_view(req_rate)
         self.assertEqual(res_rate.status_code, 400)
-
-    def test_conversation_and_chat_profile_contextual_roles(self):
-        """ChatProfileView returns contextual role 'finder' or 'owner' for the conversation partner."""
-        lost_item = Item.objects.create(
-            user=self.milan, type='lost', title='Milan Lost Watch', category='other', status='approved'
-        )
-        conv = Conversation.objects.create(item=lost_item, owner=self.milan, finder=self.hari)
-
-        chat_prof_view = ChatProfileView.as_view()
-
-        # Milan viewing chat profile of Hari -> Hari is Finder
-        req_milan = self.factory.get(f'/api/chat/profile/?conversation_id={conv.id}')
-        force_authenticate(req_milan, user=self.milan)
-        res_milan = chat_prof_view(req_milan)
-        self.assertEqual(res_milan.status_code, 200)
-        self.assertEqual(res_milan.data['id'], self.hari.id)
-        self.assertEqual(res_milan.data['role'], 'finder')
-
-        # Hari viewing chat profile of Milan -> Milan is Owner
-        req_hari = self.factory.get(f'/api/chat/profile/?conversation_id={conv.id}')
-        force_authenticate(req_hari, user=self.hari)
-        res_hari = chat_prof_view(req_hari)
-        self.assertEqual(res_hari.status_code, 200)
-        self.assertEqual(res_hari.data['id'], self.milan.id)
-        self.assertEqual(res_hari.data['role'], 'owner')
 
 
 class ReputationAndBadgeTests(TestCase):

@@ -1137,9 +1137,8 @@ class ChatProfileView(APIView):
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         other_user = conversation.finder if conversation.owner == request.user else conversation.owner
-        data = PublicProfileSerializer(other_user, context={'request': request}).data
-        data['role'] = 'finder' if other_user.id == conversation.finder_id else 'owner'
-        return Response(data, status=status.HTTP_200_OK)
+        serializer = PublicProfileSerializer(other_user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ChatMessageDetailView(APIView):
