@@ -133,6 +133,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
                 Intent intent = new Intent(context, ChatActivity.class);
                 intent.putExtra(Constants.EXTRA_CONVERSATION_ID, conversation.getId());
                 intent.putExtra("other_user_name", name);
+                intent.putExtra("other_user_role", conversation.getOtherUserRole());
                 context.startActivity(intent);
             });
         }

@@ -127,15 +127,11 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Returns')
     def successful_returns_count(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     @admin.display(description='Points')
     def points_display(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         pts = rep.total_points if rep else 0
         return format_html(
@@ -145,8 +141,6 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Reputation')
     def reputation_display(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         if rep and rep.rating_count > 0:
             return format_html(
