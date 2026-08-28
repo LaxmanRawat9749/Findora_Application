@@ -14,6 +14,7 @@ Enhances the default Django admin panel with:
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import (
     ChatMessage,
     Claim,
@@ -102,20 +103,21 @@ class FindoraUserAdmin(UserAdmin):
             'owner': ('#EDE9FE', '#6D28D9'),
             'finder': ('#DCFCE7', '#16A34A'),
             'admin': ('#FEF3C7', '#D97706'),
+            'user': ('#E0E7FF', '#4338CA'),
         }
         bg, fg = colors.get(obj.role, ('#F3F4F6', '#6B7280'))
         return format_html(
             '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span>',
-            bg, fg, obj.role.capitalize()
+            bg, fg, (obj.role or 'user').capitalize()
         )
 
     @admin.display(description='Status')
     def account_status(self, obj):
         if obj.is_locked:
-            return format_html('<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:4px;font-weight:600">Locked</span>')
+            return mark_safe('<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:4px;font-weight:600">Locked</span>')
         if not obj.is_verified:
-            return format_html('<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">Unverified</span>')
-        return format_html('<span style="background:#DCFCE7;color:#16A34A;padding:2px 8px;border-radius:4px;font-weight:600">Active</span>')
+            return mark_safe('<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">Unverified</span>')
+        return mark_safe('<span style="background:#DCFCE7;color:#16A34A;padding:2px 8px;border-radius:4px;font-weight:600">Active</span>')
 
     @admin.display(description='Lost Reports')
     def lost_reports_count(self, obj):
@@ -127,15 +129,11 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Returns')
     def successful_returns_count(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         return rep.successful_returns if rep else 0
 
     @admin.display(description='Points')
     def points_display(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         pts = rep.total_points if rep else 0
         return format_html(
@@ -145,15 +143,13 @@ class FindoraUserAdmin(UserAdmin):
 
     @admin.display(description='Reputation')
     def reputation_display(self, obj):
-        if obj.role != 'finder':
-            return '-'
         rep = getattr(obj, 'reputation', None)
         if rep and rep.rating_count > 0:
             return format_html(
-                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
-                rep.average_rating,
+                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:600">⭐ {}</span>',
+                f"{rep.average_rating:.1f}",
             )
-        return format_html(
+        return mark_safe(
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">New</span>'
         )
 
@@ -443,10 +439,10 @@ class FinderReputationAdmin(admin.ModelAdmin):
         if obj.rating_count > 0:
             return format_html(
                 '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;'
-                'border-radius:4px;font-weight:600">⭐ {:.1f}</span>',
-                obj.average_rating,
+                'border-radius:4px;font-weight:600">⭐ {}</span>',
+                f"{obj.average_rating:.1f}",
             )
-        return format_html(
+        return mark_safe(
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;'
             'border-radius:4px">New</span>'
         )
