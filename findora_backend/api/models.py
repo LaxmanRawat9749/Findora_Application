@@ -31,7 +31,6 @@ class User(AbstractUser):
         ('owner', 'Owner'),
         ('finder', 'Finder'),
         ('admin', 'Admin'),
-        ('user', 'User'),
     ]
 
     email = models.EmailField(unique=True)

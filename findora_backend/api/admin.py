@@ -2,8 +2,8 @@
 Findora Django Admin Configuration.
 
 Enhances the default Django admin panel with:
-  - Unified User list display (Normal Users & Admins) showing activity, points & reputation
-  - Item list display showing contextual reporter roles (Owner / Finder)
+  - Role-based User list display (Owners, Finders & Admins) showing activity, points & reputation
+  - Item list display showing reporter roles (Owner / Finder)
   - Search and filter capabilities for all models
   - Bulk admin actions (approve, reject, verify, unlock)
   - Inline claim display on item detail pages
@@ -39,7 +39,7 @@ class FindoraUserAdmin(UserAdmin):
     Admin interface for Findora users.
 
     Displays user-centric activity metrics (Lost reports, Found reports,
-    successful returns, points, and reputation) without permanent role silos.
+    successful returns, points, and reputation) according to Owner/Finder roles.
     """
 
     list_display = [

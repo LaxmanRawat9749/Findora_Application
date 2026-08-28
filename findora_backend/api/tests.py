@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.exceptions import ValidationError
@@ -26,7 +27,8 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    def test_register_as_owner(self):
+    @patch('api.views.send_otp_email')
+    def test_register_as_owner(self, mock_send_email):
         """User registers with role='owner'. Account has permanent role 'owner'."""
         view = RegisterView.as_view()
         req = self.factory.post('/api/register/', {
@@ -44,7 +46,8 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         user = User.objects.get(username='ram_owner')
         self.assertEqual(user.role, 'owner')
 
-    def test_register_as_finder(self):
+    @patch('api.views.send_otp_email')
+    def test_register_as_finder(self, mock_send_email):
         """User registers with role='finder'. Account has permanent role 'finder'."""
         view = RegisterView.as_view()
         req = self.factory.post('/api/register/', {

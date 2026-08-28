@@ -8,10 +8,10 @@ Provides atomic, idempotent operations for:
   - Owner ratings and reputation updates
   - Notification dispatches
 
-In the action-based role architecture:
-  - Points and returns are earned when a user acts as a Finder.
-  - Ratings are submitted when a user acts as an Owner for a resolved return.
-  - Reputation profile and badge progress are computed from the user's Finder activity.
+In the Owner/Finder architecture:
+  - Points and returns are earned by Finders.
+  - Ratings are submitted by Owners for resolved returns.
+  - Reputation profile and badge progress belong to the Finder.
 """
 
 import logging

@@ -535,6 +535,9 @@ class ProfileImageView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
+    def post(self, request):
+        return self.put(request)
+
     def put(self, request):
         image = request.FILES.get('image')
         if not image:
@@ -569,7 +572,7 @@ class PublicProfileView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Item Views (Action-Based Role Model)
+# Item Views (Owner/Finder Role Model)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ItemListCreateView(APIView):
