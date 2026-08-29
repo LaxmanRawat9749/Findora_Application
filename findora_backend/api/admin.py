@@ -22,6 +22,7 @@ from .models import (
     FinderRating,
     FinderReputation,
     Item,
+    ItemImage,
     Notification,
     OTPToken,
     Payment,
@@ -190,6 +191,29 @@ class ClaimInline(admin.TabularInline):
     show_change_link = True
 
 
+class ItemImageInline(admin.TabularInline):
+    """Read-only inline showing all ItemImage records for a reported item."""
+
+    model = ItemImage
+    extra = 0
+    readonly_fields = ['image_thumb', 'uploaded_at']
+    fields = ['image_thumb', 'uploaded_at']
+    can_delete = False
+    show_change_link = False
+    verbose_name = 'Uploaded Image'
+    verbose_name_plural = 'Uploaded Images'
+
+    @admin.display(description='Image')
+    def image_thumb(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height:180px;max-width:260px;'
+                'border-radius:6px;object-fit:cover;" />',
+                obj.image.url,
+            )
+        return '—'
+
+
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     """
@@ -206,10 +230,10 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ['type', 'status', 'category', 'reported_at']
     search_fields = ['title', 'description', 'location', 'user__username', 'user__email']
     ordering = ['-reported_at']
-    readonly_fields = ['user', 'reported_at', 'updated_at', 'image_preview']
+    readonly_fields = ['user', 'reported_at', 'updated_at', 'item_images_preview']
     list_per_page = 20
     date_hierarchy = 'reported_at'
-    inlines = [ClaimInline]
+    inlines = [ItemImageInline, ClaimInline]
 
     fieldsets = (
         ('Item Info', {
@@ -222,7 +246,7 @@ class ItemAdmin(admin.ModelAdmin):
             'fields': ('location', 'latitude', 'longitude'),
         }),
         ('Media', {
-            'fields': ('image', 'image_preview'),
+            'fields': ('image', 'item_images_preview'),
         }),
         ('Timestamps', {
             'fields': ('reported_at', 'updated_at'),
@@ -272,14 +296,37 @@ class ItemAdmin(admin.ModelAdmin):
             )
         return '—'
 
-    @admin.display(description='Image Preview')
+    @admin.display(description='Image Preview (primary field)')
     def image_preview(self, obj):
+        """Retained for reference; primary item.image field is unused by Android upload."""
         if obj.image:
             return format_html(
                 '<img src="{}" style="max-height:200px;border-radius:8px;" />',
                 obj.image.url,
             )
         return 'No image uploaded.'
+
+    @admin.display(description='Item Images')
+    def item_images_preview(self, obj):
+        """
+        Renders thumbnails for all ItemImage records belonging to this item.
+        ItemImage is the actual storage used by the Android Report Item flow;
+        the primary item.image field is not populated by the app.
+        """
+        item_images = obj.images.all()
+        if not item_images.exists():
+            return 'No images uploaded.'
+        parts = []
+        for ii in item_images:
+            if ii.image:
+                parts.append(format_html(
+                    '<img src="{}" style="max-height:200px;max-width:280px;'
+                    'border-radius:8px;object-fit:cover;margin:4px;" />',
+                    ii.image.url,
+                ))
+        if not parts:
+            return 'No images uploaded.'
+        return mark_safe(''.join(str(p) for p in parts))
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
