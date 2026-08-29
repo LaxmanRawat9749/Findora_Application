@@ -384,3 +384,66 @@ def is_found_item_matched_for_owner(found_item, owner_user):
     match_q = get_matched_found_items_query_for_owner(owner_user)
     return Item.objects.filter(pk=found_item.pk).filter(match_q).exists()
 
+
+def get_or_create_matched_conversation(item, request_user):
+    """
+    Resolves or creates the canonical conversation between an Owner and a Finder
+    for an item transaction.
+
+    Business rules:
+    1. A user cannot initiate a conversation with themselves on their own report.
+    2. Identifies owner_user and finder_user based on item type and participant role:
+       - If item is 'lost': owner_user = item.user, finder_user = request_user
+       - If item is 'found': owner_user = request_user, finder_user = item.user
+    3. Lookups prioritize any existing active conversation between (owner_user, finder_user)
+       that matches the item or its counterpart category, preferring conversations with messages.
+    4. If no conversation exists at all between the participants for this context,
+       creates exactly ONE new Conversation record.
+    """
+    from .models import Conversation
+    from django.db.models import Q, Count, Max
+
+    if item.user == request_user:
+        return None, "User cannot initiate conversation with themselves on their own report."
+
+    if item.type == 'lost':
+        owner_user = item.user
+        finder_user = request_user
+    else:
+        owner_user = request_user
+        finder_user = item.user
+
+    # 1. Look for existing conversation between this exact owner and finder on this item or matching category
+    existing_convs = Conversation.objects.filter(
+        owner=owner_user,
+        finder=finder_user
+    ).filter(
+        Q(item=item) | Q(item__category=item.category)
+    ).annotate(
+        msg_count=Count('messages'),
+        last_msg_time=Max('messages__sent_at')
+    ).order_by('-msg_count', '-last_msg_time', '-created_at')
+
+    conv = existing_convs.first()
+
+    # 2. Fallback: Any conversation between this exact owner and finder
+    if not conv:
+        conv = Conversation.objects.filter(
+            owner=owner_user,
+            finder=finder_user
+        ).annotate(
+            msg_count=Count('messages'),
+            last_msg_time=Max('messages__sent_at')
+        ).order_by('-msg_count', '-last_msg_time', '-created_at').first()
+
+    # 3. If none exists, create exactly one new Conversation
+    if not conv:
+        conv = Conversation.objects.create(
+            item=item,
+            owner=owner_user,
+            finder=finder_user
+        )
+
+    return conv, None
+
+

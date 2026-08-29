@@ -568,4 +568,76 @@ class OwnerFinderChatCommunicationTests(TestCase):
         self.assertEqual(Item.objects.filter(type='found').count(), initial_found_count)
         self.assertEqual(Conversation.objects.count(), initial_conv_count + 1)
 
+    def test_owner_and_finder_share_same_conversation_across_lost_and_found_items(self):
+        """
+        Owner contacting Finder from Found Item and Finder contacting Owner from Lost Item
+        must resolve to the SAME canonical conversation and preserve complete message history.
+        """
+        init_view = ConversationInitView.as_view()
+        chat_view = ChatListView.as_view()
+
+        # Step 1: Owner contacts Finder on Found Item -> sends "Hello"
+        req_init1 = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_init1, user=self.owner)
+        res_init1 = init_view(req_init1)
+        self.assertEqual(res_init1.status_code, 200)
+        conv_id1 = res_init1.data['conversation_id']
+
+        req_send1 = self.factory.post('/api/chat/', {'conversation': conv_id1, 'message': 'Hello'})
+        force_authenticate(req_send1, user=self.owner)
+        res_send1 = chat_view(req_send1)
+        self.assertEqual(res_send1.status_code, 201)
+
+        # Step 2: Finder contacts Owner on Lost Item -> must resolve to the SAME conversation
+        req_init2 = self.factory.post('/api/conversations/init/', {'item_id': self.lost_phone.id})
+        force_authenticate(req_init2, user=self.finder)
+        res_init2 = init_view(req_init2)
+        self.assertEqual(res_init2.status_code, 200)
+        conv_id2 = res_init2.data['conversation_id']
+        self.assertEqual(conv_id1, conv_id2, "Owner and Finder must resolve to the same canonical conversation ID")
+
+        # Step 3: Finder retrieves chat history and sees "Hello"
+        req_get1 = self.factory.get(f'/api/chat/?conversation_id={conv_id2}')
+        force_authenticate(req_get1, user=self.finder)
+        res_get1 = chat_view(req_get1)
+        self.assertEqual(res_get1.status_code, 200)
+        self.assertEqual(len(res_get1.data), 1)
+        self.assertEqual(res_get1.data[0]['message'], 'Hello')
+        self.assertEqual(res_get1.data[0]['sender_name'], 'owner_alice')
+
+        # Step 4: Finder replies "Hi, I found your item."
+        req_send2 = self.factory.post('/api/chat/', {'conversation': conv_id2, 'message': 'Hi, I found your item.'})
+        force_authenticate(req_send2, user=self.finder)
+        res_send2 = chat_view(req_send2)
+        self.assertEqual(res_send2.status_code, 201)
+
+        # Step 5: Owner reopens chat from Found Item and sees both messages
+        req_init3 = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_init3, user=self.owner)
+        res_init3 = init_view(req_init3)
+        self.assertEqual(res_init3.data['conversation_id'], conv_id1)
+
+        req_get2 = self.factory.get(f'/api/chat/?conversation_id={conv_id1}')
+        force_authenticate(req_get2, user=self.owner)
+        res_get2 = chat_view(req_get2)
+        self.assertEqual(len(res_get2.data), 2)
+        self.assertEqual(res_get2.data[0]['message'], 'Hello')
+        self.assertEqual(res_get2.data[1]['message'], 'Hi, I found your item.')
+
+        # Step 6: Owner sends "Where can we meet?"
+        req_send3 = self.factory.post('/api/chat/', {'conversation': conv_id1, 'message': 'Where can we meet?'})
+        force_authenticate(req_send3, user=self.owner)
+        res_send3 = chat_view(req_send3)
+        self.assertEqual(res_send3.status_code, 201)
+
+        # Step 7: Finder reopens chat from Lost Item and sees all 3 messages chronologically
+        req_get3 = self.factory.get(f'/api/chat/?conversation_id={conv_id2}')
+        force_authenticate(req_get3, user=self.finder)
+        res_get3 = chat_view(req_get3)
+        self.assertEqual(len(res_get3.data), 3)
+        self.assertEqual(res_get3.data[0]['message'], 'Hello')
+        self.assertEqual(res_get3.data[1]['message'], 'Hi, I found your item.')
+        self.assertEqual(res_get3.data[2]['message'], 'Where can we meet?')
+
+
 

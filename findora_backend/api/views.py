@@ -67,6 +67,7 @@ from .serializers import (
 from .utils import (
     create_otp,
     get_matched_found_items_query_for_owner,
+    get_or_create_matched_conversation,
     is_found_item_matched_for_owner,
     send_otp_email,
     verify_otp,
@@ -990,30 +991,9 @@ class ConversationInitView(APIView):
         except (Item.DoesNotExist, ValueError):
             return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
             
-        if item.user == request.user:
-            return Response({'error': 'Owner cannot initiate conversation with themselves'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        # Map owner and finder strictly based on item type and participant
-        if item.type == 'lost':
-            owner_user = item.user
-            finder_user = request.user
-        else:
-            owner_user = request.user
-            finder_user = item.user
-            
-        conversation = Conversation.objects.filter(
-            Q(item=item) & (
-                (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
-                (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
-            )
-        ).first()
-        
-        if not conversation:
-            conversation = Conversation.objects.create(
-                item_id=item.id,
-                owner_id=owner_user.id,
-                finder_id=finder_user.id
-            )
+        conversation, err = get_or_create_matched_conversation(item, request.user)
+        if err:
+            return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({'conversation_id': conversation.id}, status=status.HTTP_200_OK)
 
@@ -1042,10 +1022,7 @@ class ChatListView(APIView):
             except (Item.DoesNotExist, ValueError):
                 return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
             
-            # Find conversation involving request.user and this item
-            conversation = Conversation.objects.filter(
-                Q(item=item) & (Q(owner=request.user) | Q(finder=request.user))
-            ).first()
+            conversation, _ = get_or_create_matched_conversation(item, request.user)
             if not conversation:
                 return Response([], status=status.HTTP_200_OK)
 
@@ -1095,26 +1072,9 @@ class ChatListView(APIView):
             except (Item.DoesNotExist, ValueError):
                 return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
 
-            if item.type == 'lost':
-                owner_user = item.user
-                finder_user = request.user
-            else:
-                owner_user = request.user
-                finder_user = item.user
-
-            conversation = Conversation.objects.filter(
-                Q(item=item) & (
-                    (Q(owner_id=owner_user.id) & Q(finder_id=finder_user.id)) |
-                    (Q(owner_id=finder_user.id) & Q(finder_id=owner_user.id))
-                )
-            ).first()
-
-            if not conversation:
-                conversation = Conversation.objects.create(
-                    item_id=item.id,
-                    owner_id=owner_user.id,
-                    finder_id=finder_user.id
-                )
+            conversation, err = get_or_create_matched_conversation(item, request.user)
+            if err:
+                return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
         if not conversation:
             return Response({'error': 'conversation_id or item_id is required'}, status=status.HTTP_400_BAD_REQUEST)
