@@ -22,7 +22,6 @@ from .models import (
     FinderRating,
     FinderReputation,
     Item,
-    ItemImage,
     Notification,
     OTPToken,
     Payment,
@@ -191,38 +190,12 @@ class ClaimInline(admin.TabularInline):
     show_change_link = True
 
 
-class ItemImageInline(admin.TabularInline):
-    """Read-only inline showing all ItemImage records for a reported item."""
-
-    model = ItemImage
-    extra = 0
-    readonly_fields = ['image_thumb', 'uploaded_at']
-    fields = ['image_thumb', 'uploaded_at']
-    can_delete = False
-    show_change_link = False
-    verbose_name = 'Uploaded Image'
-    verbose_name_plural = 'Uploaded Images'
-
-    @admin.display(description='Image')
-    def image_thumb(self, obj):
-        if obj.image:
-            return format_html(
-                '<a href="{}" target="_blank" title="Click to view full size">'
-                '<img src="{}" style="max-height:160px;max-width:240px;'
-                'border-radius:6px;object-fit:cover;border:1px solid #cbd5e1;" />'
-                '</a>',
-                obj.image.url,
-                obj.image.url,
-            )
-        return '—'
-
-
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for lost/found item reports.
 
-    Features colored status and type badges, image preview,
+    Features colored status and type badges,
     inline claim display, and bulk approve/reject/resolve actions.
     """
 
@@ -233,10 +206,10 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ['type', 'status', 'category', 'reported_at']
     search_fields = ['title', 'description', 'location', 'user__username', 'user__email']
     ordering = ['-reported_at']
-    readonly_fields = ['user', 'reported_at', 'updated_at', 'item_images_preview']
+    readonly_fields = ['user', 'reported_at', 'updated_at']
     list_per_page = 20
     date_hierarchy = 'reported_at'
-    inlines = [ItemImageInline, ClaimInline]
+    inlines = [ClaimInline]
 
     fieldsets = (
         ('Item Info', {
@@ -249,7 +222,7 @@ class ItemAdmin(admin.ModelAdmin):
             'fields': ('location', 'latitude', 'longitude'),
         }),
         ('Media', {
-            'fields': ('image', 'item_images_preview'),
+            'fields': ('image',),
         }),
         ('Timestamps', {
             'fields': ('reported_at', 'updated_at'),
@@ -299,48 +272,7 @@ class ItemAdmin(admin.ModelAdmin):
             )
         return '—'
 
-    @admin.display(description='Image Preview (primary field)')
-    def image_preview(self, obj):
-        """Retained for reference; primary item.image field is unused by Android upload."""
-        if obj.image:
-            return format_html(
-                '<a href="{}" target="_blank" title="Click to view full size">'
-                '<img src="{}" style="max-height:200px;border-radius:8px;border:1px solid #cbd5e1;" />'
-                '</a>',
-                obj.image.url,
-                obj.image.url,
-            )
-        return 'No image uploaded.'
 
-    @admin.display(description='Item Images')
-    def item_images_preview(self, obj):
-        """
-        Renders thumbnails for all ItemImage records belonging to this item.
-        Also displays the primary item.image if set.
-        """
-        parts = []
-        for ii in obj.images.all():
-            if ii.image:
-                parts.append(format_html(
-                    '<a href="{}" target="_blank" title="Click to view full size" style="display:inline-block;margin:4px;">'
-                    '<img src="{}" style="max-height:200px;max-width:280px;'
-                    'border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.08);" />'
-                    '</a>',
-                    ii.image.url,
-                    ii.image.url,
-                ))
-        if obj.image and not parts:
-            parts.append(format_html(
-                '<a href="{}" target="_blank" title="Click to view full size" style="display:inline-block;margin:4px;">'
-                '<img src="{}" style="max-height:200px;max-width:280px;'
-                'border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.08);" />'
-                '</a>',
-                obj.image.url,
-                obj.image.url,
-            ))
-        if not parts:
-            return 'No images uploaded.'
-        return mark_safe(''.join(str(p) for p in parts))
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
