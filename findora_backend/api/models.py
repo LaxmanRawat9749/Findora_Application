@@ -161,8 +161,8 @@ class Item(models.Model):
         ('rejected', 'Rejected'),
     ]
     VERIFICATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
+        ('pending', 'Pending Review'),
+        ('verified', 'Verified'),
         ('rejected', 'Rejected'),
     ]
     CATEGORY_CHOICES = [

@@ -198,18 +198,16 @@ class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for lost/found item reports.
 
-    Unified 1-click verification & approval:
-    - Single 'Verification Status' section (Pending, Approved, Rejected)
-    - Contextual reporter information (Owner for Lost, Finder for Found)
-    - Live reporter history & trust metrics
-    - No separate or duplicate status approvals
+    Features colored status and type badges, report verification review,
+    contextual reporter information (Owner/Finder), reporter history metrics,
+    inline claim display, and bulk review/approval actions.
     """
 
     list_display = [
-        'title', 'reporter', 'type_badge', 'category', 'verification_badge',
-        'location', 'reward_display', 'reported_at',
+        'title', 'type_badge', 'category', 'status_badge', 'verification_badge',
+        'reporter', 'location', 'reward_display', 'reported_at',
     ]
-    list_filter = ['verification_status', 'type', 'category', 'reported_at']
+    list_filter = ['verification_status', 'type', 'status', 'category', 'reported_at']
     search_fields = [
         'title', 'description', 'location',
         'user__username', 'user__email', 'user__first_name', 'user__last_name',
@@ -217,9 +215,8 @@ class ItemAdmin(admin.ModelAdmin):
     ]
     ordering = ['-reported_at']
     readonly_fields = [
-        'verification_status_summary',
-        'verified_by_display', 'verified_at_display',
         'reporter_info_display', 'reporter_history_display',
+        'verified_by', 'verified_at',
         'reported_at', 'updated_at',
     ]
     list_per_page = 20
@@ -227,17 +224,8 @@ class ItemAdmin(admin.ModelAdmin):
     inlines = [ClaimInline]
 
     fieldsets = (
-        ('Verification Status', {
-            'fields': (
-                'verification_status_summary',
-                'verification_status',
-                'admin_verification_notes',
-                'verified_by_display',
-                'verified_at_display',
-            ),
-        }),
-        ('Item Information', {
-            'fields': ('type', 'title', 'description', 'category', 'reward'),
+        ('Item Report Information', {
+            'fields': ('user', 'type', 'title', 'description', 'category', 'status', 'reward'),
         }),
         ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
@@ -247,6 +235,14 @@ class ItemAdmin(admin.ModelAdmin):
         }),
         ('Reporter History & Trust (Contextual)', {
             'fields': ('reporter_history_display',),
+        }),
+        ('Report Verification Review', {
+            'fields': (
+                'verification_status',
+                'admin_verification_notes',
+                'verified_by',
+                'verified_at',
+            ),
         }),
         ('Media', {
             'fields': ('image',),
@@ -258,94 +254,65 @@ class ItemAdmin(admin.ModelAdmin):
     )
 
     actions = [
-        'approve_items_action',
-        'reject_items_action',
-        'reset_pending_action',
+        'verify_report_action',
+        'reject_report_action',
+        'reset_verification_action',
+        'approve_items',
+        'reject_items',
+        'mark_resolved',
     ]
 
     def save_model(self, request, obj, form, change):
-        if change and 'verification_status' in form.changed_data:
-            if obj.verification_status == 'approved':
-                obj.status = 'approved'
-                obj.verified_by = request.user
-                obj.verified_at = timezone.now()
-            elif obj.verification_status == 'rejected':
-                obj.status = 'rejected'
-                obj.verified_by = request.user
-                obj.verified_at = timezone.now()
-            elif obj.verification_status == 'pending':
-                obj.status = 'pending'
-                obj.verified_by = None
-                obj.verified_at = None
-        elif not change:
-            if obj.verification_status == 'approved':
-                obj.status = 'approved'
-                if not obj.verified_by:
+        if change:
+            if 'verification_status' in form.changed_data:
+                if obj.verification_status in ('verified', 'rejected'):
                     obj.verified_by = request.user
                     obj.verified_at = timezone.now()
-            elif obj.verification_status == 'rejected':
-                obj.status = 'rejected'
-                if not obj.verified_by:
-                    obj.verified_by = request.user
-                    obj.verified_at = timezone.now()
-            else:
-                obj.status = 'pending'
+                elif obj.verification_status == 'pending':
+                    obj.verified_by = None
+                    obj.verified_at = None
+        else:
+            if obj.verification_status in ('verified', 'rejected') and not obj.verified_by:
+                obj.verified_by = request.user
+                obj.verified_at = timezone.now()
         super().save_model(request, obj, form, change)
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
-    @admin.display(description='Review Summary')
-    def verification_status_summary(self, obj):
-        context_role = 'Owner' if obj.type == 'lost' else 'Finder'
-        role_color = '#6D28D9' if obj.type == 'lost' else '#16A34A'
-        role_bg = '#EDE9FE' if obj.type == 'lost' else '#DCFCE7'
-        type_str = 'Lost Item' if obj.type == 'lost' else 'Found Item'
-        type_color = '#D85A30' if obj.type == 'lost' else '#1D9E75'
-        return format_html(
-            '<div style="line-height:1.9;font-size:13px;background:#F8FAFC;padding:14px 18px;border-radius:8px;border:1px solid #E2E8F0;">'
-            '<div><strong>Report Type:</strong> <span style="color:{};font-weight:700">{}</span></div>'
-            '<div><strong>Item:</strong> <strong>{}</strong></div>'
-            '<div><strong>Reported By:</strong> {}</div>'
-            '<div><strong>Role:</strong> <span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span></div>'
-            '</div>',
-            type_color, type_str,
-            obj.title,
-            obj.user.get_full_name() or obj.user.username if obj.user else 'N/A',
-            role_bg, role_color, context_role,
-        )
-
-    @admin.display(description='Verified By')
-    def verified_by_display(self, obj):
-        if obj.verified_by:
-            return format_html('<strong>{}</strong>', obj.verified_by.get_full_name() or obj.verified_by.username)
-        return '—'
-
-    @admin.display(description='Verified At')
-    def verified_at_display(self, obj):
-        if obj.verified_at:
-            return obj.verified_at.strftime('%Y-%m-%d %H:%M:%S UTC')
-        return '—'
-
     @admin.display(description='Type')
     def type_badge(self, obj):
         color = '#D85A30' if obj.type == 'lost' else '#1D9E75'
-        label = 'Lost / Owner' if obj.type == 'lost' else 'Found / Finder'
         return format_html(
             '<span style="background:{};color:white;padding:2px 8px;'
             'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
-            color, label,
+            color, obj.type.upper(),
         )
 
-    @admin.display(description='Verification Status')
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colors = {
+            'pending': '#854F0B',
+            'approved': '#1D9E75',
+            'resolved': '#534AB7',
+            'rejected': '#D85A30',
+        }
+        color = colors.get(obj.status, '#666')
+        return format_html(
+            '<span style="background:{};color:white;padding:2px 8px;'
+            'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
+            color, obj.status.upper(),
+        )
+
+    @admin.display(description='Verification')
     def verification_badge(self, obj):
         colors = {
-            'pending': ('#FEF3C7', '#D97706', 'Pending'),
-            'approved': ('#DCFCE7', '#16A34A', 'Approved'),
-            'rejected': ('#FEE2E2', '#DC2626', 'Rejected'),
+            'pending': ('#FEF3C7', '#D97706', '⏳ Pending Review'),
+            'verified': ('#DCFCE7', '#16A34A', '✓ Verified'),
+            'rejected': ('#FEE2E2', '#DC2626', '✗ Rejected'),
         }
-        bg, fg, label = colors.get(obj.verification_status, ('#F3F4F6', '#6B7280', (obj.verification_status or 'Pending').capitalize()))
+        bg, fg, label = colors.get(obj.verification_status, ('#F3F4F6', '#6B7280', obj.verification_status or 'Pending'))
         return format_html(
-            '<span style="background:{};color:{};padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">{}</span>',
+            '<span style="background:{};color:{};padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700">{}</span>',
             bg, fg, label,
         )
 
@@ -429,35 +396,32 @@ class ItemAdmin(admin.ModelAdmin):
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
-    @admin.action(description='Approve selected reports (1-Click Verification)')
-    def approve_items_action(self, request, queryset):
+    @admin.action(description='Verify selected item reports')
+    def verify_report_action(self, request, queryset):
         updated = queryset.update(
-            verification_status='approved',
-            status='approved',
+            verification_status='verified',
             verified_by=request.user,
             verified_at=timezone.now(),
         )
-        self.message_user(request, f'{updated} item report(s) successfully Approved.')
+        self.message_user(request, f'{updated} item report(s) marked as Verified.')
 
-    @admin.action(description='Reject selected reports')
-    def reject_items_action(self, request, queryset):
+    @admin.action(description='Reject selected item reports')
+    def reject_report_action(self, request, queryset):
         updated = queryset.update(
             verification_status='rejected',
-            status='rejected',
             verified_by=request.user,
             verified_at=timezone.now(),
         )
-        self.message_user(request, f'{updated} item report(s) Rejected.')
+        self.message_user(request, f'{updated} item report(s) marked as Rejected.')
 
-    @admin.action(description='Reset selected reports to Pending')
-    def reset_pending_action(self, request, queryset):
+    @admin.action(description='Reset verification to Pending Review')
+    def reset_verification_action(self, request, queryset):
         updated = queryset.update(
             verification_status='pending',
-            status='pending',
             verified_by=None,
             verified_at=None,
         )
-        self.message_user(request, f'{updated} item report(s) reset to Pending.')
+        self.message_user(request, f'{updated} item report(s) reset to Pending Review.')
 
     @admin.action(description='Approve selected items')
     def approve_items(self, request, queryset):
