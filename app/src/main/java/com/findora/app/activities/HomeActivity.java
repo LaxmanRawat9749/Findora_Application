@@ -3,12 +3,16 @@ package com.findora.app.activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -57,6 +61,7 @@ public class HomeActivity extends BaseActivity {
                         binding.etHomeSearch.setVisibility(View.VISIBLE);
                         binding.etHomeSearch.setText(query);
                         // currentSearch is updated by the TextWatcher automatically
+                        clearSearchFocus();
                     }
                 }
             });
@@ -80,8 +85,6 @@ public class HomeActivity extends BaseActivity {
         binding = ActivityHomeBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        
-
         apiService = RetrofitClient.getInstance(this).getApi();
 
         setupRecyclerView();
@@ -91,22 +94,67 @@ public class HomeActivity extends BaseActivity {
         setupBottomNav();
 
         binding.btnHomeSearch.setOnClickListener(v -> {
+            clearSearchFocus();
             startActivity(new Intent(this, SearchActivity.class));
         });
 
         binding.btnNotifications.setOnClickListener(v -> {
+            clearSearchFocus();
             startActivity(new Intent(this, NotificationsActivity.class));
         });
 
-        binding.btnVoiceSearch.setOnClickListener(v -> startVoiceSearch());
+        binding.btnVoiceSearch.setOnClickListener(v -> {
+            clearSearchFocus();
+            startVoiceSearch();
+        });
 
         updateGreeting();
         loadItems();
     }
 
+    public void clearSearchFocus() {
+        if (binding != null && binding.etHomeSearch != null) {
+            binding.etHomeSearch.clearFocus();
+            binding.etHomeSearch.setCursorVisible(false);
+        }
+        hideKeyboard();
+        if (binding != null && binding.getRoot() != null) {
+            binding.getRoot().requestFocus();
+        }
+    }
+
+    private void hideKeyboard() {
+        View view = getCurrentFocus();
+        if (view == null && binding != null) {
+            view = binding.etHomeSearch;
+        }
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if (v instanceof EditText) {
+                Rect outRect = new Rect();
+                v.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
+                    clearSearchFocus();
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        clearSearchFocus();
         baseSessionManager.updateLastActivity();
         updateGreeting();
         if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
@@ -130,6 +178,7 @@ public class HomeActivity extends BaseActivity {
                     binding.tvHomePointsPill.setText("🏆 " + points + " pts");
                     binding.tvHomePointsPill.setVisibility(View.VISIBLE);
                     binding.tvHomePointsPill.setOnClickListener(v -> {
+                        clearSearchFocus();
                         startActivity(new Intent(HomeActivity.this, PointHistoryActivity.class));
                     });
                 } else {
@@ -146,6 +195,7 @@ public class HomeActivity extends BaseActivity {
 
     private void setupRecyclerView() {
         adapter = new ItemAdapter(this, item -> {
+            clearSearchFocus();
             Intent intent = new Intent(HomeActivity.this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
             startActivity(intent);
@@ -155,11 +205,15 @@ public class HomeActivity extends BaseActivity {
 
         binding.swipeRefresh.setColorSchemeColors(
                 ContextCompat.getColor(this, R.color.primary_purple));
-        binding.swipeRefresh.setOnRefreshListener(this::loadItems);
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            clearSearchFocus();
+            loadItems();
+        });
     }
 
     private void setupChipFilters() {
         binding.cgType.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            clearSearchFocus();
             if (checkedIds.isEmpty()) {
                 binding.chipAll.setChecked(true);
                 return;
@@ -175,6 +229,7 @@ public class HomeActivity extends BaseActivity {
             // Clear search when switching tabs
             binding.etHomeSearch.setText("");
             currentSearch = "";
+            clearSearchFocus();
             loadItems();
         });
     }
@@ -188,10 +243,12 @@ public class HomeActivity extends BaseActivity {
             final String categoryKey = Constants.CATEGORIES[i];
             chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) {
+                    clearSearchFocus();
                     currentCategory = categoryKey;
                     binding.chipCatAll.setChecked(false);
                     binding.etHomeSearch.setText("");
                     currentSearch = "";
+                    clearSearchFocus();
                     applyFilters();
                 }
             });
@@ -200,6 +257,7 @@ public class HomeActivity extends BaseActivity {
 
         binding.chipCatAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
+                clearSearchFocus();
                 currentCategory = null;
                 // Uncheck all other category chips
                 for (int i = 1; i < binding.cgCategory.getChildCount(); i++) {
@@ -210,12 +268,26 @@ public class HomeActivity extends BaseActivity {
                 }
                 binding.etHomeSearch.setText("");
                 currentSearch = "";
+                clearSearchFocus();
                 applyFilters();
             }
         });
     }
 
     private void setupSearchBar() {
+        binding.etHomeSearch.setCursorVisible(false);
+
+        binding.etHomeSearch.setOnFocusChangeListener((v, hasFocus) -> {
+            binding.etHomeSearch.setCursorVisible(hasFocus);
+            if (!hasFocus) {
+                hideKeyboard();
+            }
+        });
+
+        binding.etHomeSearch.setOnClickListener(v -> {
+            binding.etHomeSearch.setCursorVisible(true);
+        });
+
         binding.etHomeSearch.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -232,7 +304,7 @@ public class HomeActivity extends BaseActivity {
 
         binding.etHomeSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                // Focus can be cleared or keyboard hidden here if desired
+                clearSearchFocus();
                 return true;
             }
             return false;
@@ -241,6 +313,7 @@ public class HomeActivity extends BaseActivity {
 
     private void setupBottomNav() {
         binding.bottomNav.setOnItemSelectedListener(item -> {
+            clearSearchFocus();
             int id = item.getItemId();
             if (id == R.id.nav_home) {
                 return true;

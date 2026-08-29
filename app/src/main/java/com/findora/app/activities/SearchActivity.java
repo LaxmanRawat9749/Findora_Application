@@ -3,13 +3,17 @@ package com.findora.app.activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.os.Bundle;
 import com.findora.app.utils.SessionManager;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -71,15 +75,30 @@ public class SearchActivity extends BaseActivity {
 
         apiService = RetrofitClient.getInstance(this).getApi();
 
-        binding.toolbar.setNavigationOnClickListener(v -> finish());
+        binding.toolbar.setNavigationOnClickListener(v -> {
+            clearSearchFocus();
+            finish();
+        });
 
         adapter = new ItemAdapter(this, item -> {
+            clearSearchFocus();
             Intent intent = new Intent(SearchActivity.this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
             startActivity(intent);
         });
         binding.rvSearchItems.setLayoutManager(new LinearLayoutManager(this));
         binding.rvSearchItems.setAdapter(adapter);
+
+        binding.etSearchQuery.setOnFocusChangeListener((v, hasFocus) -> {
+            binding.etSearchQuery.setCursorVisible(hasFocus);
+            if (!hasFocus) {
+                hideKeyboard();
+            }
+        });
+
+        binding.etSearchQuery.setOnClickListener(v -> {
+            binding.etSearchQuery.setCursorVisible(true);
+        });
 
         binding.etSearchQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -89,13 +108,57 @@ public class SearchActivity extends BaseActivity {
             return false;
         });
 
-        binding.btnVoiceSearch.setOnClickListener(v -> startVoiceSearch());
+        binding.btnVoiceSearch.setOnClickListener(v -> {
+            clearSearchFocus();
+            startVoiceSearch();
+        });
 
-        // Focus the search input
+        // Focus the search input initially
         binding.etSearchQuery.requestFocus();
+        binding.etSearchQuery.setCursorVisible(true);
+    }
+
+    public void clearSearchFocus() {
+        if (binding != null && binding.etSearchQuery != null) {
+            binding.etSearchQuery.clearFocus();
+            binding.etSearchQuery.setCursorVisible(false);
+        }
+        hideKeyboard();
+        if (binding != null && binding.getRoot() != null) {
+            binding.getRoot().requestFocus();
+        }
+    }
+
+    private void hideKeyboard() {
+        View view = getCurrentFocus();
+        if (view == null && binding != null) {
+            view = binding.etSearchQuery;
+        }
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if (v instanceof EditText) {
+                Rect outRect = new Rect();
+                v.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
+                    clearSearchFocus();
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     private void performSearch(String query) {
+        clearSearchFocus();
         if (query.isEmpty()) {
             Toast.makeText(this, "Please enter a search query.", Toast.LENGTH_SHORT).show();
             return;
