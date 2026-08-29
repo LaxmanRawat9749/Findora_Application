@@ -84,6 +84,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                     && equals(oldItem.getType(), newItem.getType())
                     && equals(oldItem.getCategory(), newItem.getCategory())
                     && oldItem.getReward() == newItem.getReward()
+                    && oldItem.isFeatured() == newItem.isFeatured()
                     && oldItem.isFinderReturnedConfirm() == newItem.isFinderReturnedConfirm()
                     && oldItem.isOwnerReturnedConfirm() == newItem.isOwnerReturnedConfirm();
         }
@@ -124,6 +125,12 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
         public void bind(Item item) {
             binding.tvTitle.setText(item.getTitle());
             binding.tvCategory.setText(item.getCategory() != null ? item.getCategory().replace('_', ' ') : "");
+
+            if (item.isFeatured()) {
+                binding.tvFeaturedBadge.setVisibility(View.VISIBLE);
+            } else {
+                binding.tvFeaturedBadge.setVisibility(View.GONE);
+            }
 
             boolean isResolved = "resolved".equalsIgnoreCase(item.getStatus()) || item.isFinderReturnedConfirm();
             boolean isPendingReturn = item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm() && !isResolved;

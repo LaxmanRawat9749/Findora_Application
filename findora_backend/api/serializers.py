@@ -444,6 +444,15 @@ class ItemSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return None
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if instance.is_featured and instance.featured_until:
+            from django.utils import timezone
+            if instance.featured_until <= timezone.now():
+                ret['is_featured'] = False
+        return ret
+
+
 
 # ─── Claim Serializer ─────────────────────────────────────────────────────────
 

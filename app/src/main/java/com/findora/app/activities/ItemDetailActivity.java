@@ -130,6 +130,12 @@ public class ItemDetailActivity extends BaseActivity {
         loadItemDetail();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadItemDetail();
+    }
+
     private void loadItemDetail() {
         if (currentItem == null) {
             binding.progressBar.setVisibility(View.VISIBLE);
@@ -263,6 +269,8 @@ public class ItemDetailActivity extends BaseActivity {
             if (item.getUser() == baseSessionManager.getUserId()) {
                 if (!item.isFeatured()) {
                     binding.layoutOwnerActions.setVisibility(View.VISIBLE);
+                } else {
+                    binding.layoutOwnerActions.setVisibility(View.GONE);
                 }
                 binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                 binding.layoutFoundActions.setVisibility(View.GONE);
