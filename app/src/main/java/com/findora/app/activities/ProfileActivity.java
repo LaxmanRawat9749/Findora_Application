@@ -103,9 +103,6 @@ public class ProfileActivity extends BaseActivity {
         // Render cached profile immediately so UI opens with 0ms delay
         showCachedProfile();
 
-        // Load fresh profile asynchronously from API
-        loadProfile();
-
         // Change username toggle
         binding.btnToggleChangeUsername.setOnClickListener(v -> {
             isUsernameFormVisible = !isUsernameFormVisible;
@@ -149,6 +146,7 @@ public class ProfileActivity extends BaseActivity {
                     : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
             if (newTheme != baseSessionManager.getThemeMode()) {
                 baseSessionManager.setThemeMode(newTheme);
+                applySeamlessTransition();
                 androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(newTheme);
             }
         });

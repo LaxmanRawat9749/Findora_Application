@@ -33,6 +33,9 @@
         <item name="android:windowBackground">@color/screen_background</item>
         <item name="android:navigationBarColor">@color/surface_01</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
 
         <!-- Seamless window animation (eliminates black screen flash during theme switch) -->
         <item name="android:windowAnimationStyle">@style/Animation.Findora.ThemeSwitch</item>
@@ -47,6 +50,10 @@
 
     <!-- ─── Seamless Theme Switching Animation Style ────────────────── -->
     <style name="Animation.Findora.ThemeSwitch" parent="@android:style/Animation.Activity">
+        <item name="android:windowEnterAnimation">@anim/no_anim</item>
+        <item name="android:windowExitAnimation">@anim/no_anim</item>
+        <item name="android:windowShowAnimation">@anim/no_anim</item>
+        <item name="android:windowHideAnimation">@anim/no_anim</item>
         <item name="android:activityOpenEnterAnimation">@anim/no_anim</item>
         <item name="android:activityOpenExitAnimation">@anim/no_anim</item>
         <item name="android:activityCloseEnterAnimation">@anim/no_anim</item>
@@ -55,6 +62,18 @@
         <item name="android:taskOpenExitAnimation">@anim/no_anim</item>
         <item name="android:taskCloseEnterAnimation">@anim/no_anim</item>
         <item name="android:taskCloseExitAnimation">@anim/no_anim</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/no_anim</item>
+        <item name="android:taskToFrontExitAnimation">@anim/no_anim</item>
+        <item name="android:taskToBackEnterAnimation">@anim/no_anim</item>
+        <item name="android:taskToBackExitAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperOpenEnterAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperOpenExitAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperCloseEnterAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperCloseExitAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperIntraOpenEnterAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperIntraOpenExitAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperIntraCloseEnterAnimation">@anim/no_anim</item>
+        <item name="android:wallpaperIntraCloseExitAnimation">@anim/no_anim</item>
     </style>
 
     <!-- ─── Primary Button ──────────────────────────────────────────── -->

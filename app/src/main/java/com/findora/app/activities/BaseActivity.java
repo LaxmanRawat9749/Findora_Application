@@ -44,7 +44,35 @@ public class BaseActivity extends AppCompatActivity {
 
         Log.i(TAG, "Navigation decision: Session valid. Proceeding with " + this.getClass().getSimpleName());
         super.onCreate(savedInstanceState);
-        overridePendingTransition(0, 0);
+        getWindow().setBackgroundDrawableResource(com.findora.app.R.color.screen_background);
+        applySeamlessTransition();
+    }
+
+    @Override
+    public void recreate() {
+        super.recreate();
+        applySeamlessTransition();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        applySeamlessTransition();
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        applySeamlessTransition();
+    }
+
+    public void applySeamlessTransition() {
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0);
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0);
+        } else {
+            overridePendingTransition(0, 0);
+        }
     }
 
     private String getTruncatedToken(String token) {
