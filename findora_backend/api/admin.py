@@ -178,9 +178,6 @@ class FindoraUserAdmin(UserAdmin):
         self.message_user(request, f'{updated} user(s) activated.')
 
 
-from django.utils import timezone
-
-
 # ─── Item Admin ───────────────────────────────────────────────────────────────
 
 class ClaimInline(admin.TabularInline):
@@ -198,25 +195,22 @@ class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for lost/found item reports.
 
-    Features colored status and type badges, report verification review,
-    contextual reporter information (Owner/Finder), reporter history metrics,
-    inline claim display, and bulk review/approval actions.
+    Features colored status and type badges, contextual reporter info (Owner/Finder),
+    reporter history metrics, inline claim display, and item status review at the bottom.
     """
 
     list_display = [
-        'title', 'type_badge', 'category', 'status_badge', 'verification_badge',
+        'title', 'type_badge', 'category', 'status_badge',
         'reporter', 'location', 'reward_display', 'reported_at',
     ]
-    list_filter = ['verification_status', 'type', 'status', 'category', 'reported_at']
+    list_filter = ['status', 'type', 'category', 'reported_at']
     search_fields = [
         'title', 'description', 'location',
         'user__username', 'user__email', 'user__first_name', 'user__last_name',
-        'admin_verification_notes',
     ]
     ordering = ['-reported_at']
     readonly_fields = [
         'reporter_info_display', 'reporter_history_display',
-        'verified_by', 'verified_at',
         'reported_at', 'updated_at',
     ]
     list_per_page = 20
@@ -225,7 +219,7 @@ class ItemAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Item Report Information', {
-            'fields': ('user', 'type', 'title', 'description', 'category', 'status', 'reward'),
+            'fields': ('user', 'type', 'title', 'description', 'category', 'reward'),
         }),
         ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
@@ -233,16 +227,8 @@ class ItemAdmin(admin.ModelAdmin):
         ('Reporter Information', {
             'fields': ('reporter_info_display',),
         }),
-        ('Reporter History & Trust (Contextual)', {
+        ('Reporter History & Trust', {
             'fields': ('reporter_history_display',),
-        }),
-        ('Report Verification Review', {
-            'fields': (
-                'verification_status',
-                'admin_verification_notes',
-                'verified_by',
-                'verified_at',
-            ),
         }),
         ('Media', {
             'fields': ('image',),
@@ -251,31 +237,13 @@ class ItemAdmin(admin.ModelAdmin):
             'fields': ('reported_at', 'updated_at'),
             'classes': ('collapse',),
         }),
+        ('Status', {
+            'fields': ('status',),
+            'description': 'Review all item and reporter information above before setting the item status.',
+        }),
     )
 
-    actions = [
-        'verify_report_action',
-        'reject_report_action',
-        'reset_verification_action',
-        'approve_items',
-        'reject_items',
-        'mark_resolved',
-    ]
-
-    def save_model(self, request, obj, form, change):
-        if change:
-            if 'verification_status' in form.changed_data:
-                if obj.verification_status in ('verified', 'rejected'):
-                    obj.verified_by = request.user
-                    obj.verified_at = timezone.now()
-                elif obj.verification_status == 'pending':
-                    obj.verified_by = None
-                    obj.verified_at = None
-        else:
-            if obj.verification_status in ('verified', 'rejected') and not obj.verified_by:
-                obj.verified_by = request.user
-                obj.verified_at = timezone.now()
-        super().save_model(request, obj, form, change)
+    actions = ['approve_items', 'reject_items', 'mark_resolved']
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
@@ -301,19 +269,6 @@ class ItemAdmin(admin.ModelAdmin):
             '<span style="background:{};color:white;padding:2px 8px;'
             'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
             color, obj.status.upper(),
-        )
-
-    @admin.display(description='Verification')
-    def verification_badge(self, obj):
-        colors = {
-            'pending': ('#FEF3C7', '#D97706', '⏳ Pending Review'),
-            'verified': ('#DCFCE7', '#16A34A', '✓ Verified'),
-            'rejected': ('#FEE2E2', '#DC2626', '✗ Rejected'),
-        }
-        bg, fg, label = colors.get(obj.verification_status, ('#F3F4F6', '#6B7280', obj.verification_status or 'Pending'))
-        return format_html(
-            '<span style="background:{};color:{};padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700">{}</span>',
-            bg, fg, label,
         )
 
     @admin.display(description='Reported By')
@@ -395,33 +350,6 @@ class ItemAdmin(admin.ModelAdmin):
         )
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
-
-    @admin.action(description='Verify selected item reports')
-    def verify_report_action(self, request, queryset):
-        updated = queryset.update(
-            verification_status='verified',
-            verified_by=request.user,
-            verified_at=timezone.now(),
-        )
-        self.message_user(request, f'{updated} item report(s) marked as Verified.')
-
-    @admin.action(description='Reject selected item reports')
-    def reject_report_action(self, request, queryset):
-        updated = queryset.update(
-            verification_status='rejected',
-            verified_by=request.user,
-            verified_at=timezone.now(),
-        )
-        self.message_user(request, f'{updated} item report(s) marked as Rejected.')
-
-    @admin.action(description='Reset verification to Pending Review')
-    def reset_verification_action(self, request, queryset):
-        updated = queryset.update(
-            verification_status='pending',
-            verified_by=None,
-            verified_at=None,
-        )
-        self.message_user(request, f'{updated} item report(s) reset to Pending Review.')
 
     @admin.action(description='Approve selected items')
     def approve_items(self, request, queryset):
