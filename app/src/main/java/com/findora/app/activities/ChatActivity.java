@@ -64,6 +64,8 @@ public class ChatActivity extends BaseActivity {
     private ActivityResultLauncher<String> pickMediaLauncher;
     private ActivityResultLauncher<String[]> requestPermissionsLauncher;
 
+    private boolean isInitialLoad = true;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -112,6 +114,12 @@ public class ChatActivity extends BaseActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(true);
         binding.rvMessages.setLayoutManager(layoutManager);
+
+        androidx.recyclerview.widget.RecyclerView.ItemAnimator animator = binding.rvMessages.getItemAnimator();
+        if (animator instanceof androidx.recyclerview.widget.SimpleItemAnimator) {
+            ((androidx.recyclerview.widget.SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
+
         binding.rvMessages.setAdapter(adapter);
 
         binding.rvMessages.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
@@ -133,13 +141,15 @@ public class ChatActivity extends BaseActivity {
 
         loadChatProfile();
 
-        // Start polling for messages
+        // Initialize polling Handler & Runnable
         pollHandler = new Handler(Looper.getMainLooper());
         pollRunnable = new Runnable() {
             @Override
             public void run() {
                 loadMessages();
-                pollHandler.postDelayed(this, Constants.CHAT_REFRESH_INTERVAL);
+                if (pollHandler != null) {
+                    pollHandler.postDelayed(this, Constants.CHAT_REFRESH_INTERVAL);
+                }
             }
         };
 
@@ -149,13 +159,18 @@ public class ChatActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        pollHandler.postDelayed(pollRunnable, Constants.CHAT_REFRESH_INTERVAL);
+        if (pollHandler != null && pollRunnable != null) {
+            pollHandler.removeCallbacks(pollRunnable);
+            pollHandler.postDelayed(pollRunnable, Constants.CHAT_REFRESH_INTERVAL);
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        pollHandler.removeCallbacks(pollRunnable);
+        if (pollHandler != null && pollRunnable != null) {
+            pollHandler.removeCallbacks(pollRunnable);
+        }
         if (pollCall != null) {
             pollCall.cancel();
             pollCall = null;
@@ -166,18 +181,24 @@ public class ChatActivity extends BaseActivity {
         if (pollCall != null && !pollCall.isExecuted() && !pollCall.isCanceled()) {
             return; // Skip if a request is already in-flight
         }
+        if (isInitialLoad && adapter.getItemCount() == 0) {
+            binding.progressBar.setVisibility(View.VISIBLE);
+        }
         pollCall = apiService.getMessages(conversationId);
         pollCall.enqueue(new Callback<List<ChatMessage>>() {
             @Override
             public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
-                binding.progressBar.setVisibility(View.GONE);
+                if (isInitialLoad) {
+                    isInitialLoad = false;
+                    binding.progressBar.setVisibility(View.GONE);
+                }
                 if (response.isSuccessful() && response.body() != null) {
                     List<ChatMessage> messages = response.body();
                     int previousCount = adapter.getItemCount();
                     adapter.setMessages(messages);
                     binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
                     if (!messages.isEmpty()) {
-                        if (previousCount == 0 || isUserAtBottom) {
+                        if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
                             binding.rvMessages.scrollToPosition(messages.size() - 1);
                         }
                     }
@@ -186,10 +207,11 @@ public class ChatActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
-                if (!call.isCanceled()) {
+                if (isInitialLoad) {
+                    isInitialLoad = false;
                     binding.progressBar.setVisibility(View.GONE);
                 }
-                // Silently fail on polling errors
+                // Silently ignore background polling errors
             }
         });
     }
@@ -565,7 +587,10 @@ public class ChatActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        pollHandler.removeCallbacks(pollRunnable);
+        if (pollHandler != null && pollRunnable != null) {
+            pollHandler.removeCallbacks(pollRunnable);
+            pollHandler = null;
+        }
         if (pollCall != null) {
             pollCall.cancel();
             pollCall = null;

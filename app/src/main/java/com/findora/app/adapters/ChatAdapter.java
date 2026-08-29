@@ -42,9 +42,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public void setMessages(List<ChatMessage> newMessages) {
         if (newMessages == null) newMessages = new ArrayList<>();
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ChatDiffCallback(this.messages, newMessages));
         this.messages.clear();
         this.messages.addAll(newMessages);
-        notifyDataSetChanged();
+        diffResult.dispatchUpdatesTo(this);
     }
     
     private static class ChatDiffCallback extends DiffUtil.Callback {
@@ -76,17 +77,26 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             String newMessage = newMsg.getMessage() != null ? newMsg.getMessage() : "";
             String oldCaption = oldMsg.getCaption() != null ? oldMsg.getCaption() : "";
             String newCaption = newMsg.getCaption() != null ? newMsg.getCaption() : "";
+            String oldImg = oldMsg.getImageUrl() != null ? oldMsg.getImageUrl() : "";
+            String newImg = newMsg.getImageUrl() != null ? newMsg.getImageUrl() : "";
             
             return oldMessage.equals(newMessage) &&
                    oldCaption.equals(newCaption) &&
+                   oldImg.equals(newImg) &&
                    oldMsg.isDeletedForEveryone() == newMsg.isDeletedForEveryone() &&
                    oldMsg.isEdited() == newMsg.isEdited();
         }
     }
 
     public void addMessage(ChatMessage message) {
+        if (message == null) return;
+        for (ChatMessage m : this.messages) {
+            if (m.getId() == message.getId()) {
+                return; // Already present in list
+            }
+        }
         this.messages.add(message);
-        notifyItemInserted(messages.size() - 1);
+        notifyItemInserted(this.messages.size() - 1);
     }
 
     @Override

@@ -17,7 +17,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.List;
 
 public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapter.ViewHolder> {
 
@@ -34,9 +33,30 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
         this.profileClickListener = profileClickListener;
     }
 
-    public void setConversations(List<Conversation> conversations) {
-        this.conversations = conversations != null ? conversations : new ArrayList<>();
-        notifyDataSetChanged();
+    public void setConversations(List<Conversation> newConversations) {
+        if (newConversations == null) newConversations = new ArrayList<>();
+        List<Conversation> finalNewList = newConversations;
+        androidx.recyclerview.widget.DiffUtil.DiffResult diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(new androidx.recyclerview.widget.DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() { return conversations.size(); }
+            @Override
+            public int getNewListSize() { return finalNewList.size(); }
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                return conversations.get(oldItemPosition).getId() == finalNewList.get(newItemPosition).getId();
+            }
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                Conversation oldC = conversations.get(oldItemPosition);
+                Conversation newC = finalNewList.get(newItemPosition);
+                String oldMsg = oldC.getLastMessage() != null ? oldC.getLastMessage() : "";
+                String newMsg = newC.getLastMessage() != null ? newC.getLastMessage() : "";
+                return oldMsg.equals(newMsg) && oldC.getUnreadCount() == newC.getUnreadCount();
+            }
+        });
+        this.conversations.clear();
+        this.conversations.addAll(newConversations);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull
