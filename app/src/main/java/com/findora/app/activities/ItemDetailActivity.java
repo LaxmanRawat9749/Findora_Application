@@ -147,8 +147,7 @@ public class ItemDetailActivity extends BaseActivity {
 
         boolean isLost = "lost".equalsIgnoreCase(item.getType());
         binding.tvTypeBadge.setText(isLost ? "LOST" : "FOUND");
-        binding.tvTypeBadge.setBackgroundColor(
-                ContextCompat.getColor(this, isLost ? R.color.light_red : R.color.light_green));
+        binding.tvTypeBadge.setBackgroundResource(isLost ? R.drawable.bg_badge_lost : R.drawable.bg_badge_found);
         binding.tvTypeBadge.setTextColor(
                 ContextCompat.getColor(this, isLost ? R.color.error_red : R.color.success_green));
 

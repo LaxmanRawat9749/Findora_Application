@@ -79,7 +79,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
 
             if (isResolved) {
                 binding.tvTypeBadge.setText("RECOVERED");
-                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, R.color.light_green));
+                binding.tvTypeBadge.setBackgroundResource(R.drawable.bg_badge_found);
                 binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, R.color.success_green));
 
                 String dateStr = item.getResolvedAt() != null && !item.getResolvedAt().isEmpty() 
@@ -92,7 +92,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                 }
             } else if (isPendingReturn) {
                 binding.tvTypeBadge.setText("RETURN PENDING");
-                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, R.color.light_warning));
+                binding.tvTypeBadge.setBackgroundResource(R.drawable.bg_badge_warning);
                 binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, R.color.warning_orange));
 
                 if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
@@ -103,8 +103,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                 }
             } else {
                 binding.tvTypeBadge.setText(isLost ? "LOST" : "FOUND");
-                binding.tvTypeBadge.setBackgroundColor(ContextCompat.getColor(context, isLost ? R.color.light_red : R.color.light_purple));
-                binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, isLost ? R.color.error_red : R.color.primary_purple));
+                binding.tvTypeBadge.setBackgroundResource(isLost ? R.drawable.bg_badge_lost : R.drawable.bg_badge_found);
+                binding.tvTypeBadge.setTextColor(ContextCompat.getColor(context, isLost ? R.color.error_red : R.color.success_green));
 
                 if (item.getReportedAt() != null && !item.getReportedAt().isEmpty()) {
                     binding.tvDate.setVisibility(View.VISIBLE);
