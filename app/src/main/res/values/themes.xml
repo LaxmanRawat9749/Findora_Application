@@ -27,11 +27,15 @@
         <item name="colorOnSurfaceVariant">@color/text_gray</item>
         <item name="colorOutline">@color/md_theme_outline</item>
 
-        <!-- Status bar — dark, light icons -->
+        <!-- Status bar — light, dark icons -->
         <item name="android:statusBarColor">@color/screen_background</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
         <item name="android:windowBackground">@color/screen_background</item>
         <item name="android:navigationBarColor">@color/surface_01</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+
+        <!-- Seamless window animation (eliminates black screen flash during theme switch) -->
+        <item name="android:windowAnimationStyle">@style/Animation.Findora.ThemeSwitch</item>
 
         <!-- Global Component Styles -->
         <item name="materialButtonStyle">@style/Widget.Findora.Button</item>
@@ -39,6 +43,18 @@
         <item name="textInputStyle">@style/Widget.Findora.TextInputLayout</item>
         <item name="chipStyle">@style/Widget.Findora.Chip</item>
         <item name="bottomNavigationStyle">@style/Widget.Findora.BottomNav</item>
+    </style>
+
+    <!-- ─── Seamless Theme Switching Animation Style ────────────────── -->
+    <style name="Animation.Findora.ThemeSwitch" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/no_anim</item>
+        <item name="android:activityOpenExitAnimation">@anim/no_anim</item>
+        <item name="android:activityCloseEnterAnimation">@anim/no_anim</item>
+        <item name="android:activityCloseExitAnimation">@anim/no_anim</item>
+        <item name="android:taskOpenEnterAnimation">@anim/no_anim</item>
+        <item name="android:taskOpenExitAnimation">@anim/no_anim</item>
+        <item name="android:taskCloseEnterAnimation">@anim/no_anim</item>
+        <item name="android:taskCloseExitAnimation">@anim/no_anim</item>
     </style>
 
     <!-- ─── Primary Button ──────────────────────────────────────────── -->

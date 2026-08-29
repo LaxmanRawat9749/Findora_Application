@@ -44,6 +44,7 @@ public class BaseActivity extends AppCompatActivity {
 
         Log.i(TAG, "Navigation decision: Session valid. Proceeding with " + this.getClass().getSimpleName());
         super.onCreate(savedInstanceState);
+        overridePendingTransition(0, 0);
     }
 
     private String getTruncatedToken(String token) {

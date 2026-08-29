@@ -136,6 +136,7 @@ public class ProfileActivity extends BaseActivity {
 
         // Setup Theme Toggle
         int currentTheme = baseSessionManager.getThemeMode();
+        binding.rgTheme.setOnCheckedChangeListener(null);
         if (currentTheme == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO) {
             binding.rbThemeLight.setChecked(true);
         } else {
@@ -146,8 +147,10 @@ public class ProfileActivity extends BaseActivity {
             int newTheme = (checkedId == R.id.rbThemeLight) 
                     ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO 
                     : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
-            baseSessionManager.setThemeMode(newTheme);
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(newTheme);
+            if (newTheme != baseSessionManager.getThemeMode()) {
+                baseSessionManager.setThemeMode(newTheme);
+                androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(newTheme);
+            }
         });
 
         binding.btnEditProfilePicture.setOnClickListener(v -> showProfilePictureOptions());

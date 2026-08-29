@@ -1,0 +1,57 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Findora — Dark Material3 Application Theme
+         ═══════════════════════════════════════════════════════════════ -->
+    <style name="Theme.Findora" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Brand Colors -->
+        <item name="colorPrimary">@color/primary_purple</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/light_purple</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
+
+        <item name="colorSecondary">@color/success_green</item>
+        <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/light_green</item>
+        <item name="colorOnSecondaryContainer">@color/success_green</item>
+
+        <item name="colorError">@color/error_red</item>
+        <item name="colorOnError">@color/md_theme_onError</item>
+
+        <!-- Surfaces -->
+        <item name="android:colorBackground">@color/screen_background</item>
+        <item name="colorSurface">@color/surface_01</item>
+        <item name="colorOnSurface">@color/text_dark</item>
+        <item name="colorSurfaceVariant">@color/card_background</item>
+        <item name="colorOnSurfaceVariant">@color/text_gray</item>
+        <item name="colorOutline">@color/md_theme_outline</item>
+
+        <!-- Status bar — dark, light icons -->
+        <item name="android:statusBarColor">@color/screen_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:windowBackground">@color/screen_background</item>
+        <item name="android:navigationBarColor">@color/surface_01</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+
+        <!-- Seamless window animation (eliminates black screen flash during theme switch) -->
+        <item name="android:windowAnimationStyle">@style/Animation.Findora.ThemeSwitch</item>
+
+        <!-- Global Component Styles -->
+        <item name="materialButtonStyle">@style/Widget.Findora.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.Findora.Card</item>
+        <item name="textInputStyle">@style/Widget.Findora.TextInputLayout</item>
+        <item name="chipStyle">@style/Widget.Findora.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.Findora.BottomNav</item>
+    </style>
+
+    <style name="Theme.Findora.Splash" parent="Theme.Findora">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">#534AB7</item>
+        <item name="android:statusBarColor">#534AB7</item>
+        <item name="android:navigationBarColor">#534AB7</item>
+    </style>
+
+</resources>

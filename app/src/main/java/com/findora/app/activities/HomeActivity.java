@@ -454,6 +454,14 @@ public class HomeActivity extends BaseActivity {
         } else {
             binding.tvGreeting.setText("Hello 👋");
         }
+
+        boolean isFinder = "finder".equalsIgnoreCase(baseSessionManager.getRole());
+        if (binding.tvFindYourPoints != null) {
+            binding.tvFindYourPoints.setVisibility(isFinder ? View.VISIBLE : View.GONE);
+        }
+        if (binding.layoutFindYourPoints != null) {
+            binding.layoutFindYourPoints.setVisibility(isFinder ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void startVoiceSearch() {

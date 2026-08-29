@@ -44,6 +44,7 @@
                     android:fontFamily="sans-serif" />
 
                 <LinearLayout
+                    android:id="@+id/layoutFindYourPoints"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -51,6 +52,7 @@
                     android:layout_marginTop="2dp">
 
                     <TextView
+                        android:id="@+id/tvFindYourPoints"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Find your points"
