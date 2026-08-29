@@ -54,6 +54,7 @@ class FindoraUserAdmin(UserAdmin):
     readonly_fields = ['created_at', 'updated_at', 'last_login', 'failed_login_attempts']
     list_per_page = 25
     date_hierarchy = 'created_at'
+    change_form_template = 'admin/api/user/change_form.html'
 
     fieldsets = (
         ('Account Info', {
