@@ -14,7 +14,7 @@ from api.views import (
     ItemListCreateView, ItemDetailView, MarkItemReturnedView,
     ConfirmItemReturnView, ReputationProfileView, PointHistoryView,
     RateFinderView, RatingStatusView, MyReportsView, RegisterView,
-    ConversationInitView, ChatListView
+    ConversationInitView, ChatListView, NotificationListView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -638,6 +638,54 @@ class OwnerFinderChatCommunicationTests(TestCase):
         self.assertEqual(res_get3.data[0]['message'], 'Hello')
         self.assertEqual(res_get3.data[1]['message'], 'Hi, I found your item.')
         self.assertEqual(res_get3.data[2]['message'], 'Where can we meet?')
+
+    def test_chat_notification_includes_conversation_id_and_resolves_exact_chat(self):
+        """
+        When a chat message notification is created, NotificationSerializer must include
+        conversation_id, and clicking 'View Conversation' on item details resolves that exact conversation.
+        """
+        init_view = ConversationInitView.as_view()
+        chat_view = ChatListView.as_view()
+        notif_view = NotificationListView.as_view()
+
+        # 1. Owner contacts Finder on Found Phone -> sends "Hi!"
+        req_init = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_init, user=self.owner)
+        res_init = init_view(req_init)
+        conv_id = res_init.data['conversation_id']
+
+        req_send = self.factory.post('/api/chat/', {'conversation': conv_id, 'message': 'Hi!'})
+        force_authenticate(req_send, user=self.owner)
+        res_send = chat_view(req_send)
+        self.assertEqual(res_send.status_code, 201)
+
+        # 2. Finder fetches notifications
+        req_notif = self.factory.get('/api/notifications/')
+        force_authenticate(req_notif, user=self.finder)
+        res_notif = notif_view(req_notif)
+        self.assertEqual(res_notif.status_code, 200)
+        self.assertTrue(len(res_notif.data) >= 1)
+
+        # Verify notification payload contains related_item and matching conversation_id
+        msg_notif = [n for n in res_notif.data if n['type'] == 'message'][0]
+        self.assertEqual(msg_notif['related_item'], self.found_phone.id)
+        self.assertEqual(msg_notif['conversation_id'], conv_id)
+
+        # 3. Finder resolves conversation on the found item -> returns exact conv_id
+        req_finder_init = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_finder_init, user=self.finder)
+        res_finder_init = init_view(req_finder_init)
+        self.assertEqual(res_finder_init.status_code, 200)
+        self.assertEqual(res_finder_init.data['conversation_id'], conv_id)
+
+        # 4. Finder loads messages for that conversation -> sees "Hi!"
+        req_get = self.factory.get(f'/api/chat/?conversation_id={conv_id}')
+        force_authenticate(req_get, user=self.finder)
+        res_get = chat_view(req_get)
+        self.assertEqual(res_get.status_code, 200)
+        self.assertEqual(len(res_get.data), 1)
+        self.assertEqual(res_get.data[0]['message'], 'Hi!')
+
 
 
 

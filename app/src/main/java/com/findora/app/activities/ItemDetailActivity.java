@@ -36,6 +36,7 @@ public class ItemDetailActivity extends BaseActivity {
     
     private Item currentItem;
     private int itemId;
+    private int passedConversationId = -1;
     private Call<Item> itemDetailCall;
     private Call<ConversationInitResponse> conversationInitCall;
 
@@ -48,6 +49,7 @@ public class ItemDetailActivity extends BaseActivity {
         apiService = RetrofitClient.getInstance(this).getApi();
 
         itemId = getIntent().getIntExtra(Constants.EXTRA_ITEM_ID, -1);
+        passedConversationId = getIntent().getIntExtra(Constants.EXTRA_CONVERSATION_ID, -1);
         if (itemId == -1) {
             Toast.makeText(this, "Error: Item not found.", Toast.LENGTH_SHORT).show();
             finish();
@@ -57,25 +59,30 @@ public class ItemDetailActivity extends BaseActivity {
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
         binding.btnChat.setOnClickListener(v -> {
-            if (currentItem != null) {
-                if (currentItem.getUser() == baseSessionManager.getUserId()) {
-                    Intent intent = new Intent(this, ConversationListActivity.class);
-                    startActivity(intent);
-                } else {
-                    initConversation(currentItem.getId());
-                }
+            if (passedConversationId != -1) {
+                openChatForConversation(passedConversationId);
+            } else if (currentItem != null) {
+                initConversation(currentItem.getId());
             }
         });
 
         binding.btnContactFinder.setOnClickListener(v -> {
-            if (currentItem != null) {
+            if (passedConversationId != -1) {
+                openChatForConversation(passedConversationId);
+            } else if (currentItem != null) {
                 initConversation(currentItem.getId());
             }
         });
 
         binding.btnViewConversations.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ConversationListActivity.class);
-            startActivity(intent);
+            if (passedConversationId != -1) {
+                openChatForConversation(passedConversationId);
+            } else if (currentItem != null) {
+                initConversation(currentItem.getId());
+            } else {
+                Intent intent = new Intent(this, ConversationListActivity.class);
+                startActivity(intent);
+            }
         });
 
         binding.btnViewMap.setOnClickListener(v -> openMap());
@@ -489,6 +496,24 @@ public class ItemDetailActivity extends BaseActivity {
         }
     }
     
+    private void openChatForConversation(int convId) {
+        Intent intent = new Intent(ItemDetailActivity.this, ChatActivity.class);
+        intent.putExtra(Constants.EXTRA_CONVERSATION_ID, convId);
+        intent.putExtra("ITEM_ID", currentItem != null ? currentItem.getId() : itemId);
+        if (currentItem != null) {
+            if ("lost".equalsIgnoreCase(currentItem.getType())) {
+                intent.putExtra("OWNER_ID", currentItem.getUser());
+                intent.putExtra("FINDER_ID", baseSessionManager.getUserId());
+            } else {
+                intent.putExtra("OWNER_ID", baseSessionManager.getUserId());
+                intent.putExtra("FINDER_ID", currentItem.getUser());
+            }
+            String otherName = currentItem.getUserName() != null ? currentItem.getUserName() : "Chat";
+            intent.putExtra("other_user_name", otherName);
+        }
+        startActivity(intent);
+    }
+    
     private void initConversation(int id) {
         binding.progressBar.setVisibility(View.VISIBLE);
         ConversationInitRequest request = new ConversationInitRequest(id);
@@ -507,24 +532,16 @@ public class ItemDetailActivity extends BaseActivity {
                     int conversationId = response.body().getConversationId();
                     
                     android.util.Log.e("ChatBug", "initConversation SUCCESS! returned conversation_id=" + conversationId);
-                    
-                    Intent intent = new Intent(ItemDetailActivity.this, ChatActivity.class);
-                    intent.putExtra(Constants.EXTRA_CONVERSATION_ID, conversationId);
-                    intent.putExtra("ITEM_ID", currentItem.getId());
-                    if ("lost".equalsIgnoreCase(currentItem.getType())) {
-                        intent.putExtra("OWNER_ID", currentItem.getUser());
-                        intent.putExtra("FINDER_ID", baseSessionManager.getUserId());
-                    } else {
-                        intent.putExtra("OWNER_ID", baseSessionManager.getUserId());
-                        intent.putExtra("FINDER_ID", currentItem.getUser());
-                    }
-                    String ownerName = currentItem.getUserName() != null ? currentItem.getUserName() : "Owner";
-                    intent.putExtra("other_user_name", ownerName);
-                    startActivity(intent);
+                    openChatForConversation(conversationId);
                 } else {
                     android.util.Log.e("ChatBug", "initConversation FAILED! response code=" + response.code());
-                    Toast.makeText(ItemDetailActivity.this,
-                            "Failed to initiate conversation.", Toast.LENGTH_SHORT).show();
+                    if (currentItem != null && currentItem.getUser() == baseSessionManager.getUserId()) {
+                        Intent intent = new Intent(ItemDetailActivity.this, ConversationListActivity.class);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(ItemDetailActivity.this,
+                                "Failed to initiate conversation.", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
 

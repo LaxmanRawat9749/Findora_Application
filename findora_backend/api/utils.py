@@ -404,7 +404,17 @@ def get_or_create_matched_conversation(item, request_user):
     from django.db.models import Q, Count, Max
 
     if item.user == request_user:
-        return None, "User cannot initiate conversation with themselves on their own report."
+        # If user is the item author, check if an existing conversation exists for this item
+        conv = Conversation.objects.filter(item=item).filter(
+            Q(owner=request_user) | Q(finder=request_user)
+        ).annotate(
+            msg_count=Count('messages'),
+            last_msg_time=Max('messages__sent_at')
+        ).order_by('-msg_count', '-last_msg_time', '-created_at').first()
+
+        if conv:
+            return conv, None
+        return None, "No conversation started yet for this item."
 
     if item.type == 'lost':
         owner_user = item.user
@@ -445,5 +455,6 @@ def get_or_create_matched_conversation(item, request_user):
         )
 
     return conv, None
+
 
 

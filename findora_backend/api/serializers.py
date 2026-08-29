@@ -579,11 +579,20 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for user notifications."""
+    conversation_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
         fields = '__all__'
         read_only_fields = ['user', 'type', 'message', 'related_item', 'created_at']
+
+    def get_conversation_id(self, obj):
+        if obj.type == 'message' and obj.related_item:
+            from .utils import get_or_create_matched_conversation
+            conv, _ = get_or_create_matched_conversation(obj.related_item, obj.user)
+            return conv.id if conv else None
+        return None
+
 
 
 # ─── Reputation & Points Serializers ──────────────────────────────────────────

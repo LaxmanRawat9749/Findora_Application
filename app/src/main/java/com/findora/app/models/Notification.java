@@ -11,6 +11,8 @@ public class Notification {
     private boolean isRead;
     @SerializedName("related_item")
     private Integer relatedItem;
+    @SerializedName("conversation_id")
+    private Integer conversationId;
     @SerializedName("created_at")
     private String createdAt;
 
@@ -33,6 +35,9 @@ public class Notification {
 
     public Integer getRelatedItem() { return relatedItem; }
     public void setRelatedItem(Integer relatedItem) { this.relatedItem = relatedItem; }
+
+    public Integer getConversationId() { return conversationId; }
+    public void setConversationId(Integer conversationId) { this.conversationId = conversationId; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

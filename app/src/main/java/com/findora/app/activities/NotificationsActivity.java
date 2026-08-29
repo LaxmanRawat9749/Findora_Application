@@ -45,6 +45,9 @@ public class NotificationsActivity extends BaseActivity {
             if (notification.getRelatedItem() != null && notification.getRelatedItem() > 0) {
                 Intent intent = new Intent(NotificationsActivity.this, ItemDetailActivity.class);
                 intent.putExtra(Constants.EXTRA_ITEM_ID, notification.getRelatedItem().intValue());
+                if (notification.getConversationId() != null && notification.getConversationId() > 0) {
+                    intent.putExtra(Constants.EXTRA_CONVERSATION_ID, notification.getConversationId().intValue());
+                }
                 startActivity(intent);
             }
         });
