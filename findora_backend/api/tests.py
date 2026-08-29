@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.exceptions import ValidationError
 from api.models import (
     User, Item, FinderReputation, PointTransaction, FinderRating,
-    UserBadge, Conversation, Notification
+    UserBadge, Conversation, Notification, ChatMessage
 )
 from api.serializers import (
     ItemSerializer, UserSerializer, PublicProfileSerializer,
@@ -13,7 +13,8 @@ from api.serializers import (
 from api.views import (
     ItemListCreateView, ItemDetailView, MarkItemReturnedView,
     ConfirmItemReturnView, ReputationProfileView, PointHistoryView,
-    RateFinderView, RatingStatusView, MyReportsView, RegisterView
+    RateFinderView, RatingStatusView, MyReportsView, RegisterView,
+    ConversationInitView, ChatListView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -366,3 +367,143 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         found_ids = [item['id'] for item in res_found.data]
         self.assertIn(self.matched_found_phone.id, found_ids)
         self.assertIn(self.unmatched_found_glasses.id, found_ids)
+
+    def test_owner_can_view_matched_found_item_details(self):
+        """Owner can retrieve details of a matched found item (HTTP 200)."""
+        view = ItemDetailView.as_view()
+        req = self.factory.get(f'/api/items/{self.matched_found_phone.id}/')
+        force_authenticate(req, user=self.owner)
+        res = view(req, pk=self.matched_found_phone.id)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['id'], self.matched_found_phone.id)
+        self.assertEqual(res.data['title'], self.matched_found_phone.title)
+
+    def test_owner_unmatched_found_item_forbidden(self):
+        """Owner cannot retrieve details of an unmatched found item without existing association (HTTP 403)."""
+        view = ItemDetailView.as_view()
+        req = self.factory.get(f'/api/items/{self.unmatched_found_glasses.id}/')
+        force_authenticate(req, user=self.owner)
+        res = view(req, pk=self.unmatched_found_glasses.id)
+        self.assertEqual(res.status_code, 403)
+
+    def test_finder_can_view_any_approved_found_item_details(self):
+        """Finder can retrieve details of any approved found item."""
+        view = ItemDetailView.as_view()
+        req = self.factory.get(f'/api/items/{self.unmatched_found_glasses.id}/')
+        force_authenticate(req, user=self.finder)
+        res = view(req, pk=self.unmatched_found_glasses.id)
+        self.assertEqual(res.status_code, 200)
+
+
+class OwnerFinderChatCommunicationTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='owner_alice', email='alice@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='finder_bob', email='bob@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.intruder = User.objects.create_user(
+            username='user_intruder', email='intruder@example.com', password='Password123!', role='owner', is_verified=True
+        )
+
+        self.lost_phone = Item.objects.create(
+            user=self.owner, type='lost', title='Lost iPhone', category='phone', status='approved'
+        )
+        self.found_phone = Item.objects.create(
+            user=self.finder, type='found', title='Found iPhone', category='phone', status='approved'
+        )
+
+    def test_finder_initiates_chat_on_lost_item_and_sends_message(self):
+        """Finder contacts Owner from Lost Item and sends message via 'conversation' key."""
+        # 1. Finder initiates conversation
+        init_view = ConversationInitView.as_view()
+        req_init = self.factory.post('/api/conversations/init/', {'item_id': self.lost_phone.id})
+        force_authenticate(req_init, user=self.finder)
+        res_init = init_view(req_init)
+        self.assertEqual(res_init.status_code, 200)
+        conv_id = res_init.data['conversation_id']
+
+        # 2. Finder sends message using Android ChatMessage JSON schema: {"conversation": id, "message": "..."}
+        chat_view = ChatListView.as_view()
+        req_send = self.factory.post('/api/chat/', {
+            'conversation': conv_id,
+            'message': 'Hello, I think I found your iPhone!'
+        })
+        force_authenticate(req_send, user=self.finder)
+        res_send = chat_view(req_send)
+        self.assertEqual(res_send.status_code, 201)
+        self.assertEqual(res_send.data['conversation'], conv_id)
+        self.assertEqual(res_send.data['sender_name'], 'finder_bob')
+
+        # 3. Verify message is stored in DB
+        msg = ChatMessage.objects.get(id=res_send.data['id'])
+        self.assertEqual(msg.message, 'Hello, I think I found your iPhone!')
+        self.assertEqual(msg.sender, self.finder)
+        self.assertEqual(msg.conversation_id, conv_id)
+
+        # 4. Owner reads conversation messages
+        req_get = self.factory.get(f'/api/chat/?conversation_id={conv_id}')
+        force_authenticate(req_get, user=self.owner)
+        res_get = chat_view(req_get)
+        self.assertEqual(res_get.status_code, 200)
+        self.assertEqual(len(res_get.data), 1)
+        self.assertEqual(res_get.data[0]['message'], 'Hello, I think I found your iPhone!')
+
+        # 5. Owner replies
+        req_reply = self.factory.post('/api/chat/', {
+            'conversation': conv_id,
+            'message': 'Thank you! Where can we meet?'
+        })
+        force_authenticate(req_reply, user=self.owner)
+        res_reply = chat_view(req_reply)
+        self.assertEqual(res_reply.status_code, 201)
+
+        # 6. Finder retrieves both messages
+        req_get_finder = self.factory.get(f'/api/chat/?conversation_id={conv_id}')
+        force_authenticate(req_get_finder, user=self.finder)
+        res_get_finder = chat_view(req_get_finder)
+        self.assertEqual(len(res_get_finder.data), 2)
+
+    def test_owner_initiates_chat_on_found_item_and_sends_message(self):
+        """Owner contacts Finder from Found Item and sends message via 'conversation' key."""
+        init_view = ConversationInitView.as_view()
+        req_init = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_init, user=self.owner)
+        res_init = init_view(req_init)
+        self.assertEqual(res_init.status_code, 200)
+        conv_id = res_init.data['conversation_id']
+
+        chat_view = ChatListView.as_view()
+        req_send = self.factory.post('/api/chat/', {
+            'conversation': conv_id,
+            'message': 'Hi! Is this iPhone still with you?'
+        })
+        force_authenticate(req_send, user=self.owner)
+        res_send = chat_view(req_send)
+        self.assertEqual(res_send.status_code, 201)
+
+        # Verify Notification created for Finder
+        self.assertTrue(Notification.objects.filter(user=self.finder, type='message').exists())
+
+    def test_unauthorized_user_forbidden_from_chat(self):
+        """Intruder cannot read or send messages in a conversation they do not belong to."""
+        conv = Conversation.objects.create(item=self.lost_phone, owner=self.owner, finder=self.finder)
+
+        chat_view = ChatListView.as_view()
+        # Attempt to read
+        req_get = self.factory.get(f'/api/chat/?conversation_id={conv.id}')
+        force_authenticate(req_get, user=self.intruder)
+        res_get = chat_view(req_get)
+        self.assertEqual(res_get.status_code, 403)
+
+        # Attempt to post
+        req_send = self.factory.post('/api/chat/', {
+            'conversation': conv.id,
+            'message': 'I am spying on your conversation!'
+        })
+        force_authenticate(req_send, user=self.intruder)
+        res_send = chat_view(req_send)
+        self.assertEqual(res_send.status_code, 403)
+

@@ -29,6 +29,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     ChatMessage,
+    Claim,
     Conversation,
     FinderRating,
     FinderReputation,
@@ -36,6 +37,7 @@ from .models import (
     ItemImage,
     Notification,
     OTPToken,
+    Payment,
     PointTransaction,
     User,
     UserBadge,
@@ -731,18 +733,21 @@ class ItemDetailView(APIView):
             
         # Enforce visibility rules for detail view
         if request.user.role != 'admin':
-            if item.type == 'lost':
-                if item.status != 'approved' and item.user != request.user:
-                    return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
-            elif item.type == 'found':
-                if item.user != request.user:
-                    is_matched = is_found_item_matched_for_owner(item, request.user)
-                    has_conv = Conversation.objects.filter(
-                        Q(item=item) & (Q(owner=request.user) | Q(finder=request.user))
-                    ).exists()
-                    has_claim = Claim.objects.filter(item=item, claimant=request.user).exists()
-                    if not (is_matched or has_conv or has_claim):
-                        return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
+            if item.user != request.user:
+                if item.type == 'lost':
+                    if item.status != 'approved':
+                        return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+                elif item.type == 'found':
+                    if item.status != 'approved':
+                        return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+                    if request.user.role == 'owner':
+                        is_matched = is_found_item_matched_for_owner(item, request.user)
+                        has_conv = Conversation.objects.filter(
+                            Q(item=item) & (Q(owner=request.user) | Q(finder=request.user))
+                        ).exists()
+                        has_claim = Claim.objects.filter(item=item, claimant=request.user).exists()
+                        if not (is_matched or has_conv or has_claim):
+                            return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -974,13 +979,13 @@ class ConversationInitView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        item_id = request.data.get('item_id')
+        item_id = request.data.get('item_id') or request.data.get('item')
         if not item_id:
             return Response({'error': 'item_id is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             item = Item.objects.get(id=item_id)
-        except Item.DoesNotExist:
+        except (Item.DoesNotExist, ValueError):
             return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
             
         if item.user == request.user:
@@ -1020,19 +1025,19 @@ class ChatListView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
-        conversation_id = request.query_params.get('conversation_id')
-        item_id = request.query_params.get('item_id')
+        conversation_id = request.query_params.get('conversation_id') or request.query_params.get('conversation')
+        item_id = request.query_params.get('item_id') or request.query_params.get('item')
 
         conversation = None
         if conversation_id:
             try:
                 conversation = Conversation.objects.get(id=conversation_id)
-            except Conversation.DoesNotExist:
+            except (Conversation.DoesNotExist, ValueError):
                 return Response({'error': 'Conversation not found'}, status=status.HTTP_404_NOT_FOUND)
         elif item_id:
             try:
                 item = Item.objects.get(id=item_id)
-            except Item.DoesNotExist:
+            except (Item.DoesNotExist, ValueError):
                 return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
             
             # Find conversation involving request.user and this item
@@ -1073,19 +1078,19 @@ class ChatListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        conversation_id = request.data.get('conversation_id')
-        item_id = request.data.get('item_id')
+        conversation_id = request.data.get('conversation_id') or request.data.get('conversation')
+        item_id = request.data.get('item_id') or request.data.get('item')
 
         conversation = None
         if conversation_id:
             try:
                 conversation = Conversation.objects.get(id=conversation_id)
-            except Conversation.DoesNotExist:
+            except (Conversation.DoesNotExist, ValueError):
                 return Response({'error': 'Conversation not found'}, status=status.HTTP_404_NOT_FOUND)
         elif item_id:
             try:
                 item = Item.objects.get(id=item_id)
-            except Item.DoesNotExist:
+            except (Item.DoesNotExist, ValueError):
                 return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
 
             if item.type == 'lost':
