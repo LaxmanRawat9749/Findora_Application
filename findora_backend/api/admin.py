@@ -207,8 +207,11 @@ class ItemImageInline(admin.TabularInline):
     def image_thumb(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" style="max-height:180px;max-width:260px;'
-                'border-radius:6px;object-fit:cover;" />',
+                '<a href="{}" target="_blank" title="Click to view full size">'
+                '<img src="{}" style="max-height:160px;max-width:240px;'
+                'border-radius:6px;object-fit:cover;border:1px solid #cbd5e1;" />'
+                '</a>',
+                obj.image.url,
                 obj.image.url,
             )
         return '—'
@@ -301,7 +304,10 @@ class ItemAdmin(admin.ModelAdmin):
         """Retained for reference; primary item.image field is unused by Android upload."""
         if obj.image:
             return format_html(
-                '<img src="{}" style="max-height:200px;border-radius:8px;" />',
+                '<a href="{}" target="_blank" title="Click to view full size">'
+                '<img src="{}" style="max-height:200px;border-radius:8px;border:1px solid #cbd5e1;" />'
+                '</a>',
+                obj.image.url,
                 obj.image.url,
             )
         return 'No image uploaded.'
@@ -310,20 +316,28 @@ class ItemAdmin(admin.ModelAdmin):
     def item_images_preview(self, obj):
         """
         Renders thumbnails for all ItemImage records belonging to this item.
-        ItemImage is the actual storage used by the Android Report Item flow;
-        the primary item.image field is not populated by the app.
+        Also displays the primary item.image if set.
         """
-        item_images = obj.images.all()
-        if not item_images.exists():
-            return 'No images uploaded.'
         parts = []
-        for ii in item_images:
+        for ii in obj.images.all():
             if ii.image:
                 parts.append(format_html(
+                    '<a href="{}" target="_blank" title="Click to view full size" style="display:inline-block;margin:4px;">'
                     '<img src="{}" style="max-height:200px;max-width:280px;'
-                    'border-radius:8px;object-fit:cover;margin:4px;" />',
+                    'border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.08);" />'
+                    '</a>',
+                    ii.image.url,
                     ii.image.url,
                 ))
+        if obj.image and not parts:
+            parts.append(format_html(
+                '<a href="{}" target="_blank" title="Click to view full size" style="display:inline-block;margin:4px;">'
+                '<img src="{}" style="max-height:200px;max-width:280px;'
+                'border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,0.08);" />'
+                '</a>',
+                obj.image.url,
+                obj.image.url,
+            ))
         if not parts:
             return 'No images uploaded.'
         return mark_safe(''.join(str(p) for p in parts))
