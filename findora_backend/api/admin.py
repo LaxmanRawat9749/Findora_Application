@@ -51,17 +51,16 @@ class FindoraUserAdmin(UserAdmin):
     list_filter = ['role', 'is_verified', 'is_locked', 'is_active', 'created_at']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering = ['-created_at']
-    readonly_fields = ['created_at', 'updated_at', 'last_login', 'failed_login_attempts', 'profile_image_preview']
+    readonly_fields = ['created_at', 'updated_at', 'last_login', 'failed_login_attempts']
     list_per_page = 25
     date_hierarchy = 'created_at'
-    change_form_template = 'admin/api/user/change_form.html'
 
     fieldsets = (
         ('Account Info', {
             'fields': ('username', 'email', 'password'),
         }),
         ('Personal Info', {
-            'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image', 'profile_image_preview'),
+            'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image'),
         }),
         ('Emergency Contact', {
             'fields': ('emergency_contact_name', 'emergency_contact_phone'),
@@ -94,14 +93,7 @@ class FindoraUserAdmin(UserAdmin):
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
-    @admin.display(description='Current Profile Picture')
-    def profile_image_preview(self, obj):
-        if obj.profile_image:
-            return format_html(
-                '<img src="{}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;" />',
-                obj.profile_image.url,
-            )
-        return 'No profile picture uploaded.'
+
 
     @admin.display(description='Full Name')
     def full_name(self, obj):
