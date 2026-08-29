@@ -677,6 +677,8 @@ class ItemListCreateView(APIView):
         if category:
             queryset = queryset.filter(category=category)
 
+        queryset = queryset.distinct()
+
         serializer = ItemSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 

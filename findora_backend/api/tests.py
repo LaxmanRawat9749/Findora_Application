@@ -507,3 +507,65 @@ class OwnerFinderChatCommunicationTests(TestCase):
         res_send = chat_view(req_send)
         self.assertEqual(res_send.status_code, 403)
 
+    def test_sending_multiple_messages_does_not_create_or_duplicate_found_items(self):
+        """Sending messages must NOT create new Found Items in DB or duplicate items in dashboard."""
+        initial_found_count = Item.objects.filter(type='found').count()
+
+        # 1. Initialize conversation
+        init_view = ConversationInitView.as_view()
+        req_init = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+        force_authenticate(req_init, user=self.owner)
+        res_init = init_view(req_init)
+        conv_id = res_init.data['conversation_id']
+
+        # 2. Check initial Owner dashboard found items
+        list_view = ItemListCreateView.as_view()
+        req_list = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_list, user=self.owner)
+        res_list0 = list_view(req_list)
+        self.assertEqual(len(res_list0.data), 1)
+
+        # 3. Send 5 messages (Owner -> Finder and Finder -> Owner)
+        chat_view = ChatListView.as_view()
+        for i in range(5):
+            sender = self.owner if i % 2 == 0 else self.finder
+            req_msg = self.factory.post('/api/chat/', {
+                'conversation': conv_id,
+                'message': f'Message #{i + 1}: K xa?'
+            })
+            force_authenticate(req_msg, user=sender)
+            res_msg = chat_view(req_msg)
+            self.assertEqual(res_msg.status_code, 201)
+
+        # 4. Verify Database Found Item count is UNCHANGED
+        after_found_count = Item.objects.filter(type='found').count()
+        self.assertEqual(after_found_count, initial_found_count)
+
+        # 5. Verify Owner dashboard STILL has exactly 1 Found Item (no duplicates)
+        res_list_after = list_view(req_list)
+        self.assertEqual(len(res_list_after.data), 1)
+        self.assertEqual(res_list_after.data[0]['id'], self.found_phone.id)
+
+        # 6. Verify All tab also has no duplicates
+        req_all = self.factory.get('/api/items/')
+        force_authenticate(req_all, user=self.owner)
+        res_all = list_view(req_all)
+        found_in_all = [it for it in res_all.data if it['id'] == self.found_phone.id]
+        self.assertEqual(len(found_in_all), 1)
+
+    def test_opening_chat_multiple_times_does_not_create_found_items(self):
+        """Opening / initializing chat repeatedly must NOT create duplicate conversations or Found Items."""
+        initial_found_count = Item.objects.filter(type='found').count()
+        initial_conv_count = Conversation.objects.count()
+
+        init_view = ConversationInitView.as_view()
+        for _ in range(5):
+            req_init = self.factory.post('/api/conversations/init/', {'item_id': self.found_phone.id})
+            force_authenticate(req_init, user=self.owner)
+            res_init = init_view(req_init)
+            self.assertEqual(res_init.status_code, 200)
+
+        self.assertEqual(Item.objects.filter(type='found').count(), initial_found_count)
+        self.assertEqual(Conversation.objects.count(), initial_conv_count + 1)
+
+
