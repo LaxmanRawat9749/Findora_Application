@@ -483,6 +483,13 @@ class ConversationSerializer(serializers.ModelSerializer):
             'other_user_role', 'other_user_profile_image', 'last_message', 'last_message_time', 'unread_count', 'created_at'
         ]
 
+    def _get_sorted_messages(self, obj):
+        if not hasattr(obj, '_cached_sorted_messages'):
+            messages = list(obj.messages.all())
+            messages.sort(key=lambda m: m.sent_at, reverse=True)
+            obj._cached_sorted_messages = messages
+        return obj._cached_sorted_messages
+
     def get_other_user(self, obj):
         request = self.context.get('request')
         if not request:
@@ -507,38 +514,36 @@ class ConversationSerializer(serializers.ModelSerializer):
         return None
 
     def get_item_title(self, obj):
-        return obj.item.title
+        return obj.item.title if obj.item else ""
 
     def get_item_type(self, obj):
-        return obj.item.type
+        return obj.item.type if obj.item else ""
 
     def get_last_message(self, obj):
-        messages = list(obj.messages.all())
+        messages = self._get_sorted_messages(obj)
         if not messages:
             return ""
-        messages.sort(key=lambda m: m.sent_at, reverse=True)
         last_msg = messages[0]
         request = self.context.get('request')
         is_deleted_for_me = False
         if request:
-            is_deleted_for_me = (last_msg.deleted_by_sender and last_msg.sender == request.user) or (last_msg.deleted_by_receiver and last_msg.sender != request.user)
+            is_deleted_for_me = (last_msg.deleted_by_sender and last_msg.sender_id == request.user.id) or (last_msg.deleted_by_receiver and last_msg.sender_id != request.user.id)
             
         if last_msg.deleted_for_everyone or is_deleted_for_me:
             return "This message was deleted"
         return last_msg.message
 
     def get_last_message_time(self, obj):
-        messages = list(obj.messages.all())
+        messages = self._get_sorted_messages(obj)
         if not messages:
             return obj.created_at
-        messages.sort(key=lambda m: m.sent_at, reverse=True)
         return messages[0].sent_at
 
     def get_unread_count(self, obj):
         request = self.context.get('request')
         if not request:
             return 0
-        messages = list(obj.messages.all())
+        messages = self._get_sorted_messages(obj)
         return sum(1 for m in messages if m.sender_id != request.user.id and not m.is_read)
 
 

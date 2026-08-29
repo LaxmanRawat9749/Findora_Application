@@ -40,6 +40,8 @@ public class ItemDetailActivity extends BaseActivity {
     private Call<Item> itemDetailCall;
     private Call<ConversationInitResponse> conversationInitCall;
 
+    private long lastActionTime = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,6 +61,9 @@ public class ItemDetailActivity extends BaseActivity {
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
         binding.btnChat.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastActionTime < 600) return;
+            lastActionTime = now;
             if (passedConversationId != -1) {
                 openChatForConversation(passedConversationId);
             } else if (currentItem != null) {
@@ -67,6 +72,9 @@ public class ItemDetailActivity extends BaseActivity {
         });
 
         binding.btnContactFinder.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastActionTime < 600) return;
+            lastActionTime = now;
             if (passedConversationId != -1) {
                 openChatForConversation(passedConversationId);
             } else if (currentItem != null) {
@@ -75,6 +83,9 @@ public class ItemDetailActivity extends BaseActivity {
         });
 
         binding.btnViewConversations.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastActionTime < 600) return;
+            lastActionTime = now;
             if (passedConversationId != -1) {
                 openChatForConversation(passedConversationId);
             } else if (currentItem != null) {
@@ -87,8 +98,18 @@ public class ItemDetailActivity extends BaseActivity {
 
         binding.btnViewMap.setOnClickListener(v -> openMap());
 
-        binding.btnMarkReturned.setOnClickListener(v -> handleMarkReturned());
-        binding.btnConfirmReturn.setOnClickListener(v -> handleConfirmReturn());
+        binding.btnMarkReturned.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastActionTime < 600) return;
+            lastActionTime = now;
+            handleMarkReturned();
+        });
+        binding.btnConfirmReturn.setOnClickListener(v -> {
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (now - lastActionTime < 600) return;
+            lastActionTime = now;
+            handleConfirmReturn();
+        });
 
         binding.layoutReporter.setOnClickListener(v -> {
             if (currentItem != null && currentItem.getUser() != -1) {
@@ -110,8 +131,9 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void loadItemDetail() {
-        binding.progressBar.setVisibility(View.VISIBLE);
-        binding.scrollContent.setVisibility(View.GONE);
+        if (currentItem == null) {
+            binding.progressBar.setVisibility(View.VISIBLE);
+        }
 
         if (itemDetailCall != null) itemDetailCall.cancel();
         itemDetailCall = apiService.getItemDetail(itemId);
@@ -123,7 +145,7 @@ public class ItemDetailActivity extends BaseActivity {
                     currentItem = response.body();
                     displayItem(currentItem);
                     binding.scrollContent.setVisibility(View.VISIBLE);
-                } else {
+                } else if (currentItem == null) {
                     Toast.makeText(ItemDetailActivity.this,
                             "Failed to load item details.", Toast.LENGTH_SHORT).show();
                     finish();
@@ -134,9 +156,11 @@ public class ItemDetailActivity extends BaseActivity {
             public void onFailure(Call<Item> call, Throwable t) {
                 if (call.isCanceled()) return;
                 binding.progressBar.setVisibility(View.GONE);
-                Toast.makeText(ItemDetailActivity.this,
-                        "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                finish();
+                if (currentItem == null) {
+                    Toast.makeText(ItemDetailActivity.this,
+                            "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    finish();
+                }
             }
         });
     }

@@ -37,6 +37,8 @@ public class RetrofitClient {
     private static final Object CONTEXT_LOCK = new Object();
     private static volatile Context appContext = null;
 
+    private static volatile ApiService apiService = null;
+
     // ─── Backwards-compatible no-ops ─────────────────────────────────────────
 
     public static void setToken(String token) {
@@ -103,26 +105,17 @@ public class RetrofitClient {
                     }
 
                     // ── OkHttp body-level logging interceptor ─────────────
-                    // Logs request/response bodies to Logcat in DEBUG builds.
-                    // NOTE: Authorization headers ARE visible in BODY-level logs;
-                    // switch to HEADERS level in production to reduce exposure.
                     HttpLoggingInterceptor logging = new HttpLoggingInterceptor(
                         message -> Log.d("OkHttp", message)
                     );
                     logging.setLevel(HttpLoggingInterceptor.Level.BODY);
-                    // Redact the Authorization header so JWT tokens are never
-                    // written to Logcat even at BODY level.
                     logging.redactHeader("Authorization");
 
                     // ── Auth header interceptor ───────────────────────────
-                    // Reads the token fresh on every request so it always
-                    // reflects the latest value from TokenAuthenticator.
                     okhttp3.Interceptor authInterceptor = chain -> {
                         SessionManager sessionManager = new SessionManager(ctx);
                         String token = sessionManager.getToken();
 
-                        // Update last-activity timestamp on every authenticated request
-                        // so session timeout reflects actual usage across the entire app.
                         if (token != null && !token.trim().isEmpty()) {
                             sessionManager.updateLastActivity();
                         }
@@ -139,8 +132,6 @@ public class RetrofitClient {
                     };
 
                     // ── Network diagnostics interceptor ───────────────────
-                    // Logs per-request timing and exception type so failures
-                    // are immediately diagnosable from Logcat without a proxy.
                     okhttp3.Interceptor networkLogger = chain -> {
                         Request request = chain.request();
                         long startMs = System.currentTimeMillis();
@@ -157,24 +148,20 @@ public class RetrofitClient {
                             return response;
                         } catch (ConnectException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
-                            // "Connection refused" — server is down or TCP backlog full
                             Log.e(TAG, "✗ ConnectException on " + endpoint
-                                    + " after " + elapsedMs + " ms"
-                                    + " — server unreachable or TCP backlog full: "
+                                    + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (SocketTimeoutException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
                             Log.e(TAG, "✗ SocketTimeoutException on " + endpoint
-                                    + " after " + elapsedMs + " ms"
-                                    + " — server accepted connection but did not respond: "
+                                    + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (UnknownHostException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
                             Log.e(TAG, "✗ UnknownHostException on " + endpoint
-                                    + " after " + elapsedMs + " ms"
-                                    + " — DNS resolution failed or host is wrong: "
+                                    + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (IOException e) {
@@ -187,32 +174,38 @@ public class RetrofitClient {
                         }
                     };
 
-                    // Keep at most 3 idle connections for at most 30 seconds.
-                    // This prevents OkHttp from holding idle sockets that
-                    // consume the Django dev-server's TCP accept-backlog slots,
-                    // which was the primary cause of intermittent failures when
-                    // concurrent requests (e.g., SMTP daemon threads) left the
-                    // server's backlog saturated.
                     ConnectionPool connectionPool = new ConnectionPool(
-                            3,   // maxIdleConnections
-                            30,  // keepAliveDuration
+                            5,
+                            30,
                             TimeUnit.SECONDS
                     );
 
                     okhttp3.Dispatcher dispatcher = new okhttp3.Dispatcher();
-                    dispatcher.setMaxRequestsPerHost(2);
+                    dispatcher.setMaxRequests(32);
+                    dispatcher.setMaxRequestsPerHost(10);
 
-                    OkHttpClient client = new OkHttpClient.Builder()
+                    okhttp3.Cache cache = null;
+                    try {
+                        java.io.File cacheDir = new java.io.File(ctx.getCacheDir(), "http_cache");
+                        cache = new okhttp3.Cache(cacheDir, 10 * 1024 * 1024);
+                    } catch (Exception ignored) {}
+
+                    OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder()
                         .addInterceptor(authInterceptor)
                         .addInterceptor(networkLogger)
                         .addInterceptor(logging)
                         .authenticator(new TokenAuthenticator(ctx))
                         .connectionPool(connectionPool)
                         .dispatcher(dispatcher)
-                        .connectTimeout(30, TimeUnit.SECONDS)
-                        .readTimeout(30, TimeUnit.SECONDS)
-                        .writeTimeout(30, TimeUnit.SECONDS)
-                        .build();
+                        .connectTimeout(15, TimeUnit.SECONDS)
+                        .readTimeout(20, TimeUnit.SECONDS)
+                        .writeTimeout(20, TimeUnit.SECONDS);
+
+                    if (cache != null) {
+                        clientBuilder.cache(cache);
+                    }
+
+                    OkHttpClient client = clientBuilder.build();
 
                     retrofit = new Retrofit.Builder()
                         .baseUrl(BASE_URL)
@@ -227,14 +220,6 @@ public class RetrofitClient {
 
     // ─── Connectivity helper (static, usable by Activities) ──────────────────
 
-    /**
-     * Returns true when the device has an active, validated network connection.
-     * Uses the modern NetworkCapabilities API (API 23+; minSdk is 24).
-     *
-     * Activities should call this before enqueuing login requests so they can
-     * show "No internet connection" immediately rather than waiting for OkHttp
-     * to time out.
-     */
     public static boolean isNetworkAvailable(Context context) {
         ConnectivityManager cm =
             (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -251,6 +236,13 @@ public class RetrofitClient {
     // ─── ApiService accessor ──────────────────────────────────────────────────
 
     public ApiService getApi() {
-        return getInstance().create(ApiService.class);
+        if (apiService == null) {
+            synchronized (RetrofitClient.class) {
+                if (apiService == null) {
+                    apiService = getInstance().create(ApiService.class);
+                }
+            }
+        }
+        return apiService;
     }
 }

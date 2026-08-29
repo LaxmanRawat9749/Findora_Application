@@ -53,7 +53,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Find your items"
+                        android:text="Find your points"
                         android:textColor="@color/text_dark"
                         android:textSize="@dimen/text_h2"
                         android:fontFamily="sans-serif-black" />

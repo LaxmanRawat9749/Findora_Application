@@ -593,7 +593,7 @@ class PublicProfileView(APIView):
 
     def get(self, request, pk):
         try:
-            target_user = User.objects.get(pk=pk)
+            target_user = User.objects.select_related('reputation').prefetch_related('badges').get(pk=pk)
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -725,7 +725,7 @@ class ItemDetailView(APIView):
 
     def _get_item(self, pk):
         try:
-            return Item.objects.select_related('user').get(pk=pk)
+            return Item.objects.select_related('user', 'user__reputation').prefetch_related('images').get(pk=pk)
         except Item.DoesNotExist:
             return None
 
@@ -1232,7 +1232,7 @@ class NotificationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+        notifications = Notification.objects.filter(user=request.user).select_related('related_item').order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

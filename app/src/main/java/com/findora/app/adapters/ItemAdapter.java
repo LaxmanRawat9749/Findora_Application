@@ -1,13 +1,16 @@
 package com.findora.app.adapters;
 
 import android.content.Context;
+import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.findora.app.R;
 import com.findora.app.databinding.ItemCardBinding;
 import com.findora.app.models.Item;
@@ -25,6 +28,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
     private List<Item> items = new ArrayList<>();
     private OnItemClickListener listener;
     private boolean isMyReportsStyle;
+    private long lastClickTime = 0;
 
     public ItemAdapter(Context context, OnItemClickListener listener) {
         this.context = context;
@@ -39,8 +43,56 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
     }
 
     public void setItems(List<Item> newItems) {
-        this.items = newItems != null ? newItems : new ArrayList<>();
-        notifyDataSetChanged();
+        List<Item> safeNewItems = newItems != null ? new ArrayList<>(newItems) : new ArrayList<>();
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ItemDiffCallback(this.items, safeNewItems));
+        this.items.clear();
+        this.items.addAll(safeNewItems);
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    private static class ItemDiffCallback extends DiffUtil.Callback {
+        private final List<Item> oldList;
+        private final List<Item> newList;
+
+        ItemDiffCallback(List<Item> oldList, List<Item> newList) {
+            this.oldList = oldList;
+            this.newList = newList;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldList.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newList.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            return oldList.get(oldItemPosition).getId() == newList.get(newItemPosition).getId();
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            Item oldItem = oldList.get(oldItemPosition);
+            Item newItem = newList.get(newItemPosition);
+            return oldItem.getId() == newItem.getId()
+                    && equals(oldItem.getTitle(), newItem.getTitle())
+                    && equals(oldItem.getStatus(), newItem.getStatus())
+                    && equals(oldItem.getType(), newItem.getType())
+                    && equals(oldItem.getCategory(), newItem.getCategory())
+                    && oldItem.getReward() == newItem.getReward()
+                    && oldItem.isFinderReturnedConfirm() == newItem.isFinderReturnedConfirm()
+                    && oldItem.isOwnerReturnedConfirm() == newItem.isOwnerReturnedConfirm();
+        }
+
+        private boolean equals(String a, String b) {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            return a.equals(b);
+        }
     }
 
     @NonNull
@@ -142,6 +194,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                 binding.layoutIconPlaceholder.setVisibility(View.GONE);
                 Glide.with(context)
                         .load(imageUrl)
+                        .thumbnail(0.25f)
+                        .diskCacheStrategy(DiskCacheStrategy.ALL)
                         .centerCrop()
                         .into(binding.ivItemImage);
             } else {
@@ -150,6 +204,11 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
             }
 
             itemView.setOnClickListener(v -> {
+                long current = SystemClock.elapsedRealtime();
+                if (current - lastClickTime < 500) {
+                    return; // Ignore rapid double click
+                }
+                lastClickTime = current;
                 if (listener != null) {
                     listener.onItemClick(item);
                 }

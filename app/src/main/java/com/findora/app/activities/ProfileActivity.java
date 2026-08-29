@@ -100,16 +100,10 @@ public class ProfileActivity extends BaseActivity {
 
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Do NOT pre-populate UI from SharedPreferences cache here.
-        // The cache belongs to the previously authenticated user — showing it
-        // before the API confirms the current session is what caused another
-        // user's name/email to be displayed to a new unauthenticated user.
-        // The API call below is authoritative; cached data is only a fallback.
-        binding.tvFullName.setText("");
-        binding.tvEmail.setText("");
-        binding.tvRole.setText("");
+        // Render cached profile immediately so UI opens with 0ms delay
+        showCachedProfile();
 
-        // Load fresh profile from API — UI is populated only when this returns
+        // Load fresh profile asynchronously from API
         loadProfile();
 
         // Change username toggle

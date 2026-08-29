@@ -28,8 +28,30 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
 
     public void setNotifications(List<Notification> newNotifications) {
-        this.notifications = newNotifications != null ? newNotifications : new ArrayList<>();
-        notifyDataSetChanged();
+        List<Notification> safeList = newNotifications != null ? new ArrayList<>(newNotifications) : new ArrayList<>();
+        androidx.recyclerview.widget.DiffUtil.DiffResult diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(
+            new androidx.recyclerview.widget.DiffUtil.Callback() {
+                @Override
+                public int getOldListSize() { return notifications.size(); }
+                @Override
+                public int getNewListSize() { return safeList.size(); }
+                @Override
+                public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                    return notifications.get(oldItemPosition).getId() == safeList.get(newItemPosition).getId();
+                }
+                @Override
+                public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                    Notification oldN = notifications.get(oldItemPosition);
+                    Notification newN = safeList.get(newItemPosition);
+                    return oldN.getId() == newN.getId()
+                            && oldN.isRead() == newN.isRead()
+                            && String.valueOf(oldN.getMessage()).equals(String.valueOf(newN.getMessage()));
+                }
+            }
+        );
+        this.notifications.clear();
+        this.notifications.addAll(safeList);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull

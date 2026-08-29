@@ -230,7 +230,11 @@ public class HomeActivity extends BaseActivity {
             binding.etHomeSearch.setText("");
             currentSearch = "";
             clearSearchFocus();
-            loadItems();
+            if (originalItemList != null && !originalItemList.isEmpty()) {
+                applyFilters();
+            } else {
+                loadItems();
+            }
         });
     }
 
@@ -331,17 +335,12 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void loadItems() {
-        binding.progressBar.setVisibility(View.VISIBLE);
+        if (adapter.getItemCount() == 0 && !binding.swipeRefresh.isRefreshing()) {
+            binding.progressBar.setVisibility(View.VISIBLE);
+        }
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        Call<List<Item>> call;
-        if (currentType != null && !currentType.isEmpty()) {
-            call = apiService.filterByType(currentType);
-        } else {
-            call = apiService.getItems();
-        }
-
-        call.enqueue(new Callback<List<Item>>() {
+        apiService.getItems().enqueue(new Callback<List<Item>>() {
             @Override
             public void onResponse(Call<List<Item>> call, Response<List<Item>> response) {
                 binding.progressBar.setVisibility(View.GONE);
@@ -350,7 +349,7 @@ public class HomeActivity extends BaseActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     originalItemList = response.body();
                     applyFilters();
-                } else {
+                } else if (originalItemList == null || originalItemList.isEmpty()) {
                     originalItemList = new ArrayList<>();
                     applyFilters();
                 }
@@ -360,8 +359,10 @@ public class HomeActivity extends BaseActivity {
             public void onFailure(Call<List<Item>> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
                 binding.swipeRefresh.setRefreshing(false);
-                Toast.makeText(HomeActivity.this, "Error loading items: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+                if (originalItemList == null || originalItemList.isEmpty()) {
+                    Toast.makeText(HomeActivity.this, "Error loading items: " + t.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -373,8 +374,10 @@ public class HomeActivity extends BaseActivity {
         String searchLower = currentSearch.toLowerCase().trim();
         
         for (Item item : originalItemList) {
+            boolean matchType = currentType == null || currentType.equalsIgnoreCase(item.getType());
+            if (!matchType) continue;
+
             boolean matchCat = currentCategory == null || currentCategory.equalsIgnoreCase(item.getCategory());
-            
             if (!matchCat) continue;
             
             if (searchLower.isEmpty()) {
@@ -390,7 +393,6 @@ public class HomeActivity extends BaseActivity {
                 }
             }
         }
-        
         
         adapter.setItems(filtered);
         binding.tvEmptyState.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
