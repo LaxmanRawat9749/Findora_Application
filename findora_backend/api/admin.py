@@ -178,6 +178,9 @@ class FindoraUserAdmin(UserAdmin):
         self.message_user(request, f'{updated} user(s) activated.')
 
 
+from django.utils import timezone
+
+
 # ─── Item Admin ───────────────────────────────────────────────────────────────
 
 class ClaimInline(admin.TabularInline):
@@ -195,31 +198,51 @@ class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for lost/found item reports.
 
-    Features colored status and type badges,
-    inline claim display, and bulk approve/reject/resolve actions.
+    Features colored status and type badges, report verification review,
+    contextual reporter information (Owner/Finder), reporter history metrics,
+    inline claim display, and bulk review/approval actions.
     """
 
     list_display = [
-        'title', 'type_badge', 'category', 'status_badge',
+        'title', 'type_badge', 'category', 'status_badge', 'verification_badge',
         'reporter', 'location', 'reward_display', 'reported_at',
     ]
-    list_filter = ['type', 'status', 'category', 'reported_at']
-    search_fields = ['title', 'description', 'location', 'user__username', 'user__email']
+    list_filter = ['verification_status', 'type', 'status', 'category', 'reported_at']
+    search_fields = [
+        'title', 'description', 'location',
+        'user__username', 'user__email', 'user__first_name', 'user__last_name',
+        'admin_verification_notes',
+    ]
     ordering = ['-reported_at']
-    readonly_fields = ['user', 'reported_at', 'updated_at']
+    readonly_fields = [
+        'reporter_info_display', 'reporter_history_display',
+        'verified_by', 'verified_at',
+        'reported_at', 'updated_at',
+    ]
     list_per_page = 20
     date_hierarchy = 'reported_at'
     inlines = [ClaimInline]
 
     fieldsets = (
-        ('Item Info', {
-            'fields': ('user', 'type', 'title', 'description', 'category'),
+        ('Item Report Information', {
+            'fields': ('user', 'type', 'title', 'description', 'category', 'status', 'reward'),
         }),
-        ('Status & Reward', {
-            'fields': ('status', 'reward'),
-        }),
-        ('Location', {
+        ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
+        }),
+        ('Reporter Information', {
+            'fields': ('reporter_info_display',),
+        }),
+        ('Reporter History & Trust (Contextual)', {
+            'fields': ('reporter_history_display',),
+        }),
+        ('Report Verification Review', {
+            'fields': (
+                'verification_status',
+                'admin_verification_notes',
+                'verified_by',
+                'verified_at',
+            ),
         }),
         ('Media', {
             'fields': ('image',),
@@ -230,7 +253,29 @@ class ItemAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ['approve_items', 'reject_items', 'mark_resolved']
+    actions = [
+        'verify_report_action',
+        'reject_report_action',
+        'reset_verification_action',
+        'approve_items',
+        'reject_items',
+        'mark_resolved',
+    ]
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            if 'verification_status' in form.changed_data:
+                if obj.verification_status in ('verified', 'rejected'):
+                    obj.verified_by = request.user
+                    obj.verified_at = timezone.now()
+                elif obj.verification_status == 'pending':
+                    obj.verified_by = None
+                    obj.verified_at = None
+        else:
+            if obj.verification_status in ('verified', 'rejected') and not obj.verified_by:
+                obj.verified_by = request.user
+                obj.verified_at = timezone.now()
+        super().save_model(request, obj, form, change)
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
@@ -258,6 +303,19 @@ class ItemAdmin(admin.ModelAdmin):
             color, obj.status.upper(),
         )
 
+    @admin.display(description='Verification')
+    def verification_badge(self, obj):
+        colors = {
+            'pending': ('#FEF3C7', '#D97706', '⏳ Pending Review'),
+            'verified': ('#DCFCE7', '#16A34A', '✓ Verified'),
+            'rejected': ('#FEE2E2', '#DC2626', '✗ Rejected'),
+        }
+        bg, fg, label = colors.get(obj.verification_status, ('#F3F4F6', '#6B7280', obj.verification_status or 'Pending'))
+        return format_html(
+            '<span style="background:{};color:{};padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700">{}</span>',
+            bg, fg, label,
+        )
+
     @admin.display(description='Reported By')
     def reporter(self, obj):
         context_role = 'Owner' if obj.type == 'lost' else 'Finder'
@@ -272,9 +330,98 @@ class ItemAdmin(admin.ModelAdmin):
             )
         return '—'
 
+    @admin.display(description='Reporter Details')
+    def reporter_info_display(self, obj):
+        if not obj.user:
+            return 'No user associated.'
+        u = obj.user
+        context_role = 'Owner (Lost Report)' if obj.type == 'lost' else 'Finder (Found Report)'
+        role_color = '#6D28D9' if obj.type == 'lost' else '#16A34A'
+        role_bg = '#EDE9FE' if obj.type == 'lost' else '#DCFCE7'
+        return format_html(
+            '<div style="line-height:1.7;font-size:13px;">'
+            '<div><strong>Name:</strong> {}</div>'
+            '<div><strong>Role for this report:</strong> '
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span></div>'
+            '<div><strong>Email:</strong> <a href="mailto:{}">{}</a></div>'
+            '<div><strong>Phone:</strong> {}</div>'
+            '</div>',
+            u.get_full_name() or u.username,
+            role_bg, role_color, context_role,
+            u.email, u.email,
+            u.phone or 'N/A',
+        )
 
+    @admin.display(description='Reporter History')
+    def reporter_history_display(self, obj):
+        if not obj.user:
+            return 'No user associated.'
+        u = obj.user
+        rep = getattr(u, 'reputation', None)
+        lost_count = u.items.filter(type='lost').count()
+        found_count = u.items.filter(type='found').count()
+        returns_count = rep.successful_returns if rep else 0
+        points = rep.total_points if rep else 0
+        rating_display = f"⭐ {rep.average_rating:.1f} ({rep.rating_count} reviews)" if rep and rep.rating_count > 0 else "New / Unrated"
+
+        return format_html(
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+            '<div style="color:#64748B;font-size:11px;">Lost Reports</div>'
+            '<div style="font-size:16px;font-weight:700;color:#0F172A;">{}</div>'
+            '</div>'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+            '<div style="color:#64748B;font-size:11px;">Found Reports</div>'
+            '<div style="font-size:16px;font-weight:700;color:#0F172A;">{}</div>'
+            '</div>'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+            '<div style="color:#64748B;font-size:11px;">Successful Returns</div>'
+            '<div style="font-size:16px;font-weight:700;color:#16A34A;">{}</div>'
+            '</div>'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+            '<div style="color:#64748B;font-size:11px;">Reputation</div>'
+            '<div style="font-size:14px;font-weight:700;color:#D97706;">{}</div>'
+            '</div>'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+            '<div style="color:#64748B;font-size:11px;">Points</div>'
+            '<div style="font-size:16px;font-weight:700;color:#534AB7;">🪙 {}</div>'
+            '</div>'
+            '</div>',
+            lost_count,
+            found_count,
+            returns_count,
+            rating_display,
+            points,
+        )
 
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
+
+    @admin.action(description='Verify selected item reports')
+    def verify_report_action(self, request, queryset):
+        updated = queryset.update(
+            verification_status='verified',
+            verified_by=request.user,
+            verified_at=timezone.now(),
+        )
+        self.message_user(request, f'{updated} item report(s) marked as Verified.')
+
+    @admin.action(description='Reject selected item reports')
+    def reject_report_action(self, request, queryset):
+        updated = queryset.update(
+            verification_status='rejected',
+            verified_by=request.user,
+            verified_at=timezone.now(),
+        )
+        self.message_user(request, f'{updated} item report(s) marked as Rejected.')
+
+    @admin.action(description='Reset verification to Pending Review')
+    def reset_verification_action(self, request, queryset):
+        updated = queryset.update(
+            verification_status='pending',
+            verified_by=None,
+            verified_at=None,
+        )
+        self.message_user(request, f'{updated} item report(s) reset to Pending Review.')
 
     @admin.action(description='Approve selected items')
     def approve_items(self, request, queryset):

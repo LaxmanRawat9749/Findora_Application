@@ -160,6 +160,11 @@ class Item(models.Model):
         ('resolved', 'Resolved'),
         ('rejected', 'Rejected'),
     ]
+    VERIFICATION_STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+    ]
     CATEGORY_CHOICES = [
         ('wallet', 'Wallet'),
         ('phone', 'Phone'),
@@ -177,6 +182,23 @@ class Item(models.Model):
     description = models.TextField(blank=True)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default='pending',
+    )
+    admin_verification_notes = models.TextField(
+        blank=True,
+        help_text='Admin notes on report credibility, identifying details, or reason for rejection.',
+    )
+    verified_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='verified_items',
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
     image = models.ImageField(upload_to='items/', blank=True, null=True)
     location = models.CharField(max_length=255, blank=True)
     latitude = models.FloatField(null=True, blank=True)

@@ -392,7 +392,12 @@ class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
         fields = '__all__'
-        read_only_fields = ['user', 'status', 'reported_at', 'updated_at', 'is_featured', 'featured_until']
+        read_only_fields = [
+            'user', 'status', 'reported_at', 'updated_at',
+            'is_featured', 'featured_until',
+            'verification_status', 'admin_verification_notes',
+            'verified_by', 'verified_at',
+        ]
 
     def validate(self, data):
         request = self.context.get('request')
