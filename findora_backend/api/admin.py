@@ -63,7 +63,7 @@ class FindoraUserAdmin(UserAdmin):
 
     fieldsets = (
         ('Account Info', {
-            'fields': ('username', 'email', 'password'),
+            'fields': ('username', 'email'),
         }),
         ('Personal Info', {
             'fields': ('first_name', 'last_name', 'phone', 'role'),
@@ -121,7 +121,7 @@ class FindoraUserAdmin(UserAdmin):
 
         fieldsets = [
             ('Account Info', {
-                'fields': ('username', 'email', 'password'),
+                'fields': ('username', 'email'),
             }),
             ('Personal Info', {
                 'fields': ('first_name', 'last_name', 'phone', 'role'),
