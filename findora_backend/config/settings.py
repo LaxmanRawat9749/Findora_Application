@@ -33,8 +33,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'cloudinary',
-    'cloudinary_storage',
 
     # Local
     'api',
@@ -138,7 +136,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-# ─── SimpleJWT Configuration ───────────────────────────────────────────────────
+# ─── SimpleJWT Configuration ─────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
@@ -152,60 +150,23 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-# ─── CORS Configuration ───────────────────────────────────────────────────────────
+# ─── CORS Configuration ──────────────────────────────────────────────────────
+# Development: allow all origins (Android emulator, physical devices, Postman)
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# ─── Internationalization ────────────────────────────────────────────────────────────
+# ─── Internationalization ────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ─── Static Files ────────────────────────────────────────────────────────────────
+# ─── Static & Media Files ────────────────────────────────────────────────────
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# ─── Cloudinary Persistent Media Storage ──────────────────────────────────────────
-# On Render, the filesystem is ephemeral — every deploy wipes uploaded files.
-# Cloudinary provides permanent cloud storage for all user-uploaded media.
-#
-# Setup (Render Dashboard → Environment):
-#   CLOUDINARY_CLOUD_NAME  — from Cloudinary Dashboard → Settings → API Keys
-#   CLOUDINARY_API_KEY     — from Cloudinary Dashboard → Settings → API Keys
-#   CLOUDINARY_API_SECRET  — from Cloudinary Dashboard → Settings → API Keys
-#
-# Cloudinary is ONLY activated when ALL THREE credentials are present and non-empty.
-# Safe fallback to local disk if any credential is missing.
-
-_CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
-_CLOUDINARY_API_KEY    = os.environ.get('CLOUDINARY_API_KEY', '').strip()
-_CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
-
-_USE_CLOUDINARY = bool(
-    _CLOUDINARY_CLOUD_NAME and _CLOUDINARY_API_KEY and _CLOUDINARY_API_SECRET
-)
-
-if _USE_CLOUDINARY:
-    import cloudinary
-    cloudinary.config(
-        cloud_name=_CLOUDINARY_CLOUD_NAME,
-        api_key=_CLOUDINARY_API_KEY,
-        api_secret=_CLOUDINARY_API_SECRET,
-        secure=True,
-    )
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': _CLOUDINARY_CLOUD_NAME,
-        'API_KEY':    _CLOUDINARY_API_KEY,
-        'API_SECRET': _CLOUDINARY_API_SECRET,
-    }
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-else:
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Email / Brevo Transactional API ─────────────────────────────────────────
 # OTP emails are dispatched via Brevo's Transactional Email API in daemon
