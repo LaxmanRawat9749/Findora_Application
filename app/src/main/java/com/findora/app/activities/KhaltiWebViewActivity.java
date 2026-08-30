@@ -17,6 +17,7 @@ public class KhaltiWebViewActivity extends BaseActivity {
     public static final String EXTRA_URL = "extra_url";
     public static final String EXTRA_PIDX = "extra_pidx";
     public static final String EXTRA_STATUS = "extra_status";
+    public static final String EXTRA_TITLE = "extra_title";
 
     private ActivityKhaltiWebviewBinding binding;
 
@@ -25,6 +26,12 @@ public class KhaltiWebViewActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityKhaltiWebviewBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        String title = getIntent().getStringExtra(EXTRA_TITLE);
+        if (title == null || title.isEmpty()) {
+            title = "eSewa Checkout";
+        }
+        binding.toolbar.setTitle(title);
 
         binding.toolbar.setNavigationOnClickListener(v -> finishWithResult("User canceled", null));
 

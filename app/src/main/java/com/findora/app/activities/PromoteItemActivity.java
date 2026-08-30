@@ -89,7 +89,7 @@ public class PromoteItemActivity extends BaseActivity {
                     String pidx = response.body().getPidx();
                     
                     if (paymentUrl != null && !paymentUrl.isEmpty()) {
-                        launchKhaltiWebView(paymentUrl, pidx);
+                        launchPaymentWebView(paymentUrl, pidx);
                     } else {
                         Toast.makeText(PromoteItemActivity.this, "Failed to get payment URL", Toast.LENGTH_SHORT).show();
                     }
@@ -133,10 +133,10 @@ public class PromoteItemActivity extends BaseActivity {
         });
     }
 
-    private void launchKhaltiWebView(String paymentUrl, String pidx) {
+    private void launchPaymentWebView(String paymentUrl, String pidx) {
         Intent intent = new Intent(this, KhaltiWebViewActivity.class);
         intent.putExtra(KhaltiWebViewActivity.EXTRA_URL, paymentUrl);
-        // Request code 1001 for Khalti callback
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_TITLE, "eSewa Checkout");
         startActivityForResult(intent, 1001);
     }
 

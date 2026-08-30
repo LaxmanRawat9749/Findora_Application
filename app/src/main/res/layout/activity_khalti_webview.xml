@@ -17,7 +17,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:navigationIconTint="@color/text_dark"
-            app:title="Khalti Checkout"
+            app:title="eSewa Checkout"
             app:titleTextColor="@color/text_dark" />
 
         <ProgressBar
