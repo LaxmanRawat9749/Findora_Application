@@ -84,6 +84,7 @@ public class SearchActivity extends BaseActivity {
             clearSearchFocus();
             Intent intent = new Intent(SearchActivity.this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
+            intent.putExtra("extra_item", item);
             startActivity(intent);
         });
         binding.rvSearchItems.setLayoutManager(new LinearLayoutManager(this));

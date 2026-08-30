@@ -127,13 +127,27 @@ public class ItemDetailActivity extends BaseActivity {
             }
         });
 
+        if (getIntent().hasExtra("extra_item")) {
+            try {
+                currentItem = (Item) getIntent().getSerializableExtra("extra_item");
+            } catch (Exception ignored) {}
+        }
+
+        if (currentItem != null) {
+            displayItem(currentItem);
+            binding.scrollContent.setVisibility(View.VISIBLE);
+            binding.progressBar.setVisibility(View.GONE);
+        }
+
         loadItemDetail();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadItemDetail();
+        if (currentItem != null) {
+            loadItemDetail();
+        }
     }
 
     private void loadItemDetail() {
@@ -141,7 +155,10 @@ public class ItemDetailActivity extends BaseActivity {
             binding.progressBar.setVisibility(View.VISIBLE);
         }
 
-        if (itemDetailCall != null) itemDetailCall.cancel();
+        if (itemDetailCall != null && !itemDetailCall.isExecuted() && !itemDetailCall.isCanceled()) {
+            return;
+        }
+
         itemDetailCall = apiService.getItemDetail(itemId);
         itemDetailCall.enqueue(new Callback<Item>() {
             @Override

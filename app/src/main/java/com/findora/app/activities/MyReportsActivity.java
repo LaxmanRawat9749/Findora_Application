@@ -56,6 +56,7 @@ public class MyReportsActivity extends BaseActivity {
         adapter = new ItemAdapter(this, true, item -> {
             Intent intent = new Intent(this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
+            intent.putExtra("extra_item", item);
             startActivity(intent);
         });
 

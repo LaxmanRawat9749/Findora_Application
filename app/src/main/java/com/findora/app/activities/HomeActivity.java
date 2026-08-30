@@ -198,6 +198,7 @@ public class HomeActivity extends BaseActivity {
             clearSearchFocus();
             Intent intent = new Intent(HomeActivity.this, ItemDetailActivity.class);
             intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
+            intent.putExtra("extra_item", item);
             startActivity(intent);
         });
         binding.rvItems.setLayoutManager(new LinearLayoutManager(this));
@@ -226,9 +227,10 @@ public class HomeActivity extends BaseActivity {
             } else if (checkedId == R.id.chipFound) {
                 currentType = "found";
             }
-            // Clear search when switching tabs
-            binding.etHomeSearch.setText("");
-            currentSearch = "";
+            if (currentSearch != null && !currentSearch.isEmpty()) {
+                binding.etHomeSearch.setText("");
+                currentSearch = "";
+            }
             clearSearchFocus();
             if (originalItemList != null && !originalItemList.isEmpty()) {
                 applyFilters();
@@ -250,8 +252,10 @@ public class HomeActivity extends BaseActivity {
                     clearSearchFocus();
                     currentCategory = categoryKey;
                     binding.chipCatAll.setChecked(false);
-                    binding.etHomeSearch.setText("");
-                    currentSearch = "";
+                    if (currentSearch != null && !currentSearch.isEmpty()) {
+                        binding.etHomeSearch.setText("");
+                        currentSearch = "";
+                    }
                     clearSearchFocus();
                     applyFilters();
                 }
@@ -270,8 +274,10 @@ public class HomeActivity extends BaseActivity {
                         ((Chip) child).setChecked(false);
                     }
                 }
-                binding.etHomeSearch.setText("");
-                currentSearch = "";
+                if (currentSearch != null && !currentSearch.isEmpty()) {
+                    binding.etHomeSearch.setText("");
+                    currentSearch = "";
+                }
                 clearSearchFocus();
                 applyFilters();
             }
@@ -416,6 +422,7 @@ public class HomeActivity extends BaseActivity {
             @Override
             public void onResponse(Call<List<Notification>> call, Response<List<Notification>> response) {
                 if (response.isSuccessful() && response.body() != null) {
+                    NotificationsActivity.cachedNotifications = response.body();
                     int unreadCount = 0;
                     for (Notification n : response.body()) {
                         if (!n.isRead()) {

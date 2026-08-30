@@ -21,7 +21,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class NotificationsActivity extends BaseActivity {
-    
+
+    public static List<Notification> cachedNotifications = null;
 
     private ActivityNotificationsBinding binding;
     private ApiService apiService;
@@ -55,18 +56,29 @@ public class NotificationsActivity extends BaseActivity {
         binding.rvNotifications.setLayoutManager(new LinearLayoutManager(this));
         binding.rvNotifications.setAdapter(adapter);
 
-        loadNotifications();
+        if (cachedNotifications != null && !cachedNotifications.isEmpty()) {
+            adapter.setNotifications(cachedNotifications);
+            binding.progressBar.setVisibility(View.GONE);
+            binding.tvEmptyState.setVisibility(View.GONE);
+            loadNotifications(false);
+        } else {
+            loadNotifications(true);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadNotifications();
+        if (cachedNotifications != null && !cachedNotifications.isEmpty()) {
+            loadNotifications(false);
+        }
     }
 
-    private void loadNotifications() {
-        binding.progressBar.setVisibility(View.VISIBLE);
-        binding.tvEmptyState.setVisibility(View.GONE);
+    private void loadNotifications(boolean showProgress) {
+        if (showProgress) {
+            binding.progressBar.setVisibility(View.VISIBLE);
+            binding.tvEmptyState.setVisibility(View.GONE);
+        }
 
         apiService.getNotifications().enqueue(new Callback<List<Notification>>() {
             @Override
@@ -75,11 +87,13 @@ public class NotificationsActivity extends BaseActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     List<Notification> notifications = response.body();
+                    cachedNotifications = notifications;
                     adapter.setNotifications(notifications);
                     binding.tvEmptyState.setVisibility(
                             notifications.isEmpty() ? View.VISIBLE : View.GONE);
-                } else {
-                    adapter.setNotifications(new ArrayList<>());
+                } else if (cachedNotifications == null || cachedNotifications.isEmpty()) {
+                    cachedNotifications = new ArrayList<>();
+                    adapter.setNotifications(cachedNotifications);
                     binding.tvEmptyState.setVisibility(View.VISIBLE);
                 }
             }
@@ -87,8 +101,10 @@ public class NotificationsActivity extends BaseActivity {
             @Override
             public void onFailure(Call<List<Notification>> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
-                Toast.makeText(NotificationsActivity.this,
-                        "Error loading notifications.", Toast.LENGTH_SHORT).show();
+                if (cachedNotifications == null || cachedNotifications.isEmpty()) {
+                    Toast.makeText(NotificationsActivity.this,
+                            "Error loading notifications.", Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -99,8 +115,15 @@ public class NotificationsActivity extends BaseActivity {
         apiService.markNotificationRead(notification.getId()).enqueue(new Callback<MessageResponse>() {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
-                // Silently mark as read — refresh on resume will update state
                 notification.setRead(true);
+                if (cachedNotifications != null) {
+                    for (Notification n : cachedNotifications) {
+                        if (n.getId() == notification.getId()) {
+                            n.setRead(true);
+                            break;
+                        }
+                    }
+                }
                 adapter.notifyDataSetChanged();
             }
 

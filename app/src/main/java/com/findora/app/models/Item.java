@@ -2,9 +2,10 @@ package com.findora.app.models;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class Item {
+public class Item implements Serializable {
     private int id;
     private int user;
     @SerializedName("user_name")

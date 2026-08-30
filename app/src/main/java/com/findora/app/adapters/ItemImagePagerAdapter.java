@@ -39,6 +39,8 @@ public class ItemImagePagerAdapter extends RecyclerView.Adapter<ItemImagePagerAd
         String url = images.get(position).getImageUrl();
         Glide.with(holder.imageView.getContext())
                 .load(url)
+                .thumbnail(0.25f)
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
                 .placeholder(R.color.light_purple)
                 .into(holder.imageView);
 

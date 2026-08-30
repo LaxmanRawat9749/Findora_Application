@@ -2,7 +2,9 @@ package com.findora.app.models;
 
 import com.google.gson.annotations.SerializedName;
 
-public class ItemImage {
+import java.io.Serializable;
+
+public class ItemImage implements Serializable {
     private int id;
     
     @SerializedName("image_url")

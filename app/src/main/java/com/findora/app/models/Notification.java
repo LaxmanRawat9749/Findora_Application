@@ -2,7 +2,9 @@ package com.findora.app.models;
 
 import com.google.gson.annotations.SerializedName;
 
-public class Notification {
+import java.io.Serializable;
+
+public class Notification implements Serializable {
     private int id;
     private int user;
     private String type;
