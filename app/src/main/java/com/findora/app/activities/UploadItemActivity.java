@@ -130,7 +130,7 @@ public class UploadItemActivity extends BaseActivity {
         if (isLost) {
             binding.tvImagesHeader.setText("Item Photo (Optional)");
             binding.tvImagesSubheader.setText("Upload a photo of the item (optional) or describe it below.");
-            binding.tvAddPhotoLabel.setText("Add Photo (Optional, Max 1)");
+            binding.tvAddPhotoLabel.setText("Add Photo");
         } else {
             binding.tvImagesHeader.setText("Item Photo (Required)");
             binding.tvImagesSubheader.setText("Upload 1 photo of the found item to help identification.");
