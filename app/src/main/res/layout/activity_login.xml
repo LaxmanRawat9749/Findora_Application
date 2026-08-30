@@ -123,9 +123,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_medium"
                     android:hint="Password"
-                    app:passwordToggleEnabled="true"
-                    app:startIconDrawable="@drawable/ic_search"
-                    app:startIconTint="@color/text_hint">
+                    app:passwordToggleEnabled="true">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etPassword"
