@@ -247,6 +247,64 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('reward', serializer.errors)
 
+    def test_owner_visibility_and_finder_visibility(self):
+        """
+        Owner A sees only Owner A's items.
+        Owner B sees only Owner B's items.
+        Finder sees ALL lost and found items.
+        """
+        owner_a = User.objects.create_user(
+            username='owner_a', email='owner_a@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        owner_b = User.objects.create_user(
+            username='owner_b', email='owner_b@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        finder_a = User.objects.create_user(
+            username='finder_a', email='finder_a@example.com', password='Password123!', role='finder', is_verified=True
+        )
+
+        item_a = Item.objects.create(
+            user=owner_a, title="Owner A's Wallet", description="Black leather wallet",
+            category="wallet", type="lost", status="approved"
+        )
+        item_b = Item.objects.create(
+            user=owner_b, title="Owner B's Phone", description="Samsung S23",
+            category="phone", type="lost", status="approved"
+        )
+        item_f = Item.objects.create(
+            user=finder_a, title="Finder A's Found Watch", description="Casio watch",
+            category="other", type="found", status="approved"
+        )
+
+        view = ItemListCreateView.as_view()
+
+        # 1. Owner A queries dashboard (/api/items/)
+        req_a = self.factory.get('/api/items/')
+        force_authenticate(req_a, user=owner_a)
+        res_a = view(req_a)
+        item_ids_a = [it['id'] for it in res_a.data]
+        self.assertIn(item_a.id, item_ids_a)
+        self.assertNotIn(item_b.id, item_ids_a)
+        self.assertNotIn(item_f.id, item_ids_a)
+
+        # 2. Owner B queries dashboard (/api/items/)
+        req_b = self.factory.get('/api/items/')
+        force_authenticate(req_b, user=owner_b)
+        res_b = view(req_b)
+        item_ids_b = [it['id'] for it in res_b.data]
+        self.assertIn(item_b.id, item_ids_b)
+        self.assertNotIn(item_a.id, item_ids_b)
+        self.assertNotIn(item_f.id, item_ids_b)
+
+        # 3. Finder queries dashboard (/api/items/)
+        req_f = self.factory.get('/api/items/')
+        force_authenticate(req_f, user=finder_a)
+        res_f = view(req_f)
+        item_ids_f = [it['id'] for it in res_f.data]
+        self.assertIn(item_a.id, item_ids_f)
+        self.assertIn(item_b.id, item_ids_f)
+        self.assertIn(item_f.id, item_ids_f)
+
 
 class ReturnWorkflowAndReputationTests(TestCase):
     def setUp(self):

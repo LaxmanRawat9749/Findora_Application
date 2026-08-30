@@ -624,13 +624,13 @@ class ItemListCreateView(APIView):
         if request.user.role == 'owner':
             matched_found_q = get_matched_found_items_query_for_owner(request.user)
             if item_type == 'lost':
-                queryset = queryset.filter(type='lost')
+                queryset = queryset.filter(user=request.user, type='lost')
             elif item_type == 'found':
                 queryset = queryset.filter(type='found').filter(matched_found_q)
             else:
-                # All tab: Approved lost items + matched found items
+                # All tab: Owner's own lost items + matched found items reported by Finders
                 queryset = queryset.filter(
-                    Q(type='lost') |
+                    (Q(type='lost') & Q(user=request.user)) |
                     (Q(type='found') & matched_found_q)
                 )
         elif request.user.role == 'finder':
