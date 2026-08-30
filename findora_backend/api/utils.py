@@ -321,66 +321,27 @@ STOP_WORDS = {
 
 def get_matched_found_items_query_for_owner(owner_user):
     """
-    Constructs a Django Q filter to match found items relevant to an Owner's
-    reported lost items or explicit associations (claims, conversations, notifications).
+    Constructs a Django Q filter to match found items legitimately associated with an Owner
+    through the application's actual matching, conversation, claim, and notification workflow.
 
     Business rules:
-    1. If the Owner has no reported lost items (and no active conversations/claims),
-       returns an empty filter matching nothing.
-    2. Found items matching any of the Owner's lost items in category and title/keywords/description
-       are matched.
-    3. Direct interactions (conversations, claims) with found items are included.
-    4. Unrelated found items belonging to other categories or titles are excluded.
+    1. Returns found items with explicit direct interactions by this Owner:
+       - Active/existing Conversations where owner=owner_user
+       - Ownership Claims submitted by claimant=owner_user
+       - Notifications delivered to user=owner_user
+    2. Does NOT automatically link unrelated found items to every new owner who submits
+       an item in the same category or with generic title keywords.
     """
     from .models import Item
 
-    owner_lost_items = Item.objects.filter(
-        user=owner_user,
-        type='lost',
-        status='approved'
-    )
-
-    has_lost_items = owner_lost_items.exists()
-
-    # Direct conversation or claim association
+    # Direct conversation, claim, or notification association
     direct_assoc_q = (
         Q(conversations__owner=owner_user) |
         Q(claims__claimant=owner_user) |
-        Q(notifications__user=owner_user, notifications__type='match')
+        Q(notifications__user=owner_user)
     )
 
-    if not has_lost_items:
-        # If no lost items, only direct associations (if any) apply; otherwise none
-        return direct_assoc_q if Item.objects.filter(type='found').filter(direct_assoc_q).exists() else Q(pk__in=[])
-
-    match_q = direct_assoc_q
-
-    for lost_item in owner_lost_items:
-        cat_q = Q(category=lost_item.category)
-
-        # Extract significant words from lost item title
-        raw_words = re.findall(r'\b\w+\b', lost_item.title.lower())
-        keywords = [w for w in raw_words if len(w) > 1 and w not in STOP_WORDS]
-
-        if keywords:
-            kw_q = Q()
-            for kw in keywords:
-                kw_q |= Q(title__icontains=kw) | Q(description__icontains=kw)
-            match_q |= (cat_q & kw_q)
-        else:
-            desc_words = re.findall(r'\b\w+\b', (lost_item.description or '').lower())
-            desc_keywords = [w for w in desc_words if len(w) > 2 and w not in STOP_WORDS]
-            if desc_keywords:
-                kw_q = Q()
-                for kw in desc_keywords:
-                    kw_q |= Q(title__icontains=kw) | Q(description__icontains=kw)
-                match_q |= (cat_q & kw_q)
-            else:
-                title_trimmed = lost_item.title.strip()
-                if title_trimmed:
-                    match_q |= (cat_q & (Q(title__icontains=title_trimmed) | Q(description__icontains=title_trimmed)))
-
-    return match_q
+    return direct_assoc_q
 
 
 def is_found_item_matched_for_owner(found_item, owner_user):

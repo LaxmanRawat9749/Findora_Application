@@ -496,9 +496,12 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         self.lost_phone = Item.objects.create(
             user=self.owner, type='lost', title='Black iPhone 13 Pro', category='phone', status='approved'
         )
-        # Iron found an iPhone
+        # Iron found an iPhone and established contact with Thor
         self.matched_found_phone = Item.objects.create(
             user=self.finder, type='found', title='Found iPhone 13 in Park', category='phone', status='approved'
+        )
+        Conversation.objects.create(
+            item=self.matched_found_phone, owner=self.owner, finder=self.finder
         )
         # Iron found unrelated sunglasses
         self.unmatched_found_glasses = Item.objects.create(
@@ -1108,26 +1111,29 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
             category='electronics', type='found', status='approved'
         )
 
-        # Owner has only a pending lost item
+        # Owner has only a pending lost item and an established match notification
         pending_item = Item.objects.create(
             user=self.owner, title='Lost Sony Headphones', description='Black WH-1000XM4',
             category='electronics', type='lost', status='pending'
         )
+        Notification.objects.create(
+            user=self.owner, related_item=found_item, type='match', message='Possible match found!'
+        )
 
         view = ItemListCreateView.as_view()
 
-        # Before approval: Owner does NOT see the matched found item
+        # Before approval: Owner does NOT see their own pending item on the dashboard
         req1 = self.factory.get('/api/items/')
         force_authenticate(req1, user=self.owner)
         res1 = view(req1)
         ids1 = [it['id'] for it in res1.data]
-        self.assertNotIn(found_item.id, ids1)
+        self.assertNotIn(pending_item.id, ids1)
 
         # Admin approves the lost item
         pending_item.status = 'approved'
         pending_item.save()
 
-        # After approval: Owner now discovers the matched found item
+        # After approval: Owner sees both their approved lost item and the matched found item
         req2 = self.factory.get('/api/items/')
         force_authenticate(req2, user=self.owner)
         res2 = view(req2)
@@ -1340,12 +1346,125 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
         found_item.refresh_from_db()
         self.assertEqual(found_item.status, 'approved')
 
-        # 6. After approval: Found item is visible on Finder dashboard and matched Owner dashboard
+        # 6. After approval: Found item is visible on Finder dashboard
         res_f_after = items_view(req_f)
         self.assertIn(found_id, [it['id'] for it in res_f_after.data])
 
+        # Owner does NOT automatically receive the found item just because category is 'wallet'
         res_o_after = items_view(req_o)
-        self.assertIn(found_id, [it['id'] for it in res_o_after.data])
+        self.assertNotIn(found_id, [it['id'] for it in res_o_after.data])
+
+        # 7. When a conversation/match is established between Finder and Owner, Found item becomes visible to Owner
+        Conversation.objects.create(item=found_item, owner=self.owner, finder=self.finder)
+        res_o_matched = items_view(req_o)
+        self.assertIn(found_id, [it['id'] for it in res_o_matched.data])
+
+
+class CrossUserFoundItemIndependenceTests(TestCase):
+    """
+    Verifies that a Found item reported by Finder1 and approved by Admin
+    does NOT cross-contaminate or automatically appear on the dashboard of Owner2
+    who reports a new Lost item in the same category or with similar keywords.
+    """
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner1 = User.objects.create_user(
+            username='owner_one', email='owner1@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.owner2 = User.objects.create_user(
+            username='owner_two', email='owner2@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder1 = User.objects.create_user(
+            username='finder_one', email='finder1@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.admin = User.objects.create_user(
+            username='admin_boss', email='admin_boss@example.com', password='Password123!', role='admin', is_staff=True, is_superuser=True, is_verified=True
+        )
+
+    def test_owner2_lost_laptop_does_not_see_finder1_found_laptop_in_same_category(self):
+        """
+        1. Owner1 reports Lost Laptop (Electronics) -> Approved.
+        2. Finder1 reports Found Laptop (Electronics) -> Approved.
+        3. Owner1 and Finder1 establish conversation -> Owner1 sees Finder1's Found Laptop.
+        4. Owner2 reports another Lost Laptop (Electronics) -> Approved.
+        5. Owner2's dashboard shows ONLY Owner2's Lost Laptop and NOT Finder1's Found Laptop.
+        """
+        items_view = ItemListCreateView.as_view()
+
+        # Step 1: Owner1 Lost Laptop
+        lost1 = Item.objects.create(
+            user=self.owner1, type='lost', title='Lost Dell XPS Laptop', category='electronics', status='approved'
+        )
+
+        # Step 2: Finder1 Found Laptop
+        found1 = Item.objects.create(
+            user=self.finder1, type='found', title='Found Dell XPS Laptop', category='electronics', status='approved'
+        )
+
+        # Step 3: Owner1 connects with Finder1
+        Conversation.objects.create(item=found1, owner=self.owner1, finder=self.finder1)
+
+        # Owner1 dashboard: sees own Lost Laptop and matched Found Laptop
+        req_o1 = self.factory.get('/api/items/')
+        force_authenticate(req_o1, user=self.owner1)
+        res_o1 = items_view(req_o1)
+        o1_ids = [it['id'] for it in res_o1.data]
+        self.assertIn(lost1.id, o1_ids)
+        self.assertIn(found1.id, o1_ids)
+
+        # Step 4: Owner2 reports another Lost Laptop (Category: Electronics)
+        lost2 = Item.objects.create(
+            user=self.owner2, type='lost', title='Lost Lenovo ThinkPad Laptop', category='electronics', status='approved'
+        )
+
+        # Step 5: Owner2 dashboard: shows ONLY Owner2's Lost Laptop, NOT Finder1's Found Laptop
+        req_o2 = self.factory.get('/api/items/')
+        force_authenticate(req_o2, user=self.owner2)
+        res_o2 = items_view(req_o2)
+        o2_ids = [it['id'] for it in res_o2.data]
+        self.assertIn(lost2.id, o2_ids)
+        self.assertNotIn(found1.id, o2_ids)
+        self.assertNotIn(lost1.id, o2_ids)
+
+        # Finder1 dashboard: sees all approved lost and found items
+        req_f1 = self.factory.get('/api/items/')
+        force_authenticate(req_f1, user=self.finder1)
+        res_f1 = items_view(req_f1)
+        f1_ids = [it['id'] for it in res_f1.data]
+        self.assertIn(lost1.id, f1_ids)
+        self.assertIn(found1.id, f1_ids)
+        self.assertIn(lost2.id, f1_ids)
+
+    def test_cross_category_and_multi_owner_isolation(self):
+        """
+        Tests across multiple categories (Wallet, Phone, Keys) ensuring no cross-contamination.
+        """
+        items_view = ItemListCreateView.as_view()
+
+        # Phone category
+        lost_phone_o1 = Item.objects.create(
+            user=self.owner1, type='lost', title='Lost iPhone 14', category='phone', status='approved'
+        )
+        found_phone_f1 = Item.objects.create(
+            user=self.finder1, type='found', title='Found iPhone 14', category='phone', status='approved'
+        )
+        Notification.objects.create(user=self.owner1, related_item=found_phone_f1, type='match')
+
+        # Owner2 lost phone in same category
+        lost_phone_o2 = Item.objects.create(
+            user=self.owner2, type='lost', title='Lost Samsung Phone', category='phone', status='approved'
+        )
+
+        req_o2 = self.factory.get('/api/items/')
+        force_authenticate(req_o2, user=self.owner2)
+        res_o2 = items_view(req_o2)
+        o2_ids = [it['id'] for it in res_o2.data]
+
+        self.assertIn(lost_phone_o2.id, o2_ids)
+        self.assertNotIn(found_phone_f1.id, o2_ids)
+        self.assertNotIn(lost_phone_o1.id, o2_ids)
+
 
 
 
