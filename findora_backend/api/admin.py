@@ -567,6 +567,11 @@ class FinderReputationAdmin(admin.ModelAdmin):
         }),
     )
 
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['title'] = 'Finder Rating & Reputation'
+        return super().changelist_view(request, extra_context=extra_context)
+
     def has_add_permission(self, request):
         """Reputations are generated and updated automatically by Findora services."""
         return False
