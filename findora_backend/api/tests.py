@@ -855,5 +855,122 @@ class OwnerFinderChatCommunicationTests(TestCase):
         self.assertEqual(res_get.data[0]['message'], 'Hi!')
 
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+class OwnerReportItemImageAndMatchingIndependenceTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.finder = User.objects.create_user(
+            username='finder_user', email='finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.owner_a = User.objects.create_user(
+            username='owner_a', email='ownera@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.owner_b = User.objects.create_user(
+            username='owner_b', email='ownerb@example.com', password='Password123!', role='owner', is_verified=True
+        )
+
+    def test_new_owner_reports_laptop_when_found_laptop_exists(self):
+        """
+        When Finder has reported a Found Laptop with Photo A (approved),
+        and Owner B reports a Lost Laptop with Photo B:
+        - Owner B's item is created with its own record and Photo B
+        - Owner B's item remains 'lost' with status 'pending' (NOT converted to found)
+        - Owner B's GET /api/items/ returns Owner B's Lost Laptop (Photo B)
+        - Finder's Found Laptop (Photo A) remains a completely separate record
+        """
+        # 1. Finder reports Found Laptop with Photo A (status approved)
+        photo_a = SimpleUploadedFile("laptop_a.jpg", b"photo_a_bytes", content_type="image/jpeg")
+        found_item = Item.objects.create(
+            user=self.finder,
+            type='found',
+            title='Found Silver Laptop',
+            description='Found Dell laptop near library',
+            category='electronics',
+            status='approved',
+            image=photo_a
+        )
+
+        # 2. Owner B reports Lost Laptop with Photo B
+        photo_b = SimpleUploadedFile("laptop_b.jpg", b"photo_b_bytes", content_type="image/jpeg")
+        view = ItemListCreateView.as_view()
+        req_create = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Lost ThinkPad Laptop',
+            'description': 'Black ThinkPad lost in cafe',
+            'category': 'electronics',
+            'location': 'Central Cafe',
+            'images': [photo_b]
+        }, format='multipart')
+        force_authenticate(req_create, user=self.owner_b)
+        res_create = view(req_create)
+
+        self.assertEqual(res_create.status_code, 201)
+        owner_b_item_id = res_create.data['id']
+        self.assertNotEqual(owner_b_item_id, found_item.id)
+        self.assertEqual(res_create.data['type'], 'lost')
+        self.assertEqual(res_create.data['status'], 'pending')
+        self.assertTrue('laptop_b' in res_create.data['image_url'] or (res_create.data['images'] and 'laptop_b' in res_create.data['images'][0]['image_url']))
+
+        # 3. Owner B fetches items (Home screen)
+        req_list = self.factory.get('/api/items/')
+        force_authenticate(req_list, user=self.owner_b)
+        res_list = view(req_list)
+        self.assertEqual(res_list.status_code, 200)
+
+        # Owner B must see their own newly reported lost item
+        item_ids = [item['id'] for item in res_list.data]
+        self.assertIn(owner_b_item_id, item_ids)
+
+        owner_b_item_data = next(item for item in res_list.data if item['id'] == owner_b_item_id)
+        self.assertEqual(owner_b_item_data['type'], 'lost')
+        self.assertEqual(owner_b_item_data['user'], self.owner_b.id)
+        self.assertTrue('laptop_b' in owner_b_item_data['image_url'] or (owner_b_item_data['images'] and 'laptop_b' in owner_b_item_data['images'][0]['image_url']))
+
+        # Found item remains separate
+        found_item_db = Item.objects.get(id=found_item.id)
+        self.assertEqual(found_item_db.type, 'found')
+        self.assertEqual(found_item_db.user, self.finder)
+
+    def test_multiple_owners_reporting_same_category_retain_separate_photos(self):
+        """
+        Owner A reports Wallet + Photo A.
+        Owner B reports Wallet + Photo B.
+        Both retain distinct records, images, and lost status.
+        """
+        view = ItemListCreateView.as_view()
+
+        photo_a = SimpleUploadedFile("wallet_a.jpg", b"wallet_a_bytes", content_type="image/jpeg")
+        req_a = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Brown Leather Wallet',
+            'description': 'Lost with credit cards',
+            'category': 'wallet',
+            'location': 'Bus Stand',
+            'images': [photo_a]
+        }, format='multipart')
+        force_authenticate(req_a, user=self.owner_a)
+        res_a = view(req_a)
+        self.assertEqual(res_a.status_code, 201)
+
+        photo_b = SimpleUploadedFile("wallet_b.jpg", b"wallet_b_bytes", content_type="image/jpeg")
+        req_b = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Black Slim Wallet',
+            'description': 'Lost near food court',
+            'category': 'wallet',
+            'location': 'Mall',
+            'images': [photo_b]
+        }, format='multipart')
+        force_authenticate(req_b, user=self.owner_b)
+        res_b = view(req_b)
+        self.assertEqual(res_b.status_code, 201)
+
+        self.assertNotEqual(res_a.data['id'], res_b.data['id'])
+        self.assertTrue('wallet_a' in (res_a.data['image_url'] or res_a.data['images'][0]['image_url']))
+        self.assertTrue('wallet_b' in (res_b.data['image_url'] or res_b.data['images'][0]['image_url']))
+
+
+
 
 

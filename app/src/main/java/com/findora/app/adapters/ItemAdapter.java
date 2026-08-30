@@ -83,6 +83,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                     && equals(oldItem.getStatus(), newItem.getStatus())
                     && equals(oldItem.getType(), newItem.getType())
                     && equals(oldItem.getCategory(), newItem.getCategory())
+                    && equals(oldItem.getImageUrl(), newItem.getImageUrl())
+                    && equals(oldItem.getImage(), newItem.getImage())
                     && oldItem.getReward() == newItem.getReward()
                     && oldItem.isFeatured() == newItem.isFeatured()
                     && oldItem.isFinderReturnedConfirm() == newItem.isFinderReturnedConfirm()

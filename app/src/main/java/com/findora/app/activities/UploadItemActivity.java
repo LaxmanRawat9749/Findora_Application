@@ -231,7 +231,8 @@ public class UploadItemActivity extends BaseActivity {
             return;
         }
         try {
-            File photoFile = File.createTempFile("JPEG_" + System.currentTimeMillis() + "_", ".jpg", getExternalCacheDir());
+            File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
+            File photoFile = File.createTempFile("JPEG_" + System.currentTimeMillis() + "_", ".jpg", cacheDir);
             currentPhotoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".fileprovider", photoFile);
             takePictureLauncher.launch(currentPhotoUri);
         } catch (Exception e) {
@@ -309,6 +310,10 @@ public class UploadItemActivity extends BaseActivity {
                 RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
                 MultipartBody.Part body = MultipartBody.Part.createFormData("images", file.getName(), requestFile);
                 imageParts.add(body);
+            } else {
+                setLoading(false);
+                Toast.makeText(this, "Failed to process selected image. Please re-select the photo.", Toast.LENGTH_SHORT).show();
+                return;
             }
         }
 
@@ -334,37 +339,83 @@ public class UploadItemActivity extends BaseActivity {
 
     private File compressImage(Uri uri) {
         try {
+            // First decode with inJustDecodeBounds to check dimensions
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            InputStream boundsInput = getContentResolver().openInputStream(uri);
+            if (boundsInput == null) return null;
+            BitmapFactory.decodeStream(boundsInput, null, options);
+            boundsInput.close();
+
+            int rawWidth = options.outWidth;
+            int rawHeight = options.outHeight;
+            if (rawWidth <= 0 || rawHeight <= 0) {
+                return null;
+            }
+
+            int inSampleSize = 1;
+            int maxDim = Math.max(rawWidth, rawHeight);
+            while (maxDim / inSampleSize > 1920) {
+                inSampleSize *= 2;
+            }
+
+            // Decode actual bitmap with sample size and memory efficient config
+            BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
+            decodeOptions.inSampleSize = inSampleSize;
+            decodeOptions.inPreferredConfig = Bitmap.Config.RGB_565;
+
             InputStream input = getContentResolver().openInputStream(uri);
-            Bitmap bitmap = BitmapFactory.decodeStream(input);
+            if (input == null) return null;
+            Bitmap bitmap = BitmapFactory.decodeStream(input, null, decodeOptions);
             input.close();
 
-            // Handle rotation
-            InputStream exifInput = getContentResolver().openInputStream(uri);
-            ExifInterface exif = new ExifInterface(exifInput);
-            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            if (bitmap == null) return null;
+
+            // Handle rotation safely
+            int orientation = ExifInterface.ORIENTATION_NORMAL;
+            try {
+                InputStream exifInput = getContentResolver().openInputStream(uri);
+                if (exifInput != null) {
+                    ExifInterface exif = new ExifInterface(exifInput);
+                    orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                    exifInput.close();
+                }
+            } catch (Throwable ignored) {}
+
             Matrix matrix = new Matrix();
             if (orientation == ExifInterface.ORIENTATION_ROTATE_90) matrix.postRotate(90);
             else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) matrix.postRotate(180);
             else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) matrix.postRotate(270);
-            exifInput.close();
-            
-            bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
 
-            // Resize if too large (max 1920x1920)
-            int maxDim = Math.max(bitmap.getWidth(), bitmap.getHeight());
-            if (maxDim > 1920) {
-                float scale = 1920f / maxDim;
-                bitmap = Bitmap.createScaledBitmap(bitmap, (int)(bitmap.getWidth() * scale), (int)(bitmap.getHeight() * scale), true);
+            if (orientation != ExifInterface.ORIENTATION_NORMAL && orientation != ExifInterface.ORIENTATION_UNDEFINED) {
+                Bitmap rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                if (rotated != bitmap) {
+                    bitmap.recycle();
+                    bitmap = rotated;
+                }
             }
 
-            File file = new File(getExternalCacheDir(), "compressed_" + System.currentTimeMillis() + ".jpg");
+            // Final resize if still above 1920 after rotation/sampling
+            int curMax = Math.max(bitmap.getWidth(), bitmap.getHeight());
+            if (curMax > 1920) {
+                float scale = 1920f / curMax;
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, (int)(bitmap.getWidth() * scale), (int)(bitmap.getHeight() * scale), true);
+                if (scaled != bitmap) {
+                    bitmap.recycle();
+                    bitmap = scaled;
+                }
+            }
+
+            File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
+            File file = new File(cacheDir, "compressed_" + System.currentTimeMillis() + ".jpg");
             FileOutputStream fos = new FileOutputStream(file);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos); // 80% quality
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, fos);
             fos.flush();
             fos.close();
+            bitmap.recycle();
             return file;
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
         return null;
     }

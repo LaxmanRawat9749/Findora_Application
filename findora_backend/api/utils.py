@@ -327,7 +327,7 @@ def get_matched_found_items_query_for_owner(owner_user):
     Business rules:
     1. If the Owner has no reported lost items (and no active conversations/claims),
        returns an empty filter matching nothing.
-    2. Found items matching any of the Owner's lost items in category and title/keywords
+    2. Found items matching any of the Owner's lost items in category and title/keywords/description
        are matched.
     3. Direct interactions (conversations, claims) with found items are included.
     4. Unrelated found items belonging to other categories or titles are excluded.
@@ -367,7 +367,17 @@ def get_matched_found_items_query_for_owner(owner_user):
                 kw_q |= Q(title__icontains=kw) | Q(description__icontains=kw)
             match_q |= (cat_q & kw_q)
         else:
-            match_q |= cat_q
+            desc_words = re.findall(r'\b\w+\b', (lost_item.description or '').lower())
+            desc_keywords = [w for w in desc_words if len(w) > 2 and w not in STOP_WORDS]
+            if desc_keywords:
+                kw_q = Q()
+                for kw in desc_keywords:
+                    kw_q |= Q(title__icontains=kw) | Q(description__icontains=kw)
+                match_q |= (cat_q & kw_q)
+            else:
+                title_trimmed = lost_item.title.strip()
+                if title_trimmed:
+                    match_q |= (cat_q & (Q(title__icontains=title_trimmed) | Q(description__icontains=title_trimmed)))
 
     return match_q
 
@@ -388,7 +398,7 @@ def is_found_item_matched_for_owner(found_item, owner_user):
 def get_or_create_matched_conversation(item, request_user):
     """
     Resolves or creates the canonical conversation between an Owner and a Finder
-    for an item transaction.
+    for a specific item transaction.
 
     Business rules:
     1. A user cannot initiate a conversation with themselves on their own report.
@@ -396,9 +406,8 @@ def get_or_create_matched_conversation(item, request_user):
        - If item is 'lost': owner_user = item.user, finder_user = request_user
        - If item is 'found': owner_user = request_user, finder_user = item.user
     3. Lookups prioritize any existing active conversation between (owner_user, finder_user)
-       that matches the item or its counterpart category, preferring conversations with messages.
-    4. If no conversation exists at all between the participants for this context,
-       creates exactly ONE new Conversation record.
+       for this specific item.
+    4. If no conversation exists for this item, creates exactly ONE new Conversation record.
     """
     from .models import Conversation
     from django.db.models import Q, Count, Max
@@ -423,30 +432,25 @@ def get_or_create_matched_conversation(item, request_user):
         owner_user = request_user
         finder_user = item.user
 
-    # 1. Look for existing conversation between this exact owner and finder on this item or matching category
-    existing_convs = Conversation.objects.filter(
+    # 1. Look for existing conversation on this exact item
+    conv = Conversation.objects.filter(
+        item=item,
         owner=owner_user,
         finder=finder_user
-    ).filter(
-        Q(item=item) | Q(item__category=item.category)
-    ).annotate(
-        msg_count=Count('messages'),
-        last_msg_time=Max('messages__sent_at')
-    ).order_by('-msg_count', '-last_msg_time', '-created_at')
+    ).first()
 
-    conv = existing_convs.first()
-
-    # 2. Fallback: Any conversation between this exact owner and finder
+    # 2. If not found on this item, look for a conversation on the counterpart item between the same owner and finder in the matching category
     if not conv:
-        conv = Conversation.objects.filter(
+        counterpart_convs = Conversation.objects.filter(
             owner=owner_user,
-            finder=finder_user
+            finder=finder_user,
+            item__category=item.category
         ).annotate(
             msg_count=Count('messages'),
             last_msg_time=Max('messages__sent_at')
-        ).order_by('-msg_count', '-last_msg_time', '-created_at').first()
+        ).order_by('-msg_count', '-last_msg_time', '-created_at')
+        conv = counterpart_convs.first()
 
-    # 3. If none exists, create exactly one new Conversation
     if not conv:
         conv = Conversation.objects.create(
             item=item,

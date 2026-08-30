@@ -615,7 +615,7 @@ class ItemListCreateView(APIView):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
-        queryset = Item.objects.filter(status='approved').select_related('user').prefetch_related('images')
+        queryset = Item.objects.select_related('user').prefetch_related('images')
 
         item_type = request.query_params.get('type', '').strip()
         search = request.query_params.get('search', '').strip()
@@ -623,27 +623,31 @@ class ItemListCreateView(APIView):
         # Role-based visibility rules
         if request.user.role == 'owner':
             matched_found_q = get_matched_found_items_query_for_owner(request.user)
+            owner_own_lost = Q(user=request.user, type='lost') & ~Q(status='rejected')
+            matched_found = Q(type='found', status='approved') & matched_found_q
             if item_type == 'lost':
-                queryset = queryset.filter(user=request.user, type='lost')
+                queryset = queryset.filter(owner_own_lost)
             elif item_type == 'found':
-                queryset = queryset.filter(type='found').filter(matched_found_q)
+                queryset = queryset.filter(matched_found)
             else:
                 # All tab: Owner's own lost items + matched found items reported by Finders
-                queryset = queryset.filter(
-                    (Q(type='lost') & Q(user=request.user)) |
-                    (Q(type='found') & matched_found_q)
-                )
+                queryset = queryset.filter(owner_own_lost | matched_found)
         elif request.user.role == 'finder':
+            finder_own_found = Q(user=request.user, type='found') & ~Q(status='rejected')
+            approved_found = Q(type='found', status='approved')
+            approved_lost = Q(type='lost', status='approved')
             if item_type == 'found':
-                queryset = queryset.filter(type='found')
+                queryset = queryset.filter(finder_own_found | approved_found)
             elif item_type == 'lost':
-                queryset = queryset.filter(type='lost')
+                queryset = queryset.filter(approved_lost)
             else:
-                queryset = queryset.filter(Q(type='lost') | Q(type='found'))
+                queryset = queryset.filter(finder_own_found | approved_found | approved_lost)
         else:
             # Fallback for admins
             if item_type:
                 queryset = queryset.filter(type=item_type)
+            else:
+                queryset = queryset.filter(status='approved')
 
         now = timezone.now()
         
@@ -721,6 +725,8 @@ class ItemListCreateView(APIView):
                 if i == 0 and not item.image:
                     item.image = img
                     item.save(update_fields=['image'])
+                if hasattr(img, 'seek'):
+                    img.seek(0)
                 ItemImage.objects.create(item=item, image=img)
                 
             # Award points for reporting a found item
