@@ -330,21 +330,32 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         req_found = self.factory.post('/api/payments/initiate/', {
             'item_id': found_item.id,
             'package': '24h',
-            'provider': 'khalti'
+            'provider': 'esewa'
         })
         force_authenticate(req_found, user=finder)
         res_found = view(req_found)
         self.assertEqual(res_found.status_code, 400)
         self.assertEqual(res_found.data['error'], 'Only lost items can be promoted.')
 
-        # 2. Owner promotes Lost Item -> Accepted and initiated
-        with patch('api.payment_views.InitiatePaymentView._initiate_khalti') as mock_khalti:
+        # 2. Owner attempts to promote with Khalti -> 400 'Only eSewa is supported for item promotion.'
+        req_khalti = self.factory.post('/api/payments/initiate/', {
+            'item_id': lost_item.id,
+            'package': '24h',
+            'provider': 'khalti'
+        })
+        force_authenticate(req_khalti, user=owner)
+        res_khalti = view(req_khalti)
+        self.assertEqual(res_khalti.status_code, 400)
+        self.assertEqual(res_khalti.data['error'], 'Only eSewa is supported for item promotion.')
+
+        # 3. Owner promotes Lost Item with eSewa -> Accepted and initiated
+        with patch('api.payment_views.InitiatePaymentView._initiate_esewa') as mock_esewa:
             from rest_framework.response import Response
-            mock_khalti.return_value = Response({'payment_url': 'https://test.khalti.com/pay', 'pidx': 'test_pidx'})
+            mock_esewa.return_value = Response({'payment_url': 'https://test.esewa.com/pay', 'pidx': 'test_pidx'})
             req_lost = self.factory.post('/api/payments/initiate/', {
                 'item_id': lost_item.id,
                 'package': '24h',
-                'provider': 'khalti'
+                'provider': 'esewa'
             })
             force_authenticate(req_lost, user=owner)
             res_lost = view(req_lost)

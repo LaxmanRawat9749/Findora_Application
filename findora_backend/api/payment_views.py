@@ -60,9 +60,9 @@ class InitiatePaymentView(APIView):
         if not package_info:
             return Response({'error': 'Invalid promotion package.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        provider = request.data.get('provider', 'khalti').lower()
-        if provider not in ['khalti', 'esewa']:
-            return Response({'error': 'Invalid payment provider.'}, status=status.HTTP_400_BAD_REQUEST)
+        provider = request.data.get('provider', 'esewa').lower()
+        if provider != 'esewa':
+            return Response({'error': 'Only eSewa is supported for item promotion.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if already active featured
         now = timezone.now()

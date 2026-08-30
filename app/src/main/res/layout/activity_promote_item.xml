@@ -88,7 +88,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="Select Payment Method"
+                android:text="Payment Method"
                 android:textColor="@color/text_dark"
                 android:textSize="20sp"
                 android:fontFamily="sans-serif-black" />
@@ -97,24 +97,14 @@
                 android:id="@+id/rg_providers"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/rb_khalti"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:padding="16dp"
-                    android:text="Khalti"
-                    android:textSize="16sp" />
+                android:layout_marginTop="16dp">
 
                 <com.google.android.material.radiobutton.MaterialRadioButton
                     android:id="@+id/rb_esewa"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:padding="16dp"
+                    android:checked="true"
                     android:text="eSewa"
                     android:textSize="16sp" />
             </RadioGroup>

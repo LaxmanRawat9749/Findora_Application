@@ -53,10 +53,10 @@ public class PromoteItemActivity extends BaseActivity {
             }
         });
 
+        selectedProvider = "esewa";
+
         binding.rgProviders.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rb_khalti) {
-                selectedProvider = "khalti";
-            } else if (checkedId == R.id.rb_esewa) {
+            if (checkedId == R.id.rb_esewa) {
                 selectedProvider = "esewa";
             }
         });
@@ -67,8 +67,7 @@ public class PromoteItemActivity extends BaseActivity {
                 return;
             }
             if (selectedProvider.isEmpty()) {
-                Toast.makeText(this, "Please select a payment method", Toast.LENGTH_SHORT).show();
-                return;
+                selectedProvider = "esewa";
             }
             initiatePayment();
         });
@@ -92,7 +91,7 @@ public class PromoteItemActivity extends BaseActivity {
                     if (paymentUrl != null && !paymentUrl.isEmpty()) {
                         launchKhaltiWebView(paymentUrl, pidx);
                     } else {
-                        Toast.makeText(PromoteItemActivity.this, "Failed to get Khalti payment URL", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(PromoteItemActivity.this, "Failed to get payment URL", Toast.LENGTH_SHORT).show();
                     }
                 } else {
                     binding.progressBar.setVisibility(View.GONE);
