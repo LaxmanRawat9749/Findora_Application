@@ -671,20 +671,3 @@ admin.site.site_title = 'Findora Admin'
 admin.site.index_title = 'Lost & Found Management System'
 
 
-# ─── Hide SimpleJWT Token Blacklist from Admin ────────────────────────────────
-
-from rest_framework_simplejwt.token_blacklist.models import (
-    BlacklistedToken,
-    OutstandingToken,
-)
-
-try:
-    admin.site.unregister(OutstandingToken)
-except admin.sites.NotRegistered:
-    pass
-
-try:
-    admin.site.unregister(BlacklistedToken)
-except admin.sites.NotRegistered:
-    pass
-
