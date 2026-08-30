@@ -267,7 +267,9 @@ public class ItemDetailActivity extends BaseActivity {
         } else {
             // Check if user is the poster of the item
             if (item.getUser() == baseSessionManager.getUserId()) {
-                if (!item.isFeatured()) {
+                // Promote button only visible for Owner/Lost items (never for Finder/Found items)
+                boolean isLostItem = "lost".equalsIgnoreCase(item.getType());
+                if (isLostItem && !item.isFeatured()) {
                     binding.layoutOwnerActions.setVisibility(View.VISIBLE);
                 } else {
                     binding.layoutOwnerActions.setVisibility(View.GONE);

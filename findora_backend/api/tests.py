@@ -305,6 +305,51 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         self.assertIn(item_b.id, item_ids_f)
         self.assertIn(item_f.id, item_ids_f)
 
+    def test_promote_item_allowed_for_lost_item_forbidden_for_found_item(self):
+        """Owner can initiate promotion for Lost Item, but Found Items cannot be promoted."""
+        from api.payment_views import InitiatePaymentView
+        from unittest.mock import patch
+
+        owner = User.objects.create_user(
+            username='promo_owner', email='promo_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        finder = User.objects.create_user(
+            username='promo_finder', email='promo_finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+
+        lost_item = Item.objects.create(
+            user=owner, title="Lost MacBook", description="M2 Air", category="electronics", type="lost", status="approved"
+        )
+        found_item = Item.objects.create(
+            user=finder, title="Found MacBook", description="M2 Air", category="electronics", type="found", status="approved"
+        )
+
+        view = InitiatePaymentView.as_view()
+
+        # 1. Finder tries to promote Found Item -> 400 'Only lost items can be promoted.'
+        req_found = self.factory.post('/api/payments/initiate/', {
+            'item_id': found_item.id,
+            'package': '24h',
+            'provider': 'khalti'
+        })
+        force_authenticate(req_found, user=finder)
+        res_found = view(req_found)
+        self.assertEqual(res_found.status_code, 400)
+        self.assertEqual(res_found.data['error'], 'Only lost items can be promoted.')
+
+        # 2. Owner promotes Lost Item -> Accepted and initiated
+        with patch('api.payment_views.InitiatePaymentView._initiate_khalti') as mock_khalti:
+            from rest_framework.response import Response
+            mock_khalti.return_value = Response({'payment_url': 'https://test.khalti.com/pay', 'pidx': 'test_pidx'})
+            req_lost = self.factory.post('/api/payments/initiate/', {
+                'item_id': lost_item.id,
+                'package': '24h',
+                'provider': 'khalti'
+            })
+            force_authenticate(req_lost, user=owner)
+            res_lost = view(req_lost)
+            self.assertEqual(res_lost.status_code, 200)
+
 
 class ReturnWorkflowAndReputationTests(TestCase):
     def setUp(self):

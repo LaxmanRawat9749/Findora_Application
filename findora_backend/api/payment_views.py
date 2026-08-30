@@ -53,6 +53,9 @@ class InitiatePaymentView(APIView):
         if item.user != request.user:
             return Response({'error': 'You can only promote your own items.'}, status=status.HTTP_403_FORBIDDEN)
 
+        if item.type != 'lost':
+            return Response({'error': 'Only lost items can be promoted.'}, status=status.HTTP_400_BAD_REQUEST)
+
         package_info = PROMOTION_PACKAGES.get(package_key)
         if not package_info:
             return Response({'error': 'Invalid promotion package.'}, status=status.HTTP_400_BAD_REQUEST)
