@@ -336,8 +336,9 @@ def get_matched_found_items_query_for_owner(owner_user):
 
     owner_lost_items = Item.objects.filter(
         user=owner_user,
-        type='lost'
-    ).exclude(status='rejected')
+        type='lost',
+        status='approved'
+    )
 
     has_lost_items = owner_lost_items.exists()
 

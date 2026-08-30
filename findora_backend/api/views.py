@@ -623,7 +623,7 @@ class ItemListCreateView(APIView):
         # Role-based visibility rules
         if request.user.role == 'owner':
             matched_found_q = get_matched_found_items_query_for_owner(request.user)
-            owner_own_lost = Q(user=request.user, type='lost') & ~Q(status='rejected')
+            owner_own_lost = Q(user=request.user, type='lost', status='approved')
             matched_found = Q(type='found', status='approved') & matched_found_q
             if item_type == 'lost':
                 queryset = queryset.filter(owner_own_lost)

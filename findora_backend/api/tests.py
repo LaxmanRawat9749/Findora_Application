@@ -14,7 +14,8 @@ from api.views import (
     ItemListCreateView, ItemDetailView, MarkItemReturnedView,
     ConfirmItemReturnView, ReputationProfileView, PointHistoryView,
     RateFinderView, RatingStatusView, MyReportsView, RegisterView,
-    ConversationInitView, ChatListView, NotificationListView
+    ConversationInitView, ChatListView, NotificationListView,
+    AdminItemListView, AdminVerifyItemView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -912,13 +913,32 @@ class OwnerReportItemImageAndMatchingIndependenceTests(TestCase):
         self.assertEqual(res_create.data['status'], 'pending')
         self.assertTrue('laptop_b' in res_create.data['image_url'] or (res_create.data['images'] and 'laptop_b' in res_create.data['images'][0]['image_url']))
 
-        # 3. Owner B fetches items (Home screen)
+        # 3. Before approval: Owner B fetches public items (Home screen) -> pending item is NOT visible
+        req_list_before = self.factory.get('/api/items/')
+        force_authenticate(req_list_before, user=self.owner_b)
+        res_list_before = view(req_list_before)
+        self.assertEqual(res_list_before.status_code, 200)
+        item_ids_before = [item['id'] for item in res_list_before.data]
+        self.assertNotIn(owner_b_item_id, item_ids_before)
+
+        # 4. Owner B can see their pending item in private My Reports view
+        my_reports_view = MyReportsView.as_view()
+        req_my_reports = self.factory.get('/api/profile/items/?filter=lost')
+        force_authenticate(req_my_reports, user=self.owner_b)
+        res_my_reports = my_reports_view(req_my_reports)
+        self.assertEqual(res_my_reports.status_code, 200)
+        my_report_ids = [item['id'] for item in res_my_reports.data]
+        self.assertIn(owner_b_item_id, my_report_ids)
+
+        # 5. Admin approves Owner B's item
+        Item.objects.filter(id=owner_b_item_id).update(status='approved')
+
+        # 6. After approval: Owner B fetches items (Home screen) -> approved item is now visible
         req_list = self.factory.get('/api/items/')
         force_authenticate(req_list, user=self.owner_b)
         res_list = view(req_list)
         self.assertEqual(res_list.status_code, 200)
 
-        # Owner B must see their own newly reported lost item
         item_ids = [item['id'] for item in res_list.data]
         self.assertIn(owner_b_item_id, item_ids)
 
@@ -969,6 +989,273 @@ class OwnerReportItemImageAndMatchingIndependenceTests(TestCase):
         self.assertNotEqual(res_a.data['id'], res_b.data['id'])
         self.assertTrue('wallet_a' in (res_a.data['image_url'] or res_a.data['images'][0]['image_url']))
         self.assertTrue('wallet_b' in (res_b.data['image_url'] or res_b.data['images'][0]['image_url']))
+
+
+class LostItemAdminApprovalWorkflowTests(TestCase):
+    """
+    Complete end-to-end verification of the Findora Lost Item approval workflow:
+    1. Owner submits new Lost Item -> saved as Pending
+    2. Pending item does NOT appear in public dashboards / list APIs / search
+    3. Finder cannot see Pending item
+    4. Admin can see Pending item in Admin item list
+    5. Admin changes Pending -> Approved
+    6. Approved item appears normally in dashboards / lists / matching
+    7. Rejected item remains hidden from public lists
+    8. Existing approved items remain visible
+    9. Owner's private My Reports view preserves visibility of their own pending reports
+    10. Detail view permissions enforce privacy of pending items for non-creators
+    """
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='test_owner', email='owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.other_owner = User.objects.create_user(
+            username='other_owner', email='other_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='test_finder', email='finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.admin_user = User.objects.create_user(
+            username='test_admin', email='admin@example.com', password='Password123!', role='admin', is_staff=True, is_superuser=True, is_verified=True
+        )
+
+    def test_owner_submits_lost_item_saved_as_pending(self):
+        """Owner reports a lost item -> saved in database with status='pending'."""
+        view = ItemListCreateView.as_view()
+        req = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Lost Sony Headphones',
+            'description': 'Black WH-1000XM4 lost on bus',
+            'category': 'electronics',
+            'location': 'Bus No. 10',
+            'reward': '500.00'
+        })
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['status'], 'pending')
+
+        item = Item.objects.get(id=res.data['id'])
+        self.assertEqual(item.status, 'pending')
+        self.assertEqual(item.user, self.owner)
+
+    def test_pending_lost_item_hidden_from_public_dashboards_and_lists(self):
+        """
+        Pending lost item must NOT appear in:
+        - Owner's public dashboard (/api/items/)
+        - Finder's public dashboard (/api/items/)
+        - Search results (/api/items/?search=Sony)
+        - Filtered category results (/api/items/?category=electronics)
+        """
+        pending_item = Item.objects.create(
+            user=self.owner, title='Lost Sony Headphones', description='Black WH-1000XM4',
+            category='electronics', type='lost', status='pending', reward=500.00
+        )
+        approved_item = Item.objects.create(
+            user=self.owner, title='Lost Apple Watch', description='Series 8',
+            category='electronics', type='lost', status='approved'
+        )
+
+        view = ItemListCreateView.as_view()
+
+        # 1. Owner's view of /api/items/ (dashboard)
+        req_owner = self.factory.get('/api/items/')
+        force_authenticate(req_owner, user=self.owner)
+        res_owner = view(req_owner)
+        ids_owner = [it['id'] for it in res_owner.data]
+        self.assertNotIn(pending_item.id, ids_owner)
+        self.assertIn(approved_item.id, ids_owner)
+
+        # 2. Finder's view of /api/items/
+        req_finder = self.factory.get('/api/items/')
+        force_authenticate(req_finder, user=self.finder)
+        res_finder = view(req_finder)
+        ids_finder = [it['id'] for it in res_finder.data]
+        self.assertNotIn(pending_item.id, ids_finder)
+        self.assertIn(approved_item.id, ids_finder)
+
+        # 3. Search query
+        req_search = self.factory.get('/api/items/?search=Sony')
+        force_authenticate(req_search, user=self.owner)
+        res_search = view(req_search)
+        ids_search = [it['id'] for it in res_search.data]
+        self.assertNotIn(pending_item.id, ids_search)
+
+    def test_owner_private_my_reports_view_shows_pending_item(self):
+        """Owner can see their own pending item in private My Reports view with 'pending' status."""
+        pending_item = Item.objects.create(
+            user=self.owner, title='Lost Sony Headphones', description='Black WH-1000XM4',
+            category='electronics', type='lost', status='pending'
+        )
+
+        view = MyReportsView.as_view()
+        req = self.factory.get('/api/profile/items/?filter=lost')
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+
+        ids = [it['id'] for it in res.data]
+        self.assertIn(pending_item.id, ids)
+        item_data = next(it for it in res.data if it['id'] == pending_item.id)
+        self.assertEqual(item_data['status'], 'pending')
+
+    def test_pending_item_not_matched_for_discovery_until_approved(self):
+        """Pending lost item must NOT generate discovery matches for found items until approved."""
+        found_item = Item.objects.create(
+            user=self.finder, title='Found Sony Headphones WH-1000XM4', description='Found on bus seat',
+            category='electronics', type='found', status='approved'
+        )
+
+        # Owner has only a pending lost item
+        pending_item = Item.objects.create(
+            user=self.owner, title='Lost Sony Headphones', description='Black WH-1000XM4',
+            category='electronics', type='lost', status='pending'
+        )
+
+        view = ItemListCreateView.as_view()
+
+        # Before approval: Owner does NOT see the matched found item
+        req1 = self.factory.get('/api/items/')
+        force_authenticate(req1, user=self.owner)
+        res1 = view(req1)
+        ids1 = [it['id'] for it in res1.data]
+        self.assertNotIn(found_item.id, ids1)
+
+        # Admin approves the lost item
+        pending_item.status = 'approved'
+        pending_item.save()
+
+        # After approval: Owner now discovers the matched found item
+        req2 = self.factory.get('/api/items/')
+        force_authenticate(req2, user=self.owner)
+        res2 = view(req2)
+        ids2 = [it['id'] for it in res2.data]
+        self.assertIn(found_item.id, ids2)
+        self.assertIn(pending_item.id, ids2)
+
+    def test_admin_review_and_approval_workflow(self):
+        """
+        Admin sees pending items in Admin API.
+        Admin verifies/approves pending item.
+        Item status updates to 'approved', notification is created, and item becomes visible.
+        """
+        pending_item = Item.objects.create(
+            user=self.owner, title='Lost MacBook Air M2', description='Space grey laptop',
+            category='electronics', type='lost', status='pending'
+        )
+
+        # 1. Admin lists pending items
+        admin_list_view = AdminItemListView.as_view()
+        req_list = self.factory.get('/api/admin/items/?status=pending')
+        force_authenticate(req_list, user=self.admin_user)
+        res_list = admin_list_view(req_list)
+        self.assertEqual(res_list.status_code, 200)
+        admin_ids = [it['id'] for it in res_list.data]
+        self.assertIn(pending_item.id, admin_ids)
+
+        # 2. Non-admin cannot access admin verify endpoint
+        verify_view = AdminVerifyItemView.as_view()
+        req_forbidden = self.factory.post(f'/api/admin/items/{pending_item.id}/verify/', {'action': 'approve'})
+        force_authenticate(req_forbidden, user=self.owner)
+        res_forbidden = verify_view(req_forbidden, pk=pending_item.id)
+        self.assertEqual(res_forbidden.status_code, 403)
+
+        # 3. Admin approves the item
+        req_approve = self.factory.post(f'/api/admin/items/{pending_item.id}/verify/', {'action': 'approve'})
+        force_authenticate(req_approve, user=self.admin_user)
+        res_approve = verify_view(req_approve, pk=pending_item.id)
+        self.assertEqual(res_approve.status_code, 200)
+        self.assertEqual(res_approve.data['item']['status'], 'approved')
+
+        # 4. Item status is now 'approved' in database
+        pending_item.refresh_from_db()
+        self.assertEqual(pending_item.status, 'approved')
+
+        # 5. Notification was sent to owner
+        notif = Notification.objects.filter(user=self.owner, type='approved', related_item=pending_item).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('approved and is now public', notif.message)
+
+        # 6. Approved item now visible on dashboards
+        items_view = ItemListCreateView.as_view()
+        req_owner = self.factory.get('/api/items/')
+        force_authenticate(req_owner, user=self.owner)
+        res_owner = items_view(req_owner)
+        self.assertIn(pending_item.id, [it['id'] for it in res_owner.data])
+
+        req_finder = self.factory.get('/api/items/')
+        force_authenticate(req_finder, user=self.finder)
+        res_finder = items_view(req_finder)
+        self.assertIn(pending_item.id, [it['id'] for it in res_finder.data])
+
+    def test_admin_reject_workflow_keeps_item_hidden(self):
+        """Admin rejecting an item sets status='rejected' and it remains hidden from public feeds."""
+        pending_item = Item.objects.create(
+            user=self.owner, title='Spam / Inappropriate Item', description='Bad content',
+            category='other', type='lost', status='pending'
+        )
+
+        verify_view = AdminVerifyItemView.as_view()
+        req_reject = self.factory.post(f'/api/admin/items/{pending_item.id}/verify/', {'action': 'reject'})
+        force_authenticate(req_reject, user=self.admin_user)
+        res_reject = verify_view(req_reject, pk=pending_item.id)
+        self.assertEqual(res_reject.status_code, 200)
+
+        pending_item.refresh_from_db()
+        self.assertEqual(pending_item.status, 'rejected')
+
+        # Ensure not visible on owner dashboard or finder dashboard
+        items_view = ItemListCreateView.as_view()
+        req_owner = self.factory.get('/api/items/')
+        force_authenticate(req_owner, user=self.owner)
+        res_owner = items_view(req_owner)
+        self.assertNotIn(pending_item.id, [it['id'] for it in res_owner.data])
+
+        req_finder = self.factory.get('/api/items/')
+        force_authenticate(req_finder, user=self.finder)
+        res_finder = items_view(req_finder)
+        self.assertNotIn(pending_item.id, [it['id'] for it in res_finder.data])
+
+    def test_item_detail_view_permissions_for_pending_items(self):
+        """
+        Owner can view their own pending item detail.
+        Admin can view any pending item detail.
+        Other users (Finders / Other Owners) are forbidden (403) from viewing pending items.
+        """
+        pending_item = Item.objects.create(
+            user=self.owner, title='Lost Citizen Watch', description='Silver watch',
+            category='other', type='lost', status='pending'
+        )
+
+        detail_view = ItemDetailView.as_view()
+
+        # 1. Owner views own pending item -> 200 OK
+        req_owner = self.factory.get(f'/api/items/{pending_item.id}/')
+        force_authenticate(req_owner, user=self.owner)
+        res_owner = detail_view(req_owner, pk=pending_item.id)
+        self.assertEqual(res_owner.status_code, 200)
+        self.assertEqual(res_owner.data['status'], 'pending')
+
+        # 2. Admin views pending item -> 200 OK
+        req_admin = self.factory.get(f'/api/items/{pending_item.id}/')
+        force_authenticate(req_admin, user=self.admin_user)
+        res_admin = detail_view(req_admin, pk=pending_item.id)
+        self.assertEqual(res_admin.status_code, 200)
+
+        # 3. Finder attempts to view pending lost item -> 403 Forbidden
+        req_finder = self.factory.get(f'/api/items/{pending_item.id}/')
+        force_authenticate(req_finder, user=self.finder)
+        res_finder = detail_view(req_finder, pk=pending_item.id)
+        self.assertEqual(res_finder.status_code, 403)
+
+        # 4. Other Owner attempts to view pending lost item -> 403 Forbidden
+        req_other = self.factory.get(f'/api/items/{pending_item.id}/')
+        force_authenticate(req_other, user=self.other_owner)
+        res_other = detail_view(req_other, pk=pending_item.id)
+        self.assertEqual(res_other.status_code, 403)
+
 
 
 
