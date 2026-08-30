@@ -264,6 +264,37 @@ class ItemAdmin(admin.ModelAdmin):
         }),
     )
 
+    def get_fieldsets(self, request, obj=None):
+        """
+        Dynamically adjust fieldsets based on Item report type:
+        - Owner / Lost item (type='lost'): includes 'reward' so owners/admins can manage lost item rewards.
+        - Finder / Found item (type='found'): excludes 'reward' because found item reports do not have rewards.
+        """
+        if obj and obj.type == 'found':
+            return (
+                ('Item Report Information', {
+                    'fields': ('user', 'type', 'title', 'description', 'category'),
+                }),
+                ('Location Details', {
+                    'fields': ('location', 'latitude', 'longitude'),
+                }),
+                ('Reporter Information', {
+                    'fields': ('reporter_info_display',),
+                }),
+                ('Reporter History & Trust', {
+                    'fields': ('reporter_history_display',),
+                }),
+                ('Timestamps', {
+                    'fields': ('reported_at', 'updated_at'),
+                    'classes': ('collapse',),
+                }),
+                ('Status', {
+                    'fields': ('status',),
+                    'description': 'Review all item and reporter information above before setting the item status.',
+                }),
+            )
+        return super().get_fieldsets(request, obj)
+
     actions = ['approve_items', 'reject_items', 'mark_resolved']
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
