@@ -644,6 +644,10 @@ class PaymentAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'verified_at']
     ordering = ['-created_at']
 
+    def has_add_permission(self, request):
+        """Payments are created programmatically via payment gateways (eSewa / Khalti)."""
+        return False
+
     @admin.display(description='Amount')
     def amount_display(self, obj):
         return f"Rs. {obj.amount}"
