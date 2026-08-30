@@ -86,6 +86,73 @@ class FindoraUserAdmin(UserAdmin):
         }),
     )
 
+    def _user_has_finder_activity(self, user):
+        """
+        Check if the user has participated as a Finder or has Finder reputation data:
+          - user role is 'finder'
+          - user has submitted found item reports
+          - user has received owner ratings
+          - user has active finder reputation (points, returns, reviews)
+          - user has unlocked badges
+        """
+        if not user or not user.pk:
+            return False
+        if getattr(user, 'role', '') == 'finder':
+            return True
+        if user.items.filter(type='found').exists():
+            return True
+        if hasattr(user, 'ratings_received') and user.ratings_received.exists():
+            return True
+        rep = getattr(user, 'reputation', None)
+        if rep and (rep.total_points > 0 or rep.successful_returns > 0 or rep.rating_count > 0):
+            return True
+        if hasattr(user, 'badges') and user.badges.exists():
+            return True
+        return False
+
+    def get_fieldsets(self, request, obj=None):
+        """
+        Dynamically include the 'Finder Performance (Ratings & Reputation)' fieldset
+        only when the user has Finder activity/reputation data. For Owner-only users with
+        no Finder activity, the section is completely excluded.
+        """
+        if not obj:
+            return self.add_fieldsets
+
+        fieldsets = [
+            ('Account Info', {
+                'fields': ('username', 'email', 'password'),
+            }),
+            ('Personal Info', {
+                'fields': ('first_name', 'last_name', 'phone', 'role'),
+            }),
+            ('Status & Security', {
+                'fields': (
+                    'is_active', 'is_verified', 'failed_login_attempts',
+                ),
+            }),
+        ]
+
+        if self._user_has_finder_activity(obj):
+            fieldsets.append(
+                ('Finder Performance (Ratings & Reputation)', {
+                    'fields': ('finder_performance_summary',),
+                })
+            )
+
+        fieldsets.extend([
+            ('Permissions', {
+                'fields': ('is_staff', 'is_superuser', 'groups', 'user_permissions'),
+                'classes': ('collapse',),
+            }),
+            ('Timestamps', {
+                'fields': ('last_login', 'created_at', 'updated_at'),
+                'classes': ('collapse',),
+            }),
+        ])
+
+        return tuple(fieldsets)
+
     add_fieldsets = (
         ('Create User', {
             'classes': ('wide',),
