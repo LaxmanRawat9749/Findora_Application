@@ -66,16 +66,11 @@ class FindoraUserAdmin(UserAdmin):
             'fields': ('username', 'email', 'password'),
         }),
         ('Personal Info', {
-            'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image'),
-        }),
-        ('Emergency Contact', {
-            'fields': ('emergency_contact_name', 'emergency_contact_phone'),
-            'classes': ('collapse',),
+            'fields': ('first_name', 'last_name', 'phone', 'role'),
         }),
         ('Status & Security', {
             'fields': (
-                'is_active', 'is_verified', 'is_locked', 'locked_until',
-                'failed_login_attempts',
+                'is_active', 'is_verified', 'failed_login_attempts',
             ),
         }),
         ('Finder Performance (Ratings & Reputation)', {
