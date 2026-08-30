@@ -633,15 +633,14 @@ class ItemListCreateView(APIView):
                 # All tab: Owner's own lost items + matched found items reported by Finders
                 queryset = queryset.filter(owner_own_lost | matched_found)
         elif request.user.role == 'finder':
-            finder_own_found = Q(user=request.user, type='found') & ~Q(status='rejected')
             approved_found = Q(type='found', status='approved')
             approved_lost = Q(type='lost', status='approved')
             if item_type == 'found':
-                queryset = queryset.filter(finder_own_found | approved_found)
+                queryset = queryset.filter(approved_found)
             elif item_type == 'lost':
                 queryset = queryset.filter(approved_lost)
             else:
-                queryset = queryset.filter(finder_own_found | approved_found | approved_lost)
+                queryset = queryset.filter(approved_found | approved_lost)
         else:
             # Fallback for admins
             if item_type:

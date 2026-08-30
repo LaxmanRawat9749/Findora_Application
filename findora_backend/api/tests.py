@@ -1256,6 +1256,98 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
         res_other = detail_view(req_other, pk=pending_item.id)
         self.assertEqual(res_other.status_code, 403)
 
+    def test_finder_submits_found_item_saved_as_pending_and_approval_workflow(self):
+        """
+        Finder reports a found item:
+        1. Saved in database with status='pending'.
+        2. Hidden from Finder public dashboard, Owner dashboard, public search, matching.
+        3. Visible in Finder's private My Reports view.
+        4. Detail view forbidden for Owner while pending.
+        5. Admin approves -> item becomes status='approved' and visible to Finder and matched Owner.
+        """
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        photo = SimpleUploadedFile("found_wallet.jpg", b"fake_wallet_bytes", content_type="image/jpeg")
+
+        # 1. Finder reports Found item
+        items_view = ItemListCreateView.as_view()
+        req_create = self.factory.post('/api/items/', {
+            'type': 'found',
+            'title': 'Found Black Leather Wallet',
+            'description': 'Found near canteen table',
+            'category': 'wallet',
+            'location': 'Campus Canteen',
+            'images': [photo]
+        }, format='multipart')
+        force_authenticate(req_create, user=self.finder)
+        res_create = items_view(req_create)
+        self.assertEqual(res_create.status_code, 201)
+        self.assertEqual(res_create.data['status'], 'pending')
+        found_id = res_create.data['id']
+
+        found_item = Item.objects.get(id=found_id)
+        self.assertEqual(found_item.status, 'pending')
+
+        # Owner has an approved lost wallet report
+        approved_lost = Item.objects.create(
+            user=self.owner, title='Lost Black Leather Wallet', description='Lost wallet in canteen',
+            category='wallet', type='lost', status='approved'
+        )
+
+        # 2. Before approval: Finder public dashboard (/api/items/) -> pending found item NOT visible
+        req_f = self.factory.get('/api/items/')
+        force_authenticate(req_f, user=self.finder)
+        res_f = items_view(req_f)
+        self.assertNotIn(found_id, [it['id'] for it in res_f.data])
+
+        # Before approval: Owner dashboard (/api/items/) -> pending found item NOT visible
+        req_o = self.factory.get('/api/items/')
+        force_authenticate(req_o, user=self.owner)
+        res_o = items_view(req_o)
+        self.assertNotIn(found_id, [it['id'] for it in res_o.data])
+
+        # Before approval: Search (/api/items/?search=wallet) -> pending found item NOT visible
+        req_s = self.factory.get('/api/items/?search=wallet')
+        force_authenticate(req_s, user=self.finder)
+        res_s = items_view(req_s)
+        self.assertNotIn(found_id, [it['id'] for it in res_s.data])
+
+        # 3. Finder private My Reports (/api/profile/items/?filter=found) -> pending found item IS visible
+        my_reports_view = MyReportsView.as_view()
+        req_rep = self.factory.get('/api/profile/items/?filter=found')
+        force_authenticate(req_rep, user=self.finder)
+        res_rep = my_reports_view(req_rep)
+        self.assertIn(found_id, [it['id'] for it in res_rep.data])
+
+        # 4. Detail view permissions: Finder can view own pending found item, Owner is forbidden
+        detail_view = ItemDetailView.as_view()
+        req_det_f = self.factory.get(f'/api/items/{found_id}/')
+        force_authenticate(req_det_f, user=self.finder)
+        res_det_f = detail_view(req_det_f, pk=found_id)
+        self.assertEqual(res_det_f.status_code, 200)
+
+        req_det_o = self.factory.get(f'/api/items/{found_id}/')
+        force_authenticate(req_det_o, user=self.owner)
+        res_det_o = detail_view(req_det_o, pk=found_id)
+        self.assertEqual(res_det_o.status_code, 403)
+
+        # 5. Admin approves the found item
+        verify_view = AdminVerifyItemView.as_view()
+        req_app = self.factory.post(f'/api/admin/items/{found_id}/verify/', {'action': 'approve'})
+        force_authenticate(req_app, user=self.admin_user)
+        res_app = verify_view(req_app, pk=found_id)
+        self.assertEqual(res_app.status_code, 200)
+
+        found_item.refresh_from_db()
+        self.assertEqual(found_item.status, 'approved')
+
+        # 6. After approval: Found item is visible on Finder dashboard and matched Owner dashboard
+        res_f_after = items_view(req_f)
+        self.assertIn(found_id, [it['id'] for it in res_f_after.data])
+
+        res_o_after = items_view(req_o)
+        self.assertIn(found_id, [it['id'] for it in res_o_after.data])
+
+
 
 
 

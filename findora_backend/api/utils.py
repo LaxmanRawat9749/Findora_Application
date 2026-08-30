@@ -389,11 +389,11 @@ def is_found_item_matched_for_owner(found_item, owner_user):
     """
     from .models import Item
 
-    if found_item.type != 'found':
+    if found_item.type != 'found' or found_item.status != 'approved':
         return False
 
     match_q = get_matched_found_items_query_for_owner(owner_user)
-    return Item.objects.filter(pk=found_item.pk).filter(match_q).exists()
+    return Item.objects.filter(pk=found_item.pk, status='approved').filter(match_q).exists()
 
 
 def get_or_create_matched_conversation(item, request_user):
