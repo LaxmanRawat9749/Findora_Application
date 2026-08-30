@@ -254,9 +254,6 @@ class ItemAdmin(admin.ModelAdmin):
         ('Reporter History & Trust', {
             'fields': ('reporter_history_display',),
         }),
-        ('Media', {
-            'fields': ('image',),
-        }),
         ('Timestamps', {
             'fields': ('reported_at', 'updated_at'),
             'classes': ('collapse',),
