@@ -698,8 +698,13 @@ class ItemListCreateView(APIView):
 
         if item_type == 'lost' and len(images) > 1:
             return Response({'error': 'Only one photo can be uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
-        elif len(images) > 5:
-            return Response({'error': 'You can only upload up to 5 images.'}, status=status.HTTP_400_BAD_REQUEST)
+        elif item_type == 'found':
+            if len(images) == 0:
+                return Response({'error': 'Please upload 1 photo of the found item.'}, status=status.HTTP_400_BAD_REQUEST)
+            elif len(images) > 1:
+                return Response({'error': 'Only one photo can be uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+        elif len(images) > 1:
+            return Response({'error': 'Only one photo can be uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
         
         for img in images:
             if img.size > 5 * 1024 * 1024:

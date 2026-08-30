@@ -128,18 +128,21 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         self.assertIn('type', serializer.errors)
 
     def test_finder_can_report_found_item_and_earns_5_points(self):
-        """Finder can report a found item and earns 5 Finder points. Found item reward is 0."""
+        """Finder can report a found item with exactly 1 photo and earns 5 Finder points. Found item reward is 0."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
         finder = User.objects.create_user(
             username='finder1', email='finder1@example.com', password='Password123!', role='finder', is_verified=True
         )
         view = ItemListCreateView.as_view()
+        img = SimpleUploadedFile('iphone.jpg', b'fake_photo_data', content_type='image/jpeg')
         req = self.factory.post('/api/items/', {
             'type': 'found',
             'title': 'Found iPhone 14 Pro',
             'description': 'Deep purple iPhone found on bus seat',
             'category': 'phone',
             'location': 'Bus No. 4',
-            'reward': '0.00'
+            'reward': '0.00',
+            'images': [img]
         })
         force_authenticate(req, user=finder)
         res = view(req)
@@ -151,6 +154,57 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         # Check reputation awarded 5 points
         rep = FinderReputation.objects.get(user=finder)
         self.assertEqual(rep.total_points, 5)
+
+    def test_finder_without_photo_is_rejected(self):
+        """Finder attempting to report a found item without a photo must fail."""
+        finder = User.objects.create_user(
+            username='finder_no_photo', email='finder_np@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        view = ItemListCreateView.as_view()
+        req = self.factory.post('/api/items/', {
+            'type': 'found',
+            'title': 'Found Keys',
+            'description': 'Found keychain',
+            'category': 'keys',
+            'location': 'Cafeteria',
+        })
+        force_authenticate(req, user=finder)
+        res = view(req)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data['error'], 'Please upload 1 photo of the found item.')
+
+    def test_owner_with_0_or_1_photo(self):
+        """Owner can report a lost item with 0 photos or 1 photo."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        owner = User.objects.create_user(
+            username='owner_photos', email='owner_p@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        view = ItemListCreateView.as_view()
+        # 0 photos
+        req0 = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Lost Keys 0 Photo',
+            'description': 'Lost my room keys',
+            'category': 'keys',
+            'location': 'Park',
+        })
+        force_authenticate(req0, user=owner)
+        res0 = view(req0)
+        self.assertEqual(res0.status_code, 201)
+
+        # 1 photo
+        img = SimpleUploadedFile('keys.jpg', b'keys_photo_data', content_type='image/jpeg')
+        req1 = self.factory.post('/api/items/', {
+            'type': 'lost',
+            'title': 'Lost Keys 1 Photo',
+            'description': 'Lost my room keys with photo',
+            'category': 'keys',
+            'location': 'Park',
+            'images': [img]
+        })
+        force_authenticate(req1, user=owner)
+        res1 = view(req1)
+        self.assertEqual(res1.status_code, 201)
 
     def test_finder_cannot_report_lost_item(self):
         """Finder attempting to report a lost item must fail validation."""
