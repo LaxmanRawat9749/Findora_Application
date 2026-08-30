@@ -1,14 +1,17 @@
 """
 Findora Django Admin Configuration.
 
-Enhances the default Django admin panel with:
-  - Role-based User list display (Owners, Finders & Admins) showing activity, points & reputation
-  - Item list display showing reporter roles (Owner / Finder)
-  - Search and filter capabilities for all models
-  - Bulk admin actions (approve, reject, verify, unlock)
-  - Inline claim display on item detail pages
-  - Image preview for item photos
-  - Custom site branding
+Provides a clean, streamlined, and secure management interface:
+  - User Admin: Role-based list display (Owners, Finders & Admins), verification, account unlock,
+    lost/found report metrics, points, and reputation ratings.
+  - Item Admin: Lost & Found reports with status workflows (approval, rejection, resolution),
+    reporter details, trust card, reward badges, and media previews.
+  - Finder Rating Admin: Owner reviews and star ratings given to Finders for content moderation.
+  - Payment Admin: Featured listing payments, status auditing, and transaction tracking.
+
+Note: Internal technical models (PointTransaction, UserBadge, Conversation, ChatMessage,
+Notification, OTPToken, Claim, FinderReputation) are managed programmatically by backend services
+and APIs; their database models, tables, and logic remain 100% active and intact.
 """
 
 from django.contrib import admin
@@ -16,18 +19,11 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import (
-    ChatMessage,
-    Claim,
-    Conversation,
     FinderRating,
-    FinderReputation,
     Item,
     Notification,
-    OTPToken,
     Payment,
-    PointTransaction,
     User,
-    UserBadge,
 )
 
 
@@ -92,8 +88,6 @@ class FindoraUserAdmin(UserAdmin):
     actions = ['verify_users', 'unlock_users', 'deactivate_users', 'activate_users']
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
-
-
 
     @admin.display(description='Full Name')
     def full_name(self, obj):
@@ -180,23 +174,13 @@ class FindoraUserAdmin(UserAdmin):
 
 # ─── Item Admin ───────────────────────────────────────────────────────────────
 
-class ClaimInline(admin.TabularInline):
-    """Inline claim display within the Item admin detail page."""
-
-    model = Claim
-    extra = 0
-    readonly_fields = ['claimant', 'status', 'proof_description', 'claimed_at']
-    can_delete = False
-    show_change_link = True
-
-
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for lost/found item reports.
 
     Features colored status and type badges, contextual reporter info (Owner/Finder),
-    reporter history metrics, inline claim display, and item status review at the bottom.
+    reporter history metrics, and item status review actions.
     """
 
     list_display = [
@@ -215,7 +199,6 @@ class ItemAdmin(admin.ModelAdmin):
     ]
     list_per_page = 20
     date_hierarchy = 'reported_at'
-    inlines = [ClaimInline]
 
     fieldsets = (
         ('Item Report Information', {
@@ -381,182 +364,7 @@ class ItemAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} item(s) marked as resolved.')
 
 
-# ─── Claim Admin ──────────────────────────────────────────────────────────────
-
-@admin.register(Claim)
-class ClaimAdmin(admin.ModelAdmin):
-    """Admin interface for managing ownership claims."""
-
-    list_display = ['item', 'claimant', 'status', 'claimed_at']
-    list_filter = ['status', 'claimed_at']
-    search_fields = ['item__title', 'claimant__username', 'claimant__email', 'proof_description']
-    readonly_fields = ['claimed_at']
-    ordering = ['-claimed_at']
-    actions = ['approve_claims', 'reject_claims']
-
-    @admin.action(description='Approve selected claims')
-    def approve_claims(self, request, queryset):
-        for claim in queryset:
-            claim.status = 'approved'
-            claim.save()
-            claim.item.status = 'resolved'
-            claim.item.save()
-            Notification.objects.create(
-                user=claim.claimant,
-                type='claim',
-                message=f'Your claim on "{claim.item.title}" was approved!',
-                related_item=claim.item,
-            )
-        self.message_user(request, f'{queryset.count()} claim(s) approved.')
-
-    @admin.action(description='Reject selected claims')
-    def reject_claims(self, request, queryset):
-        updated = queryset.update(status='rejected')
-        for claim in queryset:
-            Notification.objects.create(
-                user=claim.claimant,
-                type='claim',
-                message=f'Your claim on "{claim.item.title}" was rejected.',
-                related_item=claim.item,
-            )
-        self.message_user(request, f'{updated} claim(s) rejected.')
-
-
-# ─── Chat Admin ───────────────────────────────────────────────────────────────
-
-@admin.register(Conversation)
-class ConversationAdmin(admin.ModelAdmin):
-    """Admin interface for Chat Conversations."""
-    list_display = ['id', 'item', 'owner', 'finder', 'created_at']
-    search_fields = ['item__title', 'owner__username', 'finder__username']
-    list_filter = ['created_at']
-    ordering = ['-created_at']
-
-
-@admin.register(ChatMessage)
-class ChatMessageAdmin(admin.ModelAdmin):
-    """Admin interface for direct chat messages between users."""
-
-    list_display = ['conversation', 'sender', 'message_preview', 'is_read', 'sent_at']
-    list_filter = ['is_read', 'sent_at']
-    search_fields = ['sender__username', 'message', 'conversation__item__title']
-    readonly_fields = ['conversation', 'sender', 'message', 'is_read', 'sent_at']
-    ordering = ['-sent_at']
-
-    @admin.display(description='Message Preview')
-    def message_preview(self, obj):
-        return obj.message[:60] + '…' if len(obj.message) > 60 else obj.message
-
-
-# ─── Notification Admin ───────────────────────────────────────────────────────
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    """Admin interface for system notifications."""
-
-    list_display = ['user', 'type', 'message_preview', 'is_read', 'created_at']
-    list_filter = ['type', 'is_read', 'created_at']
-    search_fields = ['user__username', 'message']
-    readonly_fields = ['user', 'type', 'message', 'related_item', 'created_at']
-    ordering = ['-created_at']
-
-    @admin.display(description='Message')
-    def message_preview(self, obj):
-        return obj.message[:80] + '…' if len(obj.message) > 80 else obj.message
-
-
-# ─── OTP Token Admin ──────────────────────────────────────────────────────────
-
-@admin.register(OTPToken)
-class OTPTokenAdmin(admin.ModelAdmin):
-    """Admin interface for OTP records (read-only for security)."""
-
-    list_display = ['user', 'purpose', 'is_used', 'attempt_count', 'expires_at', 'created_at']
-    list_filter = ['purpose', 'is_used', 'created_at']
-    search_fields = ['user__username', 'user__email']
-    readonly_fields = ['user', 'otp_code', 'purpose', 'is_used', 'attempt_count', 'expires_at', 'created_at']
-    ordering = ['-created_at']
-
-    def has_add_permission(self, request):
-        """OTPs should only be created programmatically, not via admin."""
-        return False
-
-
-# ─── Reputation Admin ─────────────────────────────────────────────────────────
-
-@admin.register(FinderReputation)
-class FinderReputationAdmin(admin.ModelAdmin):
-    """Admin interface for user reputations and stats."""
-
-    list_display = [
-        'user', 'points_display', 'successful_returns', 'reputation_badge',
-        'rating_count', 'primary_badge', 'updated_at',
-    ]
-    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
-    list_filter = ['updated_at']
-    ordering = ['-total_points', '-successful_returns']
-    readonly_fields = ['updated_at']
-
-    @admin.display(description='Total Points')
-    def points_display(self, obj):
-        return format_html(
-            '<span style="font-weight:700;color:#534AB7;font-size:13px">🪙 {}</span>',
-            obj.total_points,
-        )
-
-    @admin.display(description='Reputation')
-    def reputation_badge(self, obj):
-        if obj.rating_count > 0:
-            return format_html(
-                '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;'
-                'border-radius:4px;font-weight:600">⭐ {}</span>',
-                f"{obj.average_rating:.1f}",
-            )
-        return mark_safe(
-            '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;'
-            'border-radius:4px">New</span>'
-        )
-
-
-@admin.register(PointTransaction)
-class PointTransactionAdmin(admin.ModelAdmin):
-    """Admin interface for point transactions history and auditing."""
-
-    list_display = [
-        'user', 'points_badge', 'transaction_type', 'related_item',
-        'description_preview', 'created_at',
-    ]
-    list_filter = ['transaction_type', 'created_at']
-    search_fields = ['user__username', 'user__email', 'description', 'related_item__title']
-    readonly_fields = ['created_at']
-    ordering = ['-created_at']
-    list_per_page = 25
-    date_hierarchy = 'created_at'
-
-    @admin.display(description='Points')
-    def points_badge(self, obj):
-        if obj.points > 0:
-            color = '#16A34A'
-            bg = '#DCFCE7'
-            sign = '+'
-        elif obj.points < 0:
-            color = '#DC2626'
-            bg = '#FEE2E2'
-            sign = ''
-        else:
-            color = '#6B7280'
-            bg = '#F3F4F6'
-            sign = ''
-        return format_html(
-            '<span style="background:{};color:{};padding:2px 8px;'
-            'border-radius:4px;font-weight:700">{}{}</span>',
-            bg, color, sign, obj.points,
-        )
-
-    @admin.display(description='Description')
-    def description_preview(self, obj):
-        return obj.description[:60] + '…' if len(obj.description) > 60 else obj.description
-
+# ─── Finder Rating Admin ──────────────────────────────────────────────────────
 
 @admin.register(FinderRating)
 class FinderRatingAdmin(admin.ModelAdmin):
@@ -584,23 +392,7 @@ class FinderRatingAdmin(admin.ModelAdmin):
         return obj.review[:50] + '…' if len(obj.review) > 50 else obj.review
 
 
-@admin.register(UserBadge)
-class UserBadgeAdmin(admin.ModelAdmin):
-    """Admin interface for unlocked user achievements."""
-
-    list_display = ['user', 'badge_display', 'required_returns', 'earned_at']
-    list_filter = ['badge_key', 'earned_at']
-    search_fields = ['user__username', 'name', 'badge_key']
-    readonly_fields = ['earned_at']
-    ordering = ['-earned_at']
-
-    @admin.display(description='Badge')
-    def badge_display(self, obj):
-        return format_html(
-            '<span style="font-size:13px;font-weight:600">{} {}</span>',
-            obj.icon, obj.name,
-        )
-
+# ─── Payment Admin ────────────────────────────────────────────────────────────
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
