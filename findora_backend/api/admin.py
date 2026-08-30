@@ -24,6 +24,7 @@ from .models import (
     FinderRating,
     FinderReputation,
     Item,
+    ItemImage,
     Notification,
     Payment,
     User,
@@ -213,6 +214,37 @@ class FindoraUserAdmin(UserAdmin):
         self.message_user(request, f'{updated} user(s) activated.')
 
 
+# ─── Item Image Inline ────────────────────────────────────────────────────────
+
+class ItemImageInline(admin.TabularInline):
+    """
+    Inline editor for images belonging to the CURRENT Item only.
+
+    Uses Item → ItemImage ForeignKey (related_name='images') so that only
+    images associated with this specific item are shown — no cross-item bleed.
+    """
+    model = ItemImage
+    extra = 0
+    readonly_fields = ['uploaded_at', 'image_thumbnail']
+    fields = ['image', 'image_thumbnail', 'uploaded_at']
+    can_delete = True
+    verbose_name = 'Uploaded Image'
+    verbose_name_plural = 'Uploaded Images'
+
+    @admin.display(description='Preview')
+    def image_thumbnail(self, obj):
+        if obj.image and obj.pk:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" style="max-height:80px;max-width:120px;'
+                'border-radius:4px;border:1px solid #E2E8F0;object-fit:cover;"/>'
+                '</a>',
+                obj.image.url,
+                obj.image.url,
+            )
+        return '—'
+
+
 # ─── Item Admin ───────────────────────────────────────────────────────────────
 
 @admin.register(Item)
@@ -234,8 +266,11 @@ class ItemAdmin(admin.ModelAdmin):
         'user__username', 'user__email', 'user__first_name', 'user__last_name',
     ]
     ordering = ['-reported_at']
+    inlines = [ItemImageInline]
+
     readonly_fields = [
         'reporter_info_display', 'reporter_history_display',
+        'media_preview_display',
         'reported_at', 'updated_at',
     ]
     list_per_page = 20
@@ -255,7 +290,11 @@ class ItemAdmin(admin.ModelAdmin):
             'fields': ('reporter_history_display',),
         }),
         ('Media', {
-            'fields': ('image',),
+            'fields': ('media_preview_display',),
+            'description': (
+                'Images uploaded by the reporter for this item. '
+                'Add or remove images using the "Uploaded Images" section below.'
+            ),
         }),
         ('Timestamps', {
             'fields': ('reported_at', 'updated_at'),
@@ -373,7 +412,71 @@ class ItemAdmin(admin.ModelAdmin):
             points,
         )
 
+    # ─── Media Preview ────────────────────────────────────────────────────────
+
+    @admin.display(description='Item Images')
+    def media_preview_display(self, obj):
+        """
+        Render a visual gallery of images that belong ONLY to this Item.
+
+        Source of truth: Item → ItemImage (related_name='images') filtered
+        by item=obj, preventing any cross-item image bleed.
+        Additionally renders the legacy Item.image field if present and no
+        ItemImage records exist for this item.
+        """
+        parts = []
+
+        # 1. Modern multi-image records (ItemImage, related_name='images'),
+        #    strictly filtered to THIS item via the FK relationship.
+        item_images = obj.images.all().order_by('uploaded_at')
+        for img in item_images:
+            if img.image:
+                parts.append(format_html(
+                    '<div style="display:inline-block;margin:6px;text-align:center;vertical-align:top;">'
+                    '<a href="{url}" target="_blank">'
+                    '<img src="{url}" style="max-height:140px;max-width:180px;'
+                    'border-radius:6px;border:1px solid #CBD5E1;'
+                    'object-fit:cover;display:block;"/>'
+                    '</a>'
+                    '<div style="font-size:10px;color:#64748B;margin-top:3px;'
+                    'word-break:break-all;max-width:180px;">{name}</div>'
+                    '</div>',
+                    url=img.image.url,
+                    name=img.image.name.split('/')[-1],
+                ))
+
+        # 2. Legacy single image stored directly on Item.image (older reports).
+        #    Only shown when no ItemImage records exist for this item.
+        if obj.image and not item_images.exists():
+            parts.append(format_html(
+                '<div style="display:inline-block;margin:6px;text-align:center;vertical-align:top;">'
+                '<a href="{url}" target="_blank">'
+                '<img src="{url}" style="max-height:140px;max-width:180px;'
+                'border-radius:6px;border:1px solid #CBD5E1;'
+                'object-fit:cover;display:block;"/>'
+                '</a>'
+                '<div style="font-size:10px;color:#64748B;margin-top:3px;'
+                'word-break:break-all;max-width:180px;">{name} (legacy)</div>'
+                '</div>',
+                url=obj.image.url,
+                name=obj.image.name.split('/')[-1],
+            ))
+
+        if not parts:
+            return format_html(
+                '<span style="color:#94A3B8;font-style:italic;">'
+                'No images uploaded for this item.'
+                '</span>'
+            )
+
+        return format_html(
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;'
+            'padding:12px;border-radius:8px;">{}</div>',
+            mark_safe(''.join(str(p) for p in parts)),
+        )
+
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
+
 
     @admin.action(description='Approve selected items')
     def approve_items(self, request, queryset):
