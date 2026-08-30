@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'cloudinary',
+    'cloudinary_storage',
 
     # Local
     'api',
@@ -165,8 +167,56 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# ─── Cloudinary Persistent Media Storage (Render Production) ─────────────────
+# On Render, the filesystem is ephemeral — every deploy wipes uploaded files.
+# Cloudinary provides permanent cloud storage for all user-uploaded media.
+#
+# Required environment variables (set in Render Dashboard → Environment
+# AND in your local .env file for local testing with Cloudinary):
+#   CLOUDINARY_CLOUD_NAME  — from Cloudinary Dashboard → Settings → API Keys
+#   CLOUDINARY_API_KEY     — from Cloudinary Dashboard → Settings → API Keys
+#   CLOUDINARY_API_SECRET  — from Cloudinary Dashboard → Settings → API Keys
+#
+# Render automatically sets RENDER=True; this flag controls which backend is used.
+
+_CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+_CLOUDINARY_API_KEY    = os.environ.get('CLOUDINARY_API_KEY', '')
+_CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')
+
+# Use Cloudinary when: running on Render OR all three Cloudinary credentials are present
+_USE_CLOUDINARY = bool(
+    os.environ.get('RENDER')
+    or ((_CLOUDINARY_CLOUD_NAME) and (_CLOUDINARY_API_KEY) and (_CLOUDINARY_API_SECRET))
+)
+
+if _USE_CLOUDINARY:
+    # ── Cloudinary configuration ───────────────────────────────────────────
+    import cloudinary
+    cloudinary.config(
+        cloud_name=_CLOUDINARY_CLOUD_NAME,
+        api_key=_CLOUDINARY_API_KEY,
+        api_secret=_CLOUDINARY_API_SECRET,
+        secure=True,  # Always use HTTPS URLs
+    )
+
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': _CLOUDINARY_CLOUD_NAME,
+        'API_KEY':    _CLOUDINARY_API_KEY,
+        'API_SECRET': _CLOUDINARY_API_SECRET,
+    }
+
+    # Use Cloudinary for all user-uploaded media (item images, profile pics, chat images)
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+    # MEDIA_URL is not used for Cloudinary (each file gets its own CDN URL),
+    # but we keep it defined for compatibility with any code that reads it.
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'  # Unused in production; kept for local fallback
+
+else:
+    # ── Local development: use the local filesystem ────────────────────────
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Email / Brevo Transactional API ─────────────────────────────────────────
 # OTP emails are dispatched via Brevo's Transactional Email API in daemon
