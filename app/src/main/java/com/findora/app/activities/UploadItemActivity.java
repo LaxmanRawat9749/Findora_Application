@@ -134,7 +134,7 @@ public class UploadItemActivity extends BaseActivity {
         } else {
             binding.tvImagesHeader.setText("Item Photo (Required)");
             binding.tvImagesSubheader.setText("Upload 1 photo of the found item to help identification.");
-            binding.tvAddPhotoLabel.setText("Add Photo (Required, Exactly 1)");
+            binding.tvAddPhotoLabel.setText("Add Photo");
         }
     }
 
