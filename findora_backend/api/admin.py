@@ -31,7 +31,7 @@ from .models import (
 
 # Custom display names for combined Finder Rating & Reputation feature
 FinderReputation._meta.verbose_name = 'Finder Rating & Reputation'
-FinderReputation._meta.verbose_name_plural = 'Finder Ratings & Reputation'
+FinderReputation._meta.verbose_name_plural = 'Finder Rating & Reputation'
 
 
 # ─── User Admin ───────────────────────────────────────────────────────────────
