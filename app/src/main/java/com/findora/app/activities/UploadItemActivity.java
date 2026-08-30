@@ -83,6 +83,7 @@ public class UploadItemActivity extends BaseActivity {
             binding.rbLost.setVisibility(View.VISIBLE);
             binding.rbLost.setEnabled(true);
             binding.tilReward.setVisibility(View.VISIBLE);
+            updateImageLabels(true);
         } else if ("finder".equalsIgnoreCase(role)) {
             binding.rbFound.setChecked(true);
             binding.rbLost.setVisibility(View.GONE);
@@ -91,11 +92,15 @@ public class UploadItemActivity extends BaseActivity {
             binding.rbFound.setEnabled(true);
             binding.tilReward.setVisibility(View.GONE);
             binding.etReward.setText("");
+            updateImageLabels(false);
         } else {
             // Fallback for admin or unassigned role
             updateRewardVisibility(binding.rbLost.isChecked());
+            updateImageLabels(binding.rbLost.isChecked());
             binding.rgType.setOnCheckedChangeListener((group, checkedId) -> {
-                updateRewardVisibility(checkedId == R.id.rbLost);
+                boolean isLost = checkedId == R.id.rbLost;
+                updateRewardVisibility(isLost);
+                updateImageLabels(isLost);
             });
         }
 
@@ -112,6 +117,25 @@ public class UploadItemActivity extends BaseActivity {
         binding.btnSubmit.setOnClickListener(v -> submitReport());
 
         setupLaunchers();
+    }
+
+    private boolean isLostReport() {
+        String role = new SessionManager(this).getRole();
+        if ("owner".equalsIgnoreCase(role)) return true;
+        if ("finder".equalsIgnoreCase(role)) return false;
+        return binding.rbLost.isChecked();
+    }
+
+    private void updateImageLabels(boolean isLost) {
+        if (isLost) {
+            binding.tvImagesHeader.setText("Item Photo (Optional)");
+            binding.tvImagesSubheader.setText("Upload a photo of the item (optional) or describe it below.");
+            binding.tvAddPhotoLabel.setText("Add Photo (Optional, Max 1)");
+        } else {
+            binding.tvImagesHeader.setText("Item Images");
+            binding.tvImagesSubheader.setText("Upload clear photos of the item to help identification.");
+            binding.tvAddPhotoLabel.setText("Add Photos (Max 5)");
+        }
     }
 
     private void updateRewardVisibility(boolean isLost) {
@@ -151,7 +175,17 @@ public class UploadItemActivity extends BaseActivity {
         });
 
         pickMultipleMediaLauncher = registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), uris -> {
-            if (uris != null) {
+            if (uris != null && !uris.isEmpty()) {
+                boolean isLost = isLostReport();
+                if (isLost) {
+                    if (selectedImages.size() >= 1 || uris.size() > 1) {
+                        Toast.makeText(this, "Only one photo can be uploaded.", Toast.LENGTH_SHORT).show();
+                        if (selectedImages.isEmpty()) {
+                            addImage(uris.get(0));
+                        }
+                        return;
+                    }
+                }
                 for (Uri uri : uris) {
                     addImage(uri);
                 }
@@ -160,8 +194,11 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void addImage(Uri uri) {
-        if (selectedImages.size() >= 5) {
-            Toast.makeText(this, "You can upload a maximum of 5 images.", Toast.LENGTH_SHORT).show();
+        boolean isLost = isLostReport();
+        int maxImages = isLost ? 1 : 5;
+        if (selectedImages.size() >= maxImages) {
+            String msg = isLost ? "Only one photo can be uploaded." : "You can upload a maximum of 5 images.";
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
             return;
         }
         selectedImages.add(uri);
@@ -170,8 +207,11 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void showImagePickerDialog() {
-        if (selectedImages.size() >= 5) {
-            Toast.makeText(this, "You can upload a maximum of 5 images.", Toast.LENGTH_SHORT).show();
+        boolean isLost = isLostReport();
+        int maxImages = isLost ? 1 : 5;
+        if (selectedImages.size() >= maxImages) {
+            String msg = isLost ? "Only one photo can be uploaded." : "You can upload a maximum of 5 images.";
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -248,8 +288,14 @@ public class UploadItemActivity extends BaseActivity {
             return;
         }
         
-        if (selectedImages.isEmpty()) {
+        // For finder reports, at least 1 image is required; for owner/lost reports, photo is optional (0 or 1)
+        if (!"lost".equalsIgnoreCase(type) && selectedImages.isEmpty()) {
             Toast.makeText(this, "Please upload at least 1 image.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if ("lost".equalsIgnoreCase(type) && selectedImages.size() > 1) {
+            Toast.makeText(this, "Only one photo can be uploaded.", Toast.LENGTH_SHORT).show();
             return;
         }
 

@@ -688,7 +688,17 @@ class ItemListCreateView(APIView):
         
         # Pre-validate images
         images = request.FILES.getlist('images')
-        if len(images) > 5:
+        single_img = request.FILES.get('image')
+        if single_img and single_img not in images:
+            images.append(single_img)
+
+        item_type = request.data.get('type')
+        if not item_type and hasattr(request.user, 'role'):
+            item_type = 'lost' if request.user.role == 'owner' else 'found'
+
+        if item_type == 'lost' and len(images) > 1:
+            return Response({'error': 'Only one photo can be uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+        elif len(images) > 5:
             return Response({'error': 'You can only upload up to 5 images.'}, status=status.HTTP_400_BAD_REQUEST)
         
         for img in images:
@@ -702,7 +712,10 @@ class ItemListCreateView(APIView):
             item = serializer.save(user=request.user, status='pending')
             
             # Save images
-            for img in images:
+            for i, img in enumerate(images):
+                if i == 0 and not item.image:
+                    item.image = img
+                    item.save(update_fields=['image'])
                 ItemImage.objects.create(item=item, image=img)
                 
             # Award points for reporting a found item
