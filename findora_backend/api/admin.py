@@ -264,6 +264,17 @@ class ItemAdmin(admin.ModelAdmin):
         }),
     )
 
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Make 'user' read-only on the Change Item form (when obj exists) to remove
+        the interactive Foreign Key controls (pencil, +, eye, dropdown) while keeping
+        the User field and username cleanly visible and informational.
+        """
+        ro = list(super().get_readonly_fields(request, obj))
+        if obj and 'user' not in ro:
+            ro.append('user')
+        return ro
+
     def get_fieldsets(self, request, obj=None):
         """
         Dynamically adjust fieldsets based on Item report type:
