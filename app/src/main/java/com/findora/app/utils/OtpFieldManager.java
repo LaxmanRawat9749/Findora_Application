@@ -1,9 +1,12 @@
 package com.findora.app.utils;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.MotionEvent;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -13,11 +16,10 @@ import com.findora.app.R;
  * Manages OTP input using the "Single Hidden EditText" pattern.
  *
  * This robust pattern guarantees perfect compatibility with all Android keyboards,
- * autofill services, and clipboard paste actions by relying on a single, standard
- * invisible EditText overlaying visual dummy boxes.
+ * autofill services, clipboard paste actions, and varied screen densities by relying
+ * on a single, standard EditText overlaying visual dummy boxes.
  *
- * It also manually simulates the native focus border and a blinking cursor
- * to provide clear visual feedback to the user.
+ * It simulates the native focus border and blinking cursor for responsive feedback.
  */
 public class OtpFieldManager {
 
@@ -34,9 +36,9 @@ public class OtpFieldManager {
     private final Runnable cursorBlinker = new Runnable() {
         @Override
         public void run() {
-            isCursorVisible = !isCursorVisible;
-            updateVisuals(hiddenEditText.getText().toString());
             if (isFocused) {
+                isCursorVisible = !isCursorVisible;
+                updateVisuals(hiddenEditText.getText().toString());
                 handler.postDelayed(this, 500);
             }
         }
@@ -62,6 +64,7 @@ public class OtpFieldManager {
 
         setupWatcher();
         setupFocusListener();
+        setupVisualBoxesListeners();
         updateVisuals(hiddenEditText.getText().toString());
     }
 
@@ -73,14 +76,33 @@ public class OtpFieldManager {
         hiddenEditText.setText("");
     }
 
+    public void requestOtpFocus() {
+        if (hiddenEditText == null) return;
+        hiddenEditText.post(() -> {
+            hiddenEditText.requestFocus();
+            hiddenEditText.setSelection(hiddenEditText.getText().length());
+            showKeyboard();
+        });
+    }
+
+    public void showKeyboard() {
+        if (hiddenEditText == null) return;
+        InputMethodManager imm = (InputMethodManager) 
+                hiddenEditText.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(hiddenEditText, InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
     private void setupFocusListener() {
         hiddenEditText.setOnFocusChangeListener((v, hasFocus) -> {
             isFocused = hasFocus;
+            handler.removeCallbacks(cursorBlinker);
             if (hasFocus) {
                 isCursorVisible = true;
+                hiddenEditText.setSelection(hiddenEditText.getText().length());
                 handler.postDelayed(cursorBlinker, 500);
             } else {
-                handler.removeCallbacks(cursorBlinker);
                 isCursorVisible = false;
             }
             updateVisuals(hiddenEditText.getText().toString());
@@ -88,16 +110,40 @@ public class OtpFieldManager {
         
         hiddenEditText.setOnClickListener(v -> {
             hiddenEditText.requestFocus();
-            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) 
-                    hiddenEditText.getContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.showSoftInput(hiddenEditText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
-            }
+            hiddenEditText.setSelection(hiddenEditText.getText().length());
+            showKeyboard();
         });
+
+        hiddenEditText.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                hiddenEditText.requestFocus();
+                hiddenEditText.setSelection(hiddenEditText.getText().length());
+                showKeyboard();
+            }
+            return false;
+        });
+    }
+
+    private void setupVisualBoxesListeners() {
+        for (TextView box : visualBoxes) {
+            box.setOnClickListener(v -> {
+                hiddenEditText.requestFocus();
+                hiddenEditText.setSelection(hiddenEditText.getText().length());
+                showKeyboard();
+            });
+            box.setOnLongClickListener(v -> {
+                hiddenEditText.requestFocus();
+                hiddenEditText.setSelection(hiddenEditText.getText().length());
+                showKeyboard();
+                return hiddenEditText.performLongClick();
+            });
+        }
     }
 
     private void setupWatcher() {
         hiddenEditText.addTextChangedListener(new TextWatcher() {
+            private boolean isInternalChange = false;
+
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
@@ -106,22 +152,23 @@ public class OtpFieldManager {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if (isInternalChange) return;
+
                 String input = s.toString();
 
-                // Sanitise input: if the user pastes spaces, dashes, or letters, strip them out.
+                // Sanitize input: strip spaces, dashes, or non-digits (e.g. from pasted SMS / clipboard)
                 String digitsOnly = input.replaceAll("[^0-9]", "");
                 
-                // Truncate to max length just in case
+                // Truncate to max OTP length
                 if (digitsOnly.length() > OTP_LENGTH) {
                     digitsOnly = digitsOnly.substring(0, OTP_LENGTH);
                 }
 
                 if (!input.equals(digitsOnly)) {
-                    // Update the EditText to contain only the digits. 
-                    // This will trigger afterTextChanged again.
+                    isInternalChange = true;
                     hiddenEditText.setText(digitsOnly);
                     hiddenEditText.setSelection(digitsOnly.length());
-                    return; // Return early, let the recursive call handle visual updates
+                    isInternalChange = false;
                 }
 
                 // Restart blinker so cursor is immediately visible upon typing
@@ -170,5 +217,9 @@ public class OtpFieldManager {
                 visualBoxes[i].setBackgroundResource(R.drawable.bg_otp_box_dark);
             }
         }
+    }
+
+    public void cleanup() {
+        handler.removeCallbacks(cursorBlinker);
     }
 }

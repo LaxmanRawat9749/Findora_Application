@@ -188,8 +188,17 @@ public class VerifyOtpActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (otpManager != null) {
+            otpManager.requestOtpFocus();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (countDownTimer != null) countDownTimer.cancel();
+        if (otpManager != null) otpManager.cleanup();
     }
 }

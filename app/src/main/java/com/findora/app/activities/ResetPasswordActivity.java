@@ -157,4 +157,20 @@ public class ResetPasswordActivity extends AppCompatActivity {
             binding.btnResetPassword.setEnabled(otpManager != null && otpManager.getOtp().length() == 6);
         }
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (otpManager != null) {
+            otpManager.requestOtpFocus();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (otpManager != null) {
+            otpManager.cleanup();
+        }
+    }
 }
