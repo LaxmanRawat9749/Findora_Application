@@ -437,9 +437,9 @@ class ItemAdmin(admin.ModelAdmin):
         if not obj or not obj.user:
             return 'No user associated.'
         u = obj.user
-        lost_count = u.items.filter(type='lost').count()
 
         if getattr(obj, 'type', '') == 'lost':
+            lost_count = u.items.filter(type='lost').count()
             return format_html(
                 '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">'
                 '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
@@ -459,10 +459,6 @@ class ItemAdmin(admin.ModelAdmin):
         return format_html(
             '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">'
             '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
-            '<div style="color:#64748B;font-size:11px;">Lost Reports</div>'
-            '<div style="font-size:16px;font-weight:700;color:#0F172A;">{}</div>'
-            '</div>'
-            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
             '<div style="color:#64748B;font-size:11px;">Found Reports</div>'
             '<div style="font-size:16px;font-weight:700;color:#0F172A;">{}</div>'
             '</div>'
@@ -479,7 +475,6 @@ class ItemAdmin(admin.ModelAdmin):
             '<div style="font-size:16px;font-weight:700;color:#534AB7;">🪙 {}</div>'
             '</div>'
             '</div>',
-            lost_count,
             found_count,
             returns_count,
             rating_display,

@@ -1511,15 +1511,29 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
         self.assertNotIn('Reputation', history_html)
         self.assertNotIn('Points', history_html)
 
-    def test_finder_reported_item_preserves_full_finder_metrics(self):
-        """Finder-reported item history display preserves full finder metrics."""
+    def test_finder_reported_item_removes_lost_reports_and_keeps_finder_metrics(self):
+        """Finder-reported item history display removes Lost Reports while preserving Finder metrics."""
         history_html = self.item_admin.reporter_history_display(self.found_item)
 
-        self.assertIn('Lost Reports', history_html)
+        # REMOVE
+        self.assertNotIn('Lost Reports', history_html)
+
+        # KEEP
         self.assertIn('Found Reports', history_html)
         self.assertIn('Successful Returns', history_html)
         self.assertIn('Reputation', history_html)
         self.assertIn('Points', history_html)
+
+    def test_finder_item_change_page_loads_normally(self):
+        """Verify the Finder Item change page in Django Admin displays Finder metrics and not Lost Reports."""
+        self.client.login(username='super_admin', password='Password123!')
+
+        res = self.client.get(f'/admin/api/item/{self.found_item.id}/change/')
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+        self.assertNotIn('Lost Reports', content)
+        self.assertIn('Found Reports', content)
+        self.assertIn('Successful Returns', content)
 
     def test_owner_item_change_page_loads_and_saves_normally(self):
         """Verify the Item can still be opened and saved normally in Django Admin."""
