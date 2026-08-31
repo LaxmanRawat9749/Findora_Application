@@ -21,6 +21,7 @@ from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import (
+    ChatMessage,
     FinderRating,
     FinderReputation,
     Item,
@@ -47,7 +48,7 @@ class FindoraUserAdmin(UserAdmin):
     """
 
     list_display = [
-        'full_name', 'username', 'email', 'role_badge', 'account_status',
+        'avatar_preview', 'full_name', 'username', 'email', 'role_badge', 'account_status',
         'lost_reports_count', 'found_reports_count', 'successful_returns_count',
         'points_display', 'reputation_display',
         'is_active', 'created_at',
@@ -56,6 +57,7 @@ class FindoraUserAdmin(UserAdmin):
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering = ['-created_at']
     readonly_fields = [
+        'profile_image_display',
         'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
         'finder_performance_summary',
     ]
@@ -67,7 +69,7 @@ class FindoraUserAdmin(UserAdmin):
             'fields': ('username', 'email'),
         }),
         ('Personal Info', {
-            'fields': ('first_name', 'last_name', 'phone', 'role'),
+            'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image_display'),
         }),
         ('Status & Security', {
             'fields': (
@@ -125,7 +127,7 @@ class FindoraUserAdmin(UserAdmin):
                 'fields': ('username', 'email'),
             }),
             ('Personal Info', {
-                'fields': ('first_name', 'last_name', 'phone', 'role'),
+                'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image_display'),
             }),
             ('Status & Security', {
                 'fields': (
@@ -164,6 +166,43 @@ class FindoraUserAdmin(UserAdmin):
     actions = ['verify_users', 'unlock_users', 'deactivate_users', 'activate_users']
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
+
+    @admin.display(description='Photo')
+    def avatar_preview(self, obj):
+        if obj.profile_image and hasattr(obj.profile_image, 'url'):
+            try:
+                url = obj.profile_image.url
+                return format_html(
+                    '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view photo">'
+                    '<img src="{}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #E2E8F0;box-shadow:0 1px 2px rgba(0,0,0,0.06);vertical-align:middle;display:block;" alt="{}" />'
+                    '</a>',
+                    url, url, obj.username,
+                )
+            except ValueError:
+                pass
+        initial = (obj.first_name[:1] or obj.username[:1]).upper()
+        return format_html(
+            '<div style="width:36px;height:36px;border-radius:50%;background:#E2E8F0;display:inline-flex;align-items:center;justify-content:center;color:#64748B;font-size:12px;font-weight:700;">{}</div>',
+            initial,
+        )
+
+    @admin.display(description='Profile Image')
+    def profile_image_display(self, obj):
+        if not obj or not obj.profile_image:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No profile photo uploaded.</span>')
+        try:
+            url = obj.profile_image.url
+            return format_html(
+                '<div style="margin-top:4px;">'
+                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full photo">'
+                '<img src="{}" style="width:120px;height:120px;border-radius:50%;border:2px solid #E2E8F0;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.08);" alt="{}" />'
+                '</a>'
+                '<div style="font-size:11px;color:#64748B;margin-top:6px;">Click photo to open full resolution</div>'
+                '</div>',
+                url, url, obj.username,
+            )
+        except ValueError:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No profile photo uploaded.</span>')
 
     @admin.display(description='Full Name')
     def full_name(self, obj):
@@ -843,6 +882,62 @@ class PaymentAdmin(admin.ModelAdmin):
             'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
             color, obj.status,
         )
+
+
+# ─── Chat Message Admin ───────────────────────────────────────────────────────
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    """
+    Admin interface for inspecting chat messages and uploaded chat media.
+    """
+    list_display = [
+        'id', 'chat_media_preview', 'sender', 'conversation', 'message_type',
+        'message_snippet', 'sent_at', 'is_read',
+    ]
+    list_filter = ['message_type', 'is_read', 'sent_at']
+    search_fields = ['sender__username', 'sender__email', 'message', 'caption']
+    ordering = ['-sent_at']
+    readonly_fields = ['chat_media_display', 'sent_at']
+    list_per_page = 25
+
+    @admin.display(description='Media')
+    def chat_media_preview(self, obj):
+        if obj.image and hasattr(obj.image, 'url'):
+            try:
+                url = obj.image.url
+                return format_html(
+                    '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full image">'
+                    '<img src="{}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid #E2E8F0;" alt="Chat Image" />'
+                    '</a>',
+                    url, url,
+                )
+            except ValueError:
+                pass
+        return mark_safe('<span style="color:#94A3B8;font-size:12px;">—</span>')
+
+    @admin.display(description='Chat Image')
+    def chat_media_display(self, obj):
+        if not obj or not obj.image:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No image attached.</span>')
+        try:
+            url = obj.image.url
+            return format_html(
+                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full image">'
+                '<img src="{}" style="max-width:280px;max-height:280px;border-radius:8px;border:1px solid #E2E8F0;" alt="Chat Image" />'
+                '</a>',
+                url, url,
+            )
+        except ValueError:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No image attached.</span>')
+
+    @admin.display(description='Message')
+    def message_snippet(self, obj):
+        if obj.message:
+            return obj.message[:60]
+        if obj.caption:
+            return f"[Image] {obj.caption[:50]}"
+        return "[Image]"
 
 
 # ─── Admin Site Branding ──────────────────────────────────────────────────────

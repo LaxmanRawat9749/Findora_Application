@@ -160,8 +160,14 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         
     def get_profile_image(self, obj):
         request = self.context.get('request')
-        if obj.profile_image and request:
-            return request.build_absolute_uri(obj.profile_image.url)
+        if obj.profile_image:
+            try:
+                url = obj.profile_image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
     def get_lost_reports(self, obj):
@@ -536,8 +542,14 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_other_user_profile_image(self, obj):
         user = self.get_other_user(obj)
         request = self.context.get('request')
-        if user.profile_image and request:
-            return request.build_absolute_uri(user.profile_image.url)
+        if user and user.profile_image:
+            try:
+                url = user.profile_image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
     def get_item_title(self, obj):
@@ -596,14 +608,26 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     def get_sender_profile_image(self, obj):
         request = self.context.get('request')
-        if obj.sender.profile_image and request:
-            return request.build_absolute_uri(obj.sender.profile_image.url)
+        if obj.sender and obj.sender.profile_image:
+            try:
+                url = obj.sender.profile_image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
     def get_image_url(self, obj):
         request = self.context.get('request')
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            try:
+                url = obj.image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
 

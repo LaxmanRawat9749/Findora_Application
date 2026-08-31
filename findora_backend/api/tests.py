@@ -1635,6 +1635,40 @@ class BackblazeB2MediaStorageConfigurationTests(TestCase):
         data = serializer.data
         self.assertIn('items/b2_uploaded_laptop.jpg', data['image_url'])
 
+    def test_profile_image_and_chat_image_b2_url_resolution(self):
+        """Verify profile_image (profiles/) and ChatMessage.image (chat_images/) resolve properly."""
+        user = User.objects.create_user(
+            username='chat_user_1', email='cu1@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        user.profile_image.name = 'profiles/user_avatar_b2.jpg'
+        user.save()
+
+        from api.serializers import UserSerializer, ChatMessageSerializer
+        u_data = UserSerializer(user).data
+        self.assertIn('profiles/user_avatar_b2.jpg', u_data['profile_image'])
+
+        finder = User.objects.create_user(
+            username='chat_user_2', email='cu2@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        item = Item.objects.create(
+            user=user, type='lost', title='Lost Wallet', category='wallet', status='approved'
+        )
+        conv = Conversation.objects.create(item=item, owner=user, finder=finder)
+
+        msg = ChatMessage.objects.create(
+            conversation=conv,
+            sender=user,
+            message='Check this picture',
+            message_type='image',
+        )
+        msg.image.name = 'chat_images/wallet_pic_b2.jpg'
+        msg.save()
+
+        m_data = ChatMessageSerializer(msg).data
+        self.assertIn('chat_images/wallet_pic_b2.jpg', m_data['image_url'])
+        self.assertIn('profiles/user_avatar_b2.jpg', m_data['sender_profile_image'])
+
+
 
 
 
