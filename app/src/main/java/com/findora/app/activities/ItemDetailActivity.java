@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
 import com.findora.app.R;
+import com.findora.app.cache.FindoraCache;
 import com.findora.app.databinding.ActivityItemDetailBinding;
 import com.findora.app.models.Item;
 import com.findora.app.models.ItemImage;
@@ -23,6 +24,7 @@ import com.findora.app.adapters.ItemImagePagerAdapter;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
+import com.findora.app.utils.GlideImageHelper;
 import com.findora.app.utils.SessionManager;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -133,10 +135,16 @@ public class ItemDetailActivity extends BaseActivity {
             } catch (Exception ignored) {}
         }
 
+        // Cache-First: load from local cache if not passed via extra
+        if (currentItem == null && itemId > 0) {
+            currentItem = FindoraCache.getInstance(this).getCachedItemDetail(itemId);
+        }
+
         if (currentItem != null) {
             displayItem(currentItem);
             binding.scrollContent.setVisibility(View.VISIBLE);
             binding.progressBar.setVisibility(View.GONE);
+            FindoraCache.getInstance(this).saveItemDetail(currentItem);
         }
 
         loadItemDetail();
@@ -166,6 +174,7 @@ public class ItemDetailActivity extends BaseActivity {
                 binding.progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
                     currentItem = response.body();
+                    FindoraCache.getInstance(ItemDetailActivity.this).saveItemDetail(currentItem);
                     displayItem(currentItem);
                     binding.scrollContent.setVisibility(View.VISIBLE);
                 } else if (currentItem == null) {
@@ -214,12 +223,7 @@ public class ItemDetailActivity extends BaseActivity {
         
         if (item.getUserProfileImage() != null && !item.getUserProfileImage().isEmpty()) {
             binding.ivReporterAvatar.setImageTintList(null);
-            Glide.with(this)
-                    .load(item.getUserProfileImage())
-                    .circleCrop()
-                    .placeholder(R.drawable.ic_person)
-                    .error(R.drawable.ic_person)
-                    .into(binding.ivReporterAvatar);
+            GlideImageHelper.loadAvatar(this, item.getUserProfileImage(), binding.ivReporterAvatar);
         } else {
             binding.ivReporterAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
                     ContextCompat.getColor(this, R.color.primary_purple)));

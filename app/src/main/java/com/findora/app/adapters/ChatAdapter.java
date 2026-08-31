@@ -144,11 +144,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
             if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
-                Glide.with(binding.getRoot().getContext())
-                        .load(msg.getImageUrl())
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .dontAnimate()
-                        .into(binding.ivMessageImage);
+                com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
                 binding.ivMessageImage.setOnClickListener(v -> {
                     android.content.Intent intent = new android.content.Intent(binding.getRoot().getContext(), com.findora.app.activities.FullScreenImageActivity.class);
@@ -200,13 +196,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             
             if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
-                Glide.with(binding.getRoot().getContext())
-                        .load(msg.getSenderProfileImage())
-                        .circleCrop()
-                        .dontAnimate()
-                        .placeholder(com.findora.app.R.drawable.ic_person)
-                        .error(com.findora.app.R.drawable.ic_person)
-                        .into(binding.ivAvatar);
+                com.findora.app.utils.GlideImageHelper.loadAvatar(binding.getRoot().getContext(), msg.getSenderProfileImage(), binding.ivAvatar);
             } else {
                 binding.ivAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
                         binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.primary_purple, null)));
@@ -230,11 +220,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener) {
             if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
-                Glide.with(binding.getRoot().getContext())
-                        .load(msg.getImageUrl())
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .dontAnimate()
-                        .into(binding.ivMessageImage);
+                com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
                 binding.ivMessageImage.setOnClickListener(v -> {
                     android.content.Intent intent = new android.content.Intent(binding.getRoot().getContext(), com.findora.app.activities.FullScreenImageActivity.class);
@@ -286,13 +272,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             
             if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
-                Glide.with(binding.getRoot().getContext())
-                        .load(msg.getSenderProfileImage())
-                        .circleCrop()
-                        .dontAnimate()
-                        .placeholder(com.findora.app.R.drawable.ic_person)
-                        .error(com.findora.app.R.drawable.ic_person)
-                        .into(binding.ivAvatar);
+                com.findora.app.utils.GlideImageHelper.loadAvatar(binding.getRoot().getContext(), msg.getSenderProfileImage(), binding.ivAvatar);
             } else {
                 binding.ivAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
                         binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.primary_purple, null)));

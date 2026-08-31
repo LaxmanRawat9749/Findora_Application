@@ -1067,6 +1067,13 @@ class ChatListView(APIView):
             deleted_for_everyone=False
         ).select_related('sender').order_by('sent_at')
 
+        after_id = request.query_params.get('after_id') or request.query_params.get('since_id')
+        if after_id:
+            try:
+                messages = messages.filter(id__gt=int(after_id))
+            except (ValueError, TypeError):
+                pass
+
         # Filter out deleted for me
         filtered_messages = []
         for msg in messages:

@@ -22,9 +22,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
         String imageUrl = getIntent().getStringExtra(EXTRA_IMAGE_URL);
         if (imageUrl != null) {
-            Glide.with(this)
-                    .load(imageUrl)
-                    .into(ivFullScreen);
+            com.findora.app.utils.GlideImageHelper.loadItemDetail(this, imageUrl, ivFullScreen);
         }
 
     }

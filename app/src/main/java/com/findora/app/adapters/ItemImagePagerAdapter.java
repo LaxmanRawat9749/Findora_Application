@@ -37,12 +37,7 @@ public class ItemImagePagerAdapter extends RecyclerView.Adapter<ItemImagePagerAd
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         String url = images.get(position).getImageUrl();
-        Glide.with(holder.imageView.getContext())
-                .load(url)
-                .thumbnail(0.25f)
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .placeholder(R.color.light_purple)
-                .into(holder.imageView);
+        com.findora.app.utils.GlideImageHelper.loadItemDetail(holder.imageView.getContext(), url, holder.imageView);
 
         holder.imageView.setOnClickListener(v -> {
             if (clickListener != null) clickListener.onClick(url);

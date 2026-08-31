@@ -125,6 +125,12 @@ public interface ApiService {
     @GET("chat/")
     Call<List<ChatMessage>> getMessages(@Query("conversation_id") int conversationId);
 
+    @GET("chat/")
+    Call<List<ChatMessage>> getMessagesSince(
+        @Query("conversation_id") int conversationId,
+        @Query("after_id") int afterId
+    );
+
     @POST("chat/")
     Call<ChatMessage> sendMessage(@Body ChatMessage message);
 

@@ -9,6 +9,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.findora.app.adapters.ChatAdapter;
+import com.findora.app.cache.FindoraCache;
 import com.findora.app.databinding.ActivityChatBinding;
 import com.findora.app.models.ChatMessage;
 import com.findora.app.network.ApiService;
@@ -141,6 +142,16 @@ public class ChatActivity extends BaseActivity {
 
         loadChatProfile();
 
+        // ─── Cache-First: Display cached messages immediately (0ms delay) ─────
+        List<ChatMessage> cachedMessages = FindoraCache.getInstance(this).getCachedMessages(conversationId);
+        if (cachedMessages != null && !cachedMessages.isEmpty()) {
+            adapter.setMessages(cachedMessages);
+            binding.progressBar.setVisibility(View.GONE);
+            binding.tvEmptyState.setVisibility(View.GONE);
+            binding.rvMessages.scrollToPosition(cachedMessages.size() - 1);
+            isInitialLoad = false;
+        }
+
         // Initialize polling Handler & Runnable
         pollHandler = new Handler(Looper.getMainLooper());
         pollRunnable = new Runnable() {
@@ -181,39 +192,72 @@ public class ChatActivity extends BaseActivity {
         if (pollCall != null && !pollCall.isExecuted() && !pollCall.isCanceled()) {
             return; // Skip if a request is already in-flight
         }
-        if (isInitialLoad && adapter.getItemCount() == 0) {
-            binding.progressBar.setVisibility(View.VISIBLE);
-        }
-        pollCall = apiService.getMessages(conversationId);
-        pollCall.enqueue(new Callback<List<ChatMessage>>() {
-            @Override
-            public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
-                if (isInitialLoad) {
-                    isInitialLoad = false;
-                    binding.progressBar.setVisibility(View.GONE);
-                }
-                if (response.isSuccessful() && response.body() != null) {
-                    List<ChatMessage> messages = response.body();
-                    int previousCount = adapter.getItemCount();
-                    adapter.setMessages(messages);
-                    binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
-                    if (!messages.isEmpty()) {
-                        if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
-                            binding.rvMessages.scrollToPosition(messages.size() - 1);
+
+        final int latestId = FindoraCache.getInstance(this).getLatestMessageId(conversationId);
+
+        if (latestId > 0 && !isInitialLoad) {
+            // Incremental sync: request only messages newer than the latest cached message
+            pollCall = apiService.getMessagesSince(conversationId, latestId);
+            pollCall.enqueue(new Callback<List<ChatMessage>>() {
+                @Override
+                public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<ChatMessage> newMessages = response.body();
+                        if (!newMessages.isEmpty()) {
+                            List<ChatMessage> merged = FindoraCache.getInstance(ChatActivity.this)
+                                    .appendMessages(conversationId, newMessages);
+                            int previousCount = adapter.getItemCount();
+                            adapter.setMessages(merged);
+                            binding.tvEmptyState.setVisibility(View.GONE);
+                            if (previousCount == 0 || isUserAtBottom) {
+                                binding.rvMessages.scrollToPosition(merged.size() - 1);
+                            }
                         }
                     }
                 }
-            }
 
-            @Override
-            public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
-                if (isInitialLoad) {
-                    isInitialLoad = false;
-                    binding.progressBar.setVisibility(View.GONE);
+                @Override
+                public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
+                    // Silently ignore background incremental polling errors
                 }
-                // Silently ignore background polling errors
+            });
+        } else {
+            // Full sync (on initial load or when cache is empty)
+            if (isInitialLoad && adapter.getItemCount() == 0) {
+                binding.progressBar.setVisibility(View.VISIBLE);
             }
-        });
+            pollCall = apiService.getMessages(conversationId);
+            pollCall.enqueue(new Callback<List<ChatMessage>>() {
+                @Override
+                public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
+                    if (isInitialLoad) {
+                        isInitialLoad = false;
+                        binding.progressBar.setVisibility(View.GONE);
+                    }
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<ChatMessage> messages = response.body();
+                        FindoraCache.getInstance(ChatActivity.this).saveMessages(conversationId, messages);
+                        int previousCount = adapter.getItemCount();
+                        adapter.setMessages(messages);
+                        binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
+                        if (!messages.isEmpty()) {
+                            if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
+                                binding.rvMessages.scrollToPosition(messages.size() - 1);
+                            }
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
+                    if (isInitialLoad) {
+                        isInitialLoad = false;
+                        binding.progressBar.setVisibility(View.GONE);
+                    }
+                    // Silently ignore background polling errors
+                }
+            });
+        }
     }
 
     private void sendMessage() {
@@ -253,7 +297,9 @@ public class ChatActivity extends BaseActivity {
             @Override
             public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    adapter.addMessage(response.body());
+                    ChatMessage sent = response.body();
+                    FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
+                    adapter.addMessage(sent);
                     binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
                     binding.tvEmptyState.setVisibility(View.GONE);
                 } else {
@@ -435,7 +481,9 @@ public class ChatActivity extends BaseActivity {
                 binding.btnSend.setEnabled(true);
                 binding.btnAttachment.setEnabled(true);
                 if (response.isSuccessful() && response.body() != null) {
-                    adapter.addMessage(response.body());
+                    ChatMessage sent = response.body();
+                    FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
+                    adapter.addMessage(sent);
                     binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
                     binding.tvEmptyState.setVisibility(View.GONE);
                 } else {
@@ -495,13 +543,7 @@ public class ChatActivity extends BaseActivity {
                     
                     if (otherUser.getProfileImage() != null && !otherUser.getProfileImage().isEmpty()) {
                         binding.ivChatAvatar.setImageTintList(null);
-                        Glide.with(ChatActivity.this)
-                                .load(otherUser.getProfileImage())
-                                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                                .circleCrop()
-                                .placeholder(R.drawable.ic_person)
-                                .error(R.drawable.ic_person)
-                                .into(binding.ivChatAvatar);
+                        com.findora.app.utils.GlideImageHelper.loadAvatar(ChatActivity.this, otherUser.getProfileImage(), binding.ivChatAvatar);
                     } else {
                         binding.ivChatAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
                                 getResources().getColor(R.color.text_gray, null)));
@@ -570,6 +612,7 @@ public class ChatActivity extends BaseActivity {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 if (response.isSuccessful()) {
+                    FindoraCache.getInstance(ChatActivity.this).deleteMessage(conversationId, messageId, forEveryone);
                     loadMessages(); // Refresh UI
                 } else {
                     Toast.makeText(ChatActivity.this, "Failed to delete message", Toast.LENGTH_SHORT).show();

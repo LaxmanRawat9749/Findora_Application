@@ -11,6 +11,7 @@ public class SessionManager {
     private static final String TAG = "SessionManager";
 
     private final SharedPreferences prefs;
+    private final Context appContext;
 
     private static final String PREF_NAME      = "FindoraSession";
     private static final String KEY_TOKEN      = "access_token";
@@ -31,8 +32,8 @@ public class SessionManager {
 
     public SessionManager(Context context) {
         // Always use application context to prevent memory leaks
-        prefs = context.getApplicationContext()
-                       .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.appContext = context.getApplicationContext();
+        this.prefs = this.appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     // ─── Write operations — all use commit() for synchronous, durable writes ──
@@ -255,6 +256,15 @@ public class SessionManager {
      * method returns, so pressing Back after logout never re-reads stale state.
      */
     public void logout() {
+        int userId = getUserId();
+        if (appContext != null && userId > 0) {
+            try {
+                com.findora.app.cache.FindoraCache.getInstance(appContext).clearUserCache(userId);
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to clear FindoraCache on logout", e);
+            }
+        }
+
         prefs.edit()
              .remove(KEY_TOKEN)
              .remove(KEY_REFRESH)

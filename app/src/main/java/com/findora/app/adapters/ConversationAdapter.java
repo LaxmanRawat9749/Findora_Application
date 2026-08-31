@@ -90,12 +90,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
             
             if (conversation.getOtherUserProfileImage() != null && !conversation.getOtherUserProfileImage().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
-                com.bumptech.glide.Glide.with(context)
-                        .load(conversation.getOtherUserProfileImage())
-                        .circleCrop()
-                        .placeholder(com.findora.app.R.drawable.ic_person)
-                        .error(com.findora.app.R.drawable.ic_person)
-                        .into(binding.ivAvatar);
+                com.findora.app.utils.GlideImageHelper.loadAvatar(context, conversation.getOtherUserProfileImage(), binding.ivAvatar);
             } else {
                 binding.ivAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
                         context.getResources().getColor(com.findora.app.R.color.primary_purple, null)));
@@ -118,12 +113,7 @@ public class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapte
             
             if (conversation.getItemImage() != null && !conversation.getItemImage().isEmpty()) {
                 binding.ivItemThumbnail.setImageTintList(null);
-                com.bumptech.glide.Glide.with(context)
-                        .load(conversation.getItemImage())
-                        .centerCrop()
-                        .placeholder(com.findora.app.R.drawable.ic_image)
-                        .error(com.findora.app.R.drawable.ic_image)
-                        .into(binding.ivItemThumbnail);
+                com.findora.app.utils.GlideImageHelper.loadItemThumbnail(context, conversation.getItemImage(), binding.ivItemThumbnail);
             } else {
                 binding.ivItemThumbnail.setImageTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(com.findora.app.R.color.text_gray, null)));
                 binding.ivItemThumbnail.setImageResource(com.findora.app.R.drawable.ic_image);

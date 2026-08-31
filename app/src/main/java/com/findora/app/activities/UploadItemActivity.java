@@ -322,6 +322,9 @@ public class UploadItemActivity extends BaseActivity {
             public void onResponse(Call<Item> call, Response<Item> response) {
                 setLoading(false);
                 if (response.isSuccessful()) {
+                    if (response.body() != null) {
+                        com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).updateOrInsertItem(response.body());
+                    }
                     Toast.makeText(UploadItemActivity.this, "Item reported successfully!", Toast.LENGTH_LONG).show();
                     finish();
                 } else {

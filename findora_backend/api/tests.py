@@ -638,6 +638,15 @@ class OwnerFinderChatCommunicationTests(TestCase):
         res_get_finder = chat_view(req_get_finder)
         self.assertEqual(len(res_get_finder.data), 2)
 
+        # 7. Incremental sync with after_id: only returns the 2nd message
+        first_msg_id = res_get_finder.data[0]['id']
+        req_inc = self.factory.get(f'/api/chat/?conversation_id={conv_id}&after_id={first_msg_id}')
+        force_authenticate(req_inc, user=self.finder)
+        res_inc = chat_view(req_inc)
+        self.assertEqual(len(res_inc.data), 1)
+        self.assertEqual(res_inc.data[0]['id'], res_reply.data['id'])
+        self.assertEqual(res_inc.data[0]['message'], 'Thank you! Where can we meet?')
+
     def test_owner_initiates_chat_on_found_item_and_sends_message(self):
         """Owner contacts Finder from Found Item and sends message via 'conversation' key."""
         init_view = ConversationInitView.as_view()

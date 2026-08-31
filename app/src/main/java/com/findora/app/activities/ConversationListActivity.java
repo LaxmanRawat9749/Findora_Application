@@ -2,6 +2,7 @@ package com.findora.app.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
+import com.findora.app.cache.FindoraCache;
 import com.findora.app.utils.SessionManager;
 import android.view.View;
 import android.widget.Toast;
@@ -18,7 +19,6 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class ConversationListActivity extends BaseActivity {
-    
 
     private ActivityConversationListBinding binding;
     private ConversationAdapter adapter;
@@ -34,11 +34,24 @@ public class ConversationListActivity extends BaseActivity {
 
         setupToolbar();
         setupRecyclerView();
+
+        // Cache-First: Display cached conversations immediately
+        List<Conversation> cached = FindoraCache.getInstance(this).getCachedConversations();
+        if (cached != null && !cached.isEmpty()) {
+            adapter.setConversations(cached);
+            binding.tvEmptyState.setVisibility(View.GONE);
+            binding.progressBar.setVisibility(View.GONE);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        List<Conversation> cached = FindoraCache.getInstance(this).getCachedConversations();
+        if (cached != null && !cached.isEmpty()) {
+            adapter.setConversations(cached);
+            binding.tvEmptyState.setVisibility(View.GONE);
+        }
         loadConversations();
     }
 
@@ -63,7 +76,9 @@ public class ConversationListActivity extends BaseActivity {
     }
 
     private void loadConversations() {
-        binding.progressBar.setVisibility(View.VISIBLE);
+        if (adapter.getItemCount() == 0) {
+            binding.progressBar.setVisibility(View.VISIBLE);
+        }
         binding.tvEmptyState.setVisibility(View.GONE);
 
         apiService.getConversations().enqueue(new Callback<List<Conversation>>() {
@@ -72,11 +87,12 @@ public class ConversationListActivity extends BaseActivity {
                 binding.progressBar.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
                     List<Conversation> list = response.body();
+                    FindoraCache.getInstance(ConversationListActivity.this).saveConversations(list);
                     adapter.setConversations(list);
                     if (list.isEmpty()) {
                         binding.tvEmptyState.setVisibility(View.VISIBLE);
                     }
-                } else {
+                } else if (adapter.getItemCount() == 0) {
                     Toast.makeText(ConversationListActivity.this, "Failed to load conversations", Toast.LENGTH_SHORT).show();
                     binding.tvEmptyState.setVisibility(View.VISIBLE);
                 }
@@ -85,8 +101,10 @@ public class ConversationListActivity extends BaseActivity {
             @Override
             public void onFailure(Call<List<Conversation>> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
-                Toast.makeText(ConversationListActivity.this, "Network error", Toast.LENGTH_SHORT).show();
-                binding.tvEmptyState.setVisibility(View.VISIBLE);
+                if (adapter.getItemCount() == 0) {
+                    Toast.makeText(ConversationListActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                    binding.tvEmptyState.setVisibility(View.VISIBLE);
+                }
             }
         });
     }

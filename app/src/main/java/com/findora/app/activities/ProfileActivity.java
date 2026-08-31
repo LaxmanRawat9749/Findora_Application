@@ -38,7 +38,8 @@ import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import com.findora.app.R;
-
+import com.findora.app.cache.FindoraCache;
+import com.findora.app.utils.GlideImageHelper;
 
 public class ProfileActivity extends BaseActivity {
 
@@ -91,6 +92,7 @@ public class ProfileActivity extends BaseActivity {
                 }
             });
 
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
@@ -170,6 +172,7 @@ public class ProfileActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        showCachedProfile();
         loadProfile();
     }
 
@@ -189,6 +192,7 @@ public class ProfileActivity extends BaseActivity {
             public void onResponse(Call<User> call, Response<User> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     User user = response.body();
+                    FindoraCache.getInstance(ProfileActivity.this).saveUserProfile(user);
                     binding.tvFullName.setText(user.getFullName());
                     binding.tvEmail.setText(user.getEmail());
                     binding.tvRole.setText("Role: " + capitalize(user.getRole()));
@@ -198,13 +202,7 @@ public class ProfileActivity extends BaseActivity {
                     }
                     if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
                         baseSessionManager.saveProfileImage(user.getProfileImage());
-                        Glide.with(ProfileActivity.this)
-                                .load(user.getProfileImage())
-                                .circleCrop()
-                                .placeholder(R.drawable.ic_person)
-                                .error(R.drawable.ic_person)
-                                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .into(binding.ivProfilePicture);
+                        GlideImageHelper.loadAvatar(ProfileActivity.this, user.getProfileImage(), binding.ivProfilePicture);
                     } else {
                         baseSessionManager.saveProfileImage("");
                         binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
@@ -288,6 +286,50 @@ public class ProfileActivity extends BaseActivity {
      * This is only called after the API attempt fails — never before it.
      */
     private void showCachedProfile() {
+        User cachedUser = FindoraCache.getInstance(this).getCachedUserProfile();
+        if (cachedUser != null) {
+            binding.tvFullName.setText(cachedUser.getFullName());
+            binding.tvEmail.setText(cachedUser.getEmail());
+            binding.tvRole.setText("Role: " + capitalize(cachedUser.getRole()));
+            if (cachedUser.getUsername() != null) {
+                binding.etCurrentUsername.setText(cachedUser.getUsername());
+            }
+
+            if ("finder".equalsIgnoreCase(cachedUser.getRole())) {
+                binding.cvReputationSection.setVisibility(View.VISIBLE);
+                binding.cvActivitySection.setVisibility(View.VISIBLE);
+                binding.btnLostReportsActivity.setVisibility(View.GONE);
+                binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
+                binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
+
+                binding.tvFoundReportsCount.setText(String.valueOf(cachedUser.getFoundReports()));
+                binding.tvItemsRecoveredCount.setText(String.valueOf(cachedUser.getItemsRecovered()));
+
+                if (cachedUser.isTrustedFinder()) {
+                    binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+                } else {
+                    binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+                }
+            } else {
+                binding.cvReputationSection.setVisibility(View.GONE);
+                binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+                binding.cvActivitySection.setVisibility(View.VISIBLE);
+                binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
+                binding.btnFoundReportsActivity.setVisibility(View.GONE);
+                binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
+
+                binding.tvLostReportsCount.setText(String.valueOf(cachedUser.getLostReports()));
+            }
+
+            if (cachedUser.getProfileImage() != null && !cachedUser.getProfileImage().isEmpty()) {
+                GlideImageHelper.loadAvatar(this, cachedUser.getProfileImage(), binding.ivProfilePicture);
+            } else {
+                binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
+            }
+            return;
+        }
+
+        // Fallback to session manager fields
         String cachedName = baseSessionManager.getFullName();
         String cachedEmail = baseSessionManager.getEmail();
         String cachedRole = baseSessionManager.getRole();
@@ -314,7 +356,7 @@ public class ProfileActivity extends BaseActivity {
         
         String cachedImage = baseSessionManager.getProfileImage();
         if (cachedImage != null && !cachedImage.isEmpty()) {
-            Glide.with(this).load(cachedImage).circleCrop().placeholder(R.drawable.ic_person).error(R.drawable.ic_person).into(binding.ivProfilePicture);
+            GlideImageHelper.loadAvatar(this, cachedImage, binding.ivProfilePicture);
         } else {
             binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
         }
@@ -555,16 +597,11 @@ public class ProfileActivity extends BaseActivity {
                     }
                     if (response.isSuccessful() && response.body() != null) {
                         User user = response.body();
+                        FindoraCache.getInstance(ProfileActivity.this).saveUserProfile(user);
                         Toast.makeText(ProfileActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
                         if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
                             baseSessionManager.saveProfileImage(user.getProfileImage());
-                            Glide.with(ProfileActivity.this)
-                                    .load(user.getProfileImage())
-                                    .circleCrop()
-                                    .placeholder(R.drawable.ic_person)
-                                    .error(R.drawable.ic_person)
-                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                    .into(binding.ivProfilePicture);
+                            GlideImageHelper.loadAvatar(ProfileActivity.this, user.getProfileImage(), binding.ivProfilePicture);
                         }
                         loadProfile();
                     } else {

@@ -201,12 +201,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
             if (imageUrl != null && !imageUrl.isEmpty()) {
                 binding.ivItemImage.setVisibility(View.VISIBLE);
                 binding.layoutIconPlaceholder.setVisibility(View.GONE);
-                Glide.with(context)
-                        .load(imageUrl)
-                        .thumbnail(0.25f)
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .centerCrop()
-                        .into(binding.ivItemImage);
+                com.findora.app.utils.GlideImageHelper.loadItemThumbnail(context, imageUrl, binding.ivItemImage);
             } else {
                 binding.ivItemImage.setVisibility(View.GONE);
                 binding.layoutIconPlaceholder.setVisibility(View.VISIBLE);

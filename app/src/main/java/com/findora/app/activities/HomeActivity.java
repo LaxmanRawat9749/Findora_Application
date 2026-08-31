@@ -23,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.findora.app.R;
 import com.findora.app.adapters.ItemAdapter;
+import com.findora.app.cache.FindoraCache;
 import com.findora.app.databinding.ActivityHomeBinding;
 import com.findora.app.models.Item;
 import com.findora.app.models.Notification;
@@ -109,7 +110,36 @@ public class HomeActivity extends BaseActivity {
         });
 
         updateGreeting();
+
+        // ─── Cache-First: Display cached feed immediately (0ms delay) ─────────
+        List<Item> cached = FindoraCache.getInstance(this).getCachedItems();
+        if (cached != null && !cached.isEmpty()) {
+            originalItemList = new ArrayList<>(cached);
+            applyFilters();
+        }
+
         loadItems();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        clearSearchFocus();
+        baseSessionManager.updateLastActivity();
+        updateGreeting();
+        if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
+            binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);
+        }
+
+        // Fast UI refresh from cache
+        List<Item> cached = FindoraCache.getInstance(this).getCachedItems();
+        if (cached != null && !cached.isEmpty()) {
+            originalItemList = new ArrayList<>(cached);
+            applyFilters();
+        }
+        loadItems();
+        updateNotificationBadge();
+        loadPointsPill();
     }
 
     public void clearSearchFocus() {
@@ -129,7 +159,7 @@ public class HomeActivity extends BaseActivity {
             view = binding.etHomeSearch;
         }
         if (view != null) {
-            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
             if (imm != null) {
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
             }
@@ -137,11 +167,11 @@ public class HomeActivity extends BaseActivity {
     }
 
     @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN) {
             View v = getCurrentFocus();
-            if (v instanceof EditText) {
-                Rect outRect = new Rect();
+            if (v instanceof android.widget.EditText) {
+                android.graphics.Rect outRect = new android.graphics.Rect();
                 v.getGlobalVisibleRect(outRect);
                 if (!outRect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
                     clearSearchFocus();
@@ -149,20 +179,6 @@ public class HomeActivity extends BaseActivity {
             }
         }
         return super.dispatchTouchEvent(ev);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        clearSearchFocus();
-        baseSessionManager.updateLastActivity();
-        updateGreeting();
-        if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
-            binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);
-        }
-        loadItems();
-        updateNotificationBadge();
-        loadPointsPill();
     }
 
     private void loadPointsPill() {
@@ -341,8 +357,10 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void loadItems() {
-        if (adapter.getItemCount() == 0 && !binding.swipeRefresh.isRefreshing()) {
-            binding.progressBar.setVisibility(View.VISIBLE);
+        if (originalItemList == null || originalItemList.isEmpty()) {
+            if (adapter.getItemCount() == 0 && !binding.swipeRefresh.isRefreshing()) {
+                binding.progressBar.setVisibility(View.VISIBLE);
+            }
         }
         binding.tvEmptyState.setVisibility(View.GONE);
 
@@ -354,6 +372,7 @@ public class HomeActivity extends BaseActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     originalItemList = response.body();
+                    FindoraCache.getInstance(HomeActivity.this).saveItems(originalItemList);
                     applyFilters();
                 } else if (originalItemList == null || originalItemList.isEmpty()) {
                     originalItemList = new ArrayList<>();
