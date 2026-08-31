@@ -24,7 +24,6 @@ from .models import (
     FinderRating,
     FinderReputation,
     Item,
-    ItemImage,
     Notification,
     Payment,
     User,
@@ -33,30 +32,6 @@ from .models import (
 # Custom display names for combined Finder Rating & Reputation feature
 FinderReputation._meta.verbose_name = 'Finder Rating & Reputation'
 FinderReputation._meta.verbose_name_plural = 'Finder Ratings & Reputation'
-
-
-# ─── Item Image Inline ────────────────────────────────────────────────────────
-
-class ItemImageInline(admin.TabularInline):
-    model = ItemImage
-    extra = 0
-    readonly_fields = ['image_preview', 'uploaded_at']
-    fields = ['image', 'image_preview', 'uploaded_at']
-
-    def image_preview(self, obj):
-        if obj and obj.image:
-            try:
-                return format_html(
-                    '<a href="{}" target="_blank">'
-                    '<img src="{}" style="max-height:80px;max-width:120px;object-fit:contain;border-radius:4px;border:1px solid #CBD5E1;" alt="Preview" />'
-                    '</a>',
-                    obj.image.url, obj.image.url
-                )
-            except Exception:
-                return 'No image'
-        return 'No image'
-
-    image_preview.short_description = 'Preview'
 
 
 # ─── User Admin ───────────────────────────────────────────────────────────────
@@ -308,7 +283,7 @@ class ItemAdmin(admin.ModelAdmin):
     Admin interface for lost/found item reports.
 
     Features colored status and type badges, contextual reporter info (Owner/Finder),
-    uploaded verification media previews, reporter history metrics, and item status review actions.
+    reporter history metrics, and item status review actions.
     """
 
     list_display = [
@@ -322,21 +297,15 @@ class ItemAdmin(admin.ModelAdmin):
     ]
     ordering = ['-reported_at']
     readonly_fields = [
-        'media_preview',
         'reporter_info_display', 'reporter_history_display',
         'reported_at', 'updated_at',
     ]
-    inlines = [ItemImageInline]
     list_per_page = 20
     date_hierarchy = 'reported_at'
 
     fieldsets = (
         ('Item Report Information', {
             'fields': ('user', 'type', 'title', 'description', 'category', 'reward'),
-        }),
-        ('Verification Media', {
-            'fields': ('media_preview',),
-            'description': 'Actual photo(s) uploaded by the reporter for this specific item report.',
         }),
         ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
@@ -379,10 +348,6 @@ class ItemAdmin(admin.ModelAdmin):
                 ('Item Report Information', {
                     'fields': ('user', 'type', 'title', 'description', 'category'),
                 }),
-                ('Verification Media', {
-                    'fields': ('media_preview',),
-                    'description': 'Actual photo(s) uploaded by the reporter for this specific item report.',
-                }),
                 ('Location Details', {
                     'fields': ('location', 'latitude', 'longitude'),
                 }),
@@ -404,64 +369,6 @@ class ItemAdmin(admin.ModelAdmin):
         return super().get_fieldsets(request, obj)
 
     actions = ['approve_items', 'reject_items', 'mark_resolved']
-
-    # ─── Verification Media & Display Methods ─────────────────────────────────
-
-    @admin.display(description='Uploaded Media')
-    def media_preview(self, obj):
-        if not obj or not obj.pk:
-            return mark_safe('<p style="color:#64748B;font-style:italic;">No media available (save item first).</p>')
-
-        image_urls = []
-        seen_urls = set()
-
-        # 1. Primary image stored on Item record
-        if obj.image:
-            try:
-                url = obj.image.url
-                if url and url not in seen_urls:
-                    image_urls.append(url)
-                    seen_urls.add(url)
-            except Exception:
-                pass
-
-        # 2. Associated ItemImage records strictly filtered by this exact item (item_id=obj.id)
-        for item_img in obj.images.all():
-            if item_img.image:
-                try:
-                    url = item_img.image.url
-                    if url and url not in seen_urls:
-                        image_urls.append(url)
-                        seen_urls.add(url)
-                except Exception:
-                    pass
-
-        if not image_urls:
-            return mark_safe(
-                '<div style="background:#F8FAFC;border:1px dashed #CBD5E1;padding:14px 18px;'
-                'border-radius:8px;color:#64748B;font-size:13px;max-width:500px;">'
-                '📷 No photo was uploaded for this item report.'
-                '</div>'
-            )
-
-        cards = []
-        for idx, url in enumerate(image_urls):
-            cards.append(format_html(
-                '<div style="display:inline-block;margin-right:16px;margin-bottom:12px;text-align:center;">'
-                '<a href="{}" target="_blank" style="display:block;border:2px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F1F5F9;">'
-                '<img src="{}" style="max-height:220px;max-width:320px;object-fit:contain;display:block;" alt="Item Photo {}" />'
-                '</a>'
-                '<span style="display:block;margin-top:6px;font-size:11px;color:#64748B;">Photo {} (click to view full size)</span>'
-                '</div>',
-                url, url, idx + 1, idx + 1
-            ))
-
-        return format_html(
-            '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">'
-            '{}'
-            '</div>',
-            mark_safe(''.join(cards))
-        )
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
