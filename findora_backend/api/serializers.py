@@ -370,8 +370,14 @@ class ItemImageSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         request = self.context.get('request')
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            try:
+                url = obj.image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
 
@@ -433,15 +439,27 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def get_user_profile_image(self, obj):
         request = self.context.get('request')
-        if obj.user.profile_image and request:
-            return request.build_absolute_uri(obj.user.profile_image.url)
+        if obj.user.profile_image:
+            try:
+                url = obj.user.profile_image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
     def get_image_url(self, obj):
         """Return absolute URL for the item image, or None."""
         request = self.context.get('request')
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            try:
+                url = obj.image.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+            except ValueError:
+                return None
         return None
 
     def to_representation(self, instance):

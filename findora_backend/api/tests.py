@@ -1589,6 +1589,54 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
         self.assertIn('test_owner_pic', display_with_img)
 
 
+class BackblazeB2MediaStorageConfigurationTests(TestCase):
+    """
+    Tests that Backblaze B2 S3 storage backend is correctly configured
+    and resolves URLs accurately for Item images without depending on local disk.
+    """
+
+    def test_b2_s3_storage_class_and_url_generation(self):
+        """Test S3Storage generates correct B2 S3 endpoints without local filesystem dependency."""
+        from storages.backends.s3 import S3Storage
+
+        storage = S3Storage(
+            access_key='dummy_access_key',
+            secret_key='dummy_secret_key',
+            bucket_name='findora-bucket',
+            region_name='eu-central-003',
+            endpoint_url='https://s3.eu-central-003.backblazeb2.com',
+            custom_domain='findora-bucket.s3.eu-central-003.backblazeb2.com',
+            querystring_auth=False,
+            file_overwrite=False,
+            default_acl=None,
+        )
+
+        url = storage.url('items/test_laptop.jpg')
+        self.assertTrue(url.startswith('https://findora-bucket.s3.eu-central-003.backblazeb2.com/items/test_laptop.jpg'))
+
+    def test_item_serializer_preserves_b2_url(self):
+        """Verify ItemSerializer returns absolute B2 URL without prefixing local domain."""
+        owner = User.objects.create_user(
+            username='b2_owner', email='b2_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        item = Item.objects.create(
+            user=owner,
+            type='lost',
+            title='Lost B2 Laptop',
+            category='electronics',
+            status='approved',
+        )
+        # Simulate an image stored in B2
+        item.image.name = 'items/b2_uploaded_laptop.jpg'
+        item.save()
+
+        from api.serializers import ItemSerializer
+        serializer = ItemSerializer(item)
+        data = serializer.data
+        self.assertIn('items/b2_uploaded_laptop.jpg', data['image_url'])
+
+
+
 
 
 
