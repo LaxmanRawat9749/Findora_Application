@@ -165,61 +165,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
-CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY')
-CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
-CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
-
-USE_CLOUDINARY = bool(
-    CLOUDINARY_URL or (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
-)
-
-RENDER_DISK_PATH = os.environ.get('RENDER_DISK_PATH', os.environ.get('PERSISTENT_STORAGE_DIR', ''))
-
-if USE_CLOUDINARY and 'test' not in sys.argv:
-    INSTALLED_APPS += [
-        'cloudinary_storage',
-        'cloudinary',
-    ]
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
-        'API_KEY': CLOUDINARY_API_KEY,
-        'API_SECRET': CLOUDINARY_API_SECRET,
-    }
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-    STORAGES = {
-        "default": {
-            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-        },
-    }
-elif RENDER_DISK_PATH and os.path.exists(RENDER_DISK_PATH) and 'test' not in sys.argv:
-    MEDIA_ROOT = Path(RENDER_DISK_PATH) / 'media'
-    MEDIA_URL = '/media/'
-    os.makedirs(MEDIA_ROOT, exist_ok=True)
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-        },
-    }
-else:
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-    os.makedirs(MEDIA_ROOT, exist_ok=True)
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage" if ('test' in sys.argv or DEBUG) else "whitenoise.storage.CompressedStaticFilesStorage",
-        },
-    }
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Email / Brevo Transactional API ─────────────────────────────────────────
 # OTP emails are dispatched via Brevo's Transactional Email API in daemon
