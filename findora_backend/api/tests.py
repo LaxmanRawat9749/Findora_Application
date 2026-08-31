@@ -1564,6 +1564,30 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
         self.assertEqual(self.lost_item.title, 'Lost Apple Watch Series 9')
         self.assertEqual(float(self.lost_item.reward), 1200.00)
 
+    def test_item_admin_list_display_includes_image(self):
+        """Verify list_display has 'image_preview' column."""
+        self.assertIn('image_preview', self.item_admin.list_display)
+
+    def test_item_admin_image_preview_with_and_without_image(self):
+        """Verify image_preview method output when item has image vs no image."""
+        # Without image
+        preview_no_img = self.item_admin.image_preview(self.lost_item)
+        self.assertIn('No Image', preview_no_img)
+
+        # With image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        test_img = SimpleUploadedFile(name='test_owner_pic.jpg', content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b', content_type='image/jpeg')
+        self.lost_item.image = test_img
+        self.lost_item.save()
+
+        preview_with_img = self.item_admin.image_preview(self.lost_item)
+        self.assertIn('<img', preview_with_img)
+        self.assertIn('test_owner_pic', preview_with_img)
+
+        display_with_img = self.item_admin.image_display(self.lost_item)
+        self.assertIn('<img', display_with_img)
+        self.assertIn('test_owner_pic', display_with_img)
+
 
 
 
