@@ -46,11 +46,19 @@ class ItemImageInline(admin.TabularInline):
     def image_preview(self, obj):
         if obj and obj.image:
             try:
+                url = obj.image.url
+                is_local = not (url.startswith('http://') or url.startswith('https://'))
+                if is_local and hasattr(obj.image, 'storage'):
+                    try:
+                        if not obj.image.storage.exists(obj.image.name):
+                            return mark_safe('<span style="color:#E11D48;font-size:11px;">⚠️ File missing on server disk</span>')
+                    except Exception:
+                        pass
                 return format_html(
                     '<a href="{}" target="_blank">'
                     '<img src="{}" style="max-height:80px;max-width:120px;object-fit:contain;border-radius:4px;border:1px solid #CBD5E1;" alt="Preview" />'
                     '</a>',
-                    obj.image.url, obj.image.url
+                    url, url
                 )
             except Exception:
                 return 'No image'
@@ -412,16 +420,24 @@ class ItemAdmin(admin.ModelAdmin):
         if not obj or not obj.pk:
             return mark_safe('<p style="color:#64748B;font-style:italic;">No media available (save item first).</p>')
 
-        image_urls = []
-        seen_urls = set()
+        media_items = []
+        seen_keys = set()
 
         # 1. Primary image stored on Item record
         if obj.image:
             try:
                 url = obj.image.url
-                if url and url not in seen_urls:
-                    image_urls.append(url)
-                    seen_urls.add(url)
+                key = obj.image.name or url
+                if key and key not in seen_keys:
+                    seen_keys.add(key)
+                    is_local = not (url.startswith('http://') or url.startswith('https://'))
+                    exists = True
+                    if is_local and hasattr(obj.image, 'storage'):
+                        try:
+                            exists = obj.image.storage.exists(obj.image.name)
+                        except Exception:
+                            exists = True
+                    media_items.append({'url': url, 'exists': exists, 'name': obj.image.name})
             except Exception:
                 pass
 
@@ -430,13 +446,21 @@ class ItemAdmin(admin.ModelAdmin):
             if item_img.image:
                 try:
                     url = item_img.image.url
-                    if url and url not in seen_urls:
-                        image_urls.append(url)
-                        seen_urls.add(url)
+                    key = item_img.image.name or url
+                    if key and key not in seen_keys:
+                        seen_keys.add(key)
+                        is_local = not (url.startswith('http://') or url.startswith('https://'))
+                        exists = True
+                        if is_local and hasattr(item_img.image, 'storage'):
+                            try:
+                                exists = item_img.image.storage.exists(item_img.image.name)
+                            except Exception:
+                                exists = True
+                        media_items.append({'url': url, 'exists': exists, 'name': item_img.image.name})
                 except Exception:
                     pass
 
-        if not image_urls:
+        if not media_items:
             return mark_safe(
                 '<div style="background:#F8FAFC;border:1px dashed #CBD5E1;padding:14px 18px;'
                 'border-radius:8px;color:#64748B;font-size:13px;max-width:500px;">'
@@ -445,16 +469,27 @@ class ItemAdmin(admin.ModelAdmin):
             )
 
         cards = []
-        for idx, url in enumerate(image_urls):
-            cards.append(format_html(
-                '<div style="display:inline-block;margin-right:16px;margin-bottom:12px;text-align:center;">'
-                '<a href="{}" target="_blank" style="display:block;border:2px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F1F5F9;">'
-                '<img src="{}" style="max-height:220px;max-width:320px;object-fit:contain;display:block;" alt="Item Photo {}" />'
-                '</a>'
-                '<span style="display:block;margin-top:6px;font-size:11px;color:#64748B;">Photo {} (click to view full size)</span>'
-                '</div>',
-                url, url, idx + 1, idx + 1
-            ))
+        for idx, item in enumerate(media_items):
+            url = item['url']
+            if item['exists']:
+                cards.append(format_html(
+                    '<div style="display:inline-block;margin-right:16px;margin-bottom:12px;text-align:center;">'
+                    '<a href="{}" target="_blank" style="display:block;border:2px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F1F5F9;">'
+                    '<img src="{}" style="max-height:220px;max-width:320px;object-fit:contain;display:block;" alt="Item Photo {}" />'
+                    '</a>'
+                    '<span style="display:block;margin-top:6px;font-size:11px;color:#64748B;">Photo {} (click to view full size)</span>'
+                    '</div>',
+                    url, url, idx + 1, idx + 1
+                ))
+            else:
+                cards.append(format_html(
+                    '<div style="display:inline-block;margin-right:16px;margin-bottom:12px;text-align:left;background:#FFF1F2;border:1px solid #FECDD3;padding:12px;border-radius:8px;max-width:320px;">'
+                    '<div style="font-weight:600;color:#E11D48;font-size:12px;margin-bottom:4px;">⚠️ File missing on server disk</div>'
+                    '<div style="font-size:11px;color:#475569;word-break:break-all;margin-bottom:6px;">Path: <code>{}</code></div>'
+                    '<div style="font-size:11px;color:#9F1239;line-height:1.4;">This file was stored on ephemeral disk before persistent storage was enabled and was lost during a container restart.</div>'
+                    '</div>',
+                    item['name'] or url
+                ))
 
         return format_html(
             '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">'
@@ -462,6 +497,7 @@ class ItemAdmin(admin.ModelAdmin):
             '</div>',
             mark_safe(''.join(cards))
         )
+
 
     # ─── Computed Columns ─────────────────────────────────────────────────────
 
