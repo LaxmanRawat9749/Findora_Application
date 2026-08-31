@@ -434,11 +434,23 @@ class ItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='Reporter History')
     def reporter_history_display(self, obj):
-        if not obj.user:
+        if not obj or not obj.user:
             return 'No user associated.'
         u = obj.user
-        rep = getattr(u, 'reputation', None)
         lost_count = u.items.filter(type='lost').count()
+
+        if getattr(obj, 'type', '') == 'lost':
+            return format_html(
+                '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">'
+                '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:8px 12px;border-radius:6px;min-width:110px;">'
+                '<div style="color:#64748B;font-size:11px;">Lost Reports</div>'
+                '<div style="font-size:16px;font-weight:700;color:#0F172A;">{}</div>'
+                '</div>'
+                '</div>',
+                lost_count,
+            )
+
+        rep = getattr(u, 'reputation', None)
         found_count = u.items.filter(type='found').count()
         returns_count = rep.successful_returns if rep else 0
         points = rep.total_points if rep else 0

@@ -1466,6 +1466,92 @@ class CrossUserFoundItemIndependenceTests(TestCase):
         self.assertNotIn(lost_phone_o1.id, o2_ids)
 
 
+class ItemAdminCleanOwnerItemChangePageTests(TestCase):
+    """
+    Tests that the ItemAdmin change interface for an Owner-reported item
+    displays ONLY 'Lost Reports' and cleanly omits 'Found Reports', 'Successful Returns',
+    'Reputation', and 'Points'.
+    """
+
+    def setUp(self):
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import ItemAdmin
+
+        self.site = AdminSite()
+        self.item_admin = ItemAdmin(Item, self.site)
+
+        self.owner = User.objects.create_user(
+            username='owner_user', email='owner_u@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='finder_user', email='finder_u@example.com', password='Password123!', role='finder', is_verified=True
+        )
+
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Apple Watch', category='electronics', status='approved', reward=1000.00
+        )
+        self.found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found Watch', category='electronics', status='approved'
+        )
+
+        self.admin_user = User.objects.create_superuser(
+            username='super_admin', email='super@example.com', password='Password123!'
+        )
+
+    def test_owner_reported_item_shows_only_lost_reports(self):
+        """Owner-reported item history display must keep Lost Reports and remove Found Reports, Returns, Reputation, Points."""
+        history_html = self.item_admin.reporter_history_display(self.lost_item)
+
+        # KEEP
+        self.assertIn('Lost Reports', history_html)
+
+        # REMOVE
+        self.assertNotIn('Found Reports', history_html)
+        self.assertNotIn('Successful Returns', history_html)
+        self.assertNotIn('Reputation', history_html)
+        self.assertNotIn('Points', history_html)
+
+    def test_finder_reported_item_preserves_full_finder_metrics(self):
+        """Finder-reported item history display preserves full finder metrics."""
+        history_html = self.item_admin.reporter_history_display(self.found_item)
+
+        self.assertIn('Lost Reports', history_html)
+        self.assertIn('Found Reports', history_html)
+        self.assertIn('Successful Returns', history_html)
+        self.assertIn('Reputation', history_html)
+        self.assertIn('Points', history_html)
+
+    def test_owner_item_change_page_loads_and_saves_normally(self):
+        """Verify the Item can still be opened and saved normally in Django Admin."""
+        self.client.login(username='super_admin', password='Password123!')
+
+        # 1. GET change item page
+        res = self.client.get(f'/admin/api/item/{self.lost_item.id}/change/')
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+        self.assertIn('Lost Reports', content)
+        self.assertNotIn('Found Reports', content)
+        self.assertNotIn('Successful Returns', content)
+
+        # 2. POST save item
+        post_data = {
+            'type': 'lost',
+            'title': 'Lost Apple Watch Series 9',
+            'description': 'Updated description',
+            'category': 'electronics',
+            'reward': '1200.00',
+            'location': 'Library',
+            'status': 'approved',
+        }
+        res_post = self.client.post(f'/admin/api/item/{self.lost_item.id}/change/', post_data)
+        self.assertEqual(res_post.status_code, 302)
+
+        self.lost_item.refresh_from_db()
+        self.assertEqual(self.lost_item.title, 'Lost Apple Watch Series 9')
+        self.assertEqual(float(self.lost_item.reward), 1200.00)
+
+
+
 
 
 
