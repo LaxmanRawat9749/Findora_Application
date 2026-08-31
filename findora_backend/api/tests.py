@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.exceptions import ValidationError
 from api.models import (
-    User, Item, FinderReputation, PointTransaction, FinderRating,
+    User, Item, ItemImage, FinderReputation, PointTransaction, FinderRating,
     UserBadge, Conversation, Notification, ChatMessage
 )
 from api.serializers import (
@@ -1476,6 +1476,7 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
     def setUp(self):
         from django.contrib.admin.sites import AdminSite
         from api.admin import ItemAdmin
+        from api.models import ItemImage
 
         self.site = AdminSite()
         self.item_admin = ItemAdmin(Item, self.site)
@@ -1556,6 +1557,10 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
             'reward': '1200.00',
             'location': 'Library',
             'status': 'approved',
+            'images-TOTAL_FORMS': '0',
+            'images-INITIAL_FORMS': '0',
+            'images-MIN_NUM_FORMS': '0',
+            'images-MAX_NUM_FORMS': '1000',
         }
         res_post = self.client.post(f'/admin/api/item/{self.lost_item.id}/change/', post_data)
         self.assertEqual(res_post.status_code, 302)
@@ -1563,6 +1568,89 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
         self.lost_item.refresh_from_db()
         self.assertEqual(self.lost_item.title, 'Lost Apple Watch Series 9')
         self.assertEqual(float(self.lost_item.reward), 1200.00)
+
+    def test_media_preview_exact_item_isolation_across_multiple_reports(self):
+        """
+        Verify exact Item image relationship isolation across multiple reports in the same category:
+        Owner1 -> Lost Laptop -> Image A
+        Finder1 -> Found Laptop -> Image B
+        Owner2 -> Lost Laptop -> Image C
+        Finder2 -> Found Laptop -> Image D
+        No image item -> No photo uploaded message
+        """
+        owner2 = User.objects.create_user(username='owner2_user', email='owner2@example.com', password='Password123!', role='owner', is_verified=True)
+        finder2 = User.objects.create_user(username='finder2_user', email='finder2@example.com', password='Password123!', role='finder', is_verified=True)
+
+        img_a = SimpleUploadedFile("laptop_owner1.jpg", b"image_a_bytes", content_type="image/jpeg")
+        img_b = SimpleUploadedFile("laptop_finder1.jpg", b"image_b_bytes", content_type="image/jpeg")
+        img_c = SimpleUploadedFile("laptop_owner2.jpg", b"image_c_bytes", content_type="image/jpeg")
+        img_d = SimpleUploadedFile("laptop_finder2.jpg", b"image_d_bytes", content_type="image/jpeg")
+
+        item_owner1 = Item.objects.create(user=self.owner, type='lost', title='Dell XPS', category='electronics', image=img_a, status='pending')
+        ItemImage.objects.create(item=item_owner1, image=img_a)
+
+        item_finder1 = Item.objects.create(user=self.finder, type='found', title='Dell XPS', category='electronics', image=img_b, status='pending')
+        ItemImage.objects.create(item=item_finder1, image=img_b)
+
+        item_owner2 = Item.objects.create(user=owner2, type='lost', title='ThinkPad', category='electronics', image=img_c, status='pending')
+        ItemImage.objects.create(item=item_owner2, image=img_c)
+
+        item_finder2 = Item.objects.create(user=finder2, type='found', title='ThinkPad', category='electronics', image=img_d, status='pending')
+        ItemImage.objects.create(item=item_finder2, image=img_d)
+
+        item_no_img = Item.objects.create(user=self.owner, type='lost', title='Lost USB Drive', category='electronics', status='pending')
+
+        # 1. Inspect media_preview for each item
+        html_o1 = self.item_admin.media_preview(item_owner1)
+        self.assertIn('laptop_owner1', html_o1)
+        self.assertNotIn('laptop_finder1', html_o1)
+        self.assertNotIn('laptop_owner2', html_o1)
+        self.assertNotIn('laptop_finder2', html_o1)
+
+        html_f1 = self.item_admin.media_preview(item_finder1)
+        self.assertIn('laptop_finder1', html_f1)
+        self.assertNotIn('laptop_owner1', html_f1)
+        self.assertNotIn('laptop_owner2', html_f1)
+        self.assertNotIn('laptop_finder2', html_f1)
+
+        html_o2 = self.item_admin.media_preview(item_owner2)
+        self.assertIn('laptop_owner2', html_o2)
+        self.assertNotIn('laptop_owner1', html_o2)
+        self.assertNotIn('laptop_finder1', html_o2)
+        self.assertNotIn('laptop_finder2', html_o2)
+
+        html_f2 = self.item_admin.media_preview(item_finder2)
+        self.assertIn('laptop_finder2', html_f2)
+        self.assertNotIn('laptop_owner1', html_f2)
+        self.assertNotIn('laptop_finder1', html_f2)
+        self.assertNotIn('laptop_owner2', html_f2)
+
+        html_no_img = self.item_admin.media_preview(item_no_img)
+        self.assertIn('No photo was uploaded', html_no_img)
+        self.assertNotIn('laptop_owner1', html_no_img)
+        self.assertNotIn('laptop_finder1', html_no_img)
+
+        # 2. Check Django Admin change page GET requests
+        self.client.login(username='super_admin', password='Password123!')
+
+        res_o1 = self.client.get(f'/admin/api/item/{item_owner1.id}/change/')
+        self.assertEqual(res_o1.status_code, 200)
+        c_o1 = res_o1.content.decode('utf-8')
+        self.assertIn('laptop_owner1', c_o1)
+        self.assertNotIn('laptop_finder1', c_o1)
+
+        res_f1 = self.client.get(f'/admin/api/item/{item_finder1.id}/change/')
+        self.assertEqual(res_f1.status_code, 200)
+        c_f1 = res_f1.content.decode('utf-8')
+        self.assertIn('laptop_finder1', c_f1)
+        self.assertNotIn('laptop_owner1', c_f1)
+
+        res_no_img = self.client.get(f'/admin/api/item/{item_no_img.id}/change/')
+        self.assertEqual(res_no_img.status_code, 200)
+        c_no_img = res_no_img.content.decode('utf-8')
+        self.assertIn('No photo was uploaded', c_no_img)
+        self.assertNotIn('laptop_owner1', c_no_img)
+
 
 
 
