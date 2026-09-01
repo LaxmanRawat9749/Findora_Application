@@ -327,7 +327,7 @@ class ItemAdmin(admin.ModelAdmin):
     """
 
     list_display = [
-        'image_preview', 'title', 'type_badge', 'category', 'status_badge',
+        'title', 'type_badge', 'category', 'status_badge',
         'reporter', 'location', 'reward_display', 'reported_at',
     ]
     list_filter = ['status', 'type', 'category', 'reported_at']
@@ -337,7 +337,7 @@ class ItemAdmin(admin.ModelAdmin):
     ]
     ordering = ['-reported_at']
     readonly_fields = [
-        'image_display', 'reporter_info_display', 'reporter_history_display',
+        'reported_image_display', 'reporter_info_display', 'reporter_history_display',
         'reported_at', 'updated_at',
     ]
     list_per_page = 20
@@ -345,7 +345,10 @@ class ItemAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Item Report Information', {
-            'fields': ('user', 'type', 'title', 'description', 'category', 'reward', 'image_display'),
+            'fields': ('user', 'type', 'title', 'description', 'category', 'reward'),
+        }),
+        ('Reported Item Image', {
+            'fields': ('reported_image_display',),
         }),
         ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
@@ -386,7 +389,10 @@ class ItemAdmin(admin.ModelAdmin):
         if obj and obj.type == 'found':
             return (
                 ('Item Report Information', {
-                    'fields': ('user', 'type', 'title', 'description', 'category', 'image_display'),
+                    'fields': ('user', 'type', 'title', 'description', 'category'),
+                }),
+                ('Reported Item Image', {
+                    'fields': ('reported_image_display',),
                 }),
                 ('Location Details', {
                     'fields': ('location', 'latitude', 'longitude'),
@@ -410,70 +416,63 @@ class ItemAdmin(admin.ModelAdmin):
 
     actions = ['approve_items', 'reject_items', 'mark_resolved']
 
-    # ─── Computed Columns ─────────────────────────────────────────────────────
+    # ─── Computed Columns & Display Methods ───────────────────────────────────
 
-    @admin.display(description='Image')
-    def image_preview(self, obj):
-        """Display a clean square thumbnail of the item's uploaded image in the list table."""
-        image_url = None
-        if obj.image and hasattr(obj.image, 'url'):
-            try:
-                image_url = obj.image.url
-            except ValueError:
-                image_url = None
+    @admin.display(description='Reported Item Image')
+    def reported_image_display(self, obj):
+        """
+        Display the actual image uploaded during the report for this exact Item.
+        Directly looks up this Item's exact image reference (obj.image or obj.images).
+        Never mixes Owner/Finder images, never uses category/title fallbacks or default placeholder images.
+        """
+        if not obj or not obj.pk:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No image</span>')
 
-        if not image_url:
-            first_img = obj.images.first()
-            if first_img and first_img.image and hasattr(first_img.image, 'url'):
-                try:
-                    image_url = first_img.image.url
-                except ValueError:
-                    image_url = None
+        image_field = None
+        if obj.image and hasattr(obj.image, 'name') and obj.image.name:
+            image_field = obj.image
+        else:
+            first_img = obj.images.filter(item_id=obj.id).order_by('uploaded_at', 'id').first()
+            if first_img and first_img.image and hasattr(first_img.image, 'name') and first_img.image.name:
+                image_field = first_img.image
 
-        if image_url:
-            return format_html(
-                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full image">'
-                '<img src="{}" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid #E2E8F0;box-shadow:0 1px 2px rgba(0,0,0,0.06);vertical-align:middle;display:block;" alt="{}" />'
-                '</a>',
-                image_url,
-                image_url,
-                obj.title,
-            )
-        return mark_safe('<span style="color:#94A3B8;font-size:12px;font-weight:500;">No Image</span>')
+        # If no image is associated in database
+        if not image_field:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;font-weight:500;">No image</span>')
 
-    @admin.display(description='Uploaded Image')
-    def image_display(self, obj):
-        """Display a responsive image preview card on the Item change/detail page."""
-        if not obj:
-            return '—'
-        image_url = None
-        if obj.image and hasattr(obj.image, 'url'):
-            try:
-                image_url = obj.image.url
-            except ValueError:
-                image_url = None
+        # Check if the physical file actually exists in storage / filesystem
+        file_exists = False
+        try:
+            if hasattr(image_field, 'storage') and image_field.storage:
+                file_exists = image_field.storage.exists(image_field.name)
+            else:
+                file_exists = True
+        except Exception:
+            file_exists = False
 
-        if not image_url:
-            first_img = obj.images.first()
-            if first_img and first_img.image and hasattr(first_img.image, 'url'):
-                try:
-                    image_url = first_img.image.url
-                except ValueError:
-                    image_url = None
+        if not file_exists:
+            return mark_safe('<span style="color:#DC2626;font-size:13px;font-weight:500;">Image unavailable</span>')
 
-        if image_url:
-            return format_html(
-                '<div style="margin-top:4px;">'
-                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to open full-size image">'
-                '<img src="{}" style="max-width:280px;max-height:280px;border-radius:8px;border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.08);object-fit:contain;background:#F8FAFC;" alt="{}" />'
-                '</a>'
-                '<div style="font-size:11px;color:#64748B;margin-top:6px;">Click image to open full resolution</div>'
-                '</div>',
-                image_url,
-                image_url,
-                obj.title,
-            )
-        return mark_safe('<span style="color:#94A3B8;font-size:13px;font-weight:500;">No image uploaded for this item report.</span>')
+        # Resolve image URL
+        try:
+            url = image_field.url
+        except Exception:
+            return mark_safe('<span style="color:#DC2626;font-size:13px;font-weight:500;">Image unavailable</span>')
+
+        return format_html(
+            '<div style="margin-top:4px;">'
+            '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to open full-size image">'
+            '<img src="{}" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.08);object-fit:contain;background:#F8FAFC;display:block;" alt="{}" />'
+            '</a>'
+            '<div style="font-size:11px;color:#64748B;margin-top:6px;">Click image to open full resolution in a new tab</div>'
+            '</div>',
+            url,
+            url,
+            obj.title,
+        )
+
+    # Alias for backward compatibility
+    image_display = reported_image_display
 
     @admin.display(description='Type')
     def type_badge(self, obj):

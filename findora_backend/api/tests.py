@@ -1573,29 +1573,97 @@ class ItemAdminCleanOwnerItemChangePageTests(TestCase):
         self.assertEqual(self.lost_item.title, 'Lost Apple Watch Series 9')
         self.assertEqual(float(self.lost_item.reward), 1200.00)
 
-    def test_item_admin_list_display_includes_image(self):
-        """Verify list_display has 'image_preview' column."""
-        self.assertIn('image_preview', self.item_admin.list_display)
+    def test_item_admin_list_display_excludes_image(self):
+        """Verify list_display does NOT have 'image_preview' or 'image' column in Items table."""
+        self.assertNotIn('image_preview', self.item_admin.list_display)
+        self.assertNotIn('image', self.item_admin.list_display)
 
-    def test_item_admin_image_preview_with_and_without_image(self):
-        """Verify image_preview method output when item has image vs no image."""
-        # Without image
-        preview_no_img = self.item_admin.image_preview(self.lost_item)
-        self.assertIn('No Image', preview_no_img)
+    def test_item_admin_change_page_fieldsets_contain_reported_item_image_section(self):
+        """Verify Change Item fieldsets contain 'Reported Item Image' section for both lost and found items."""
+        lost_fieldsets = dict(self.item_admin.get_fieldsets(None, self.lost_item))
+        found_fieldsets = dict(self.item_admin.get_fieldsets(None, self.found_item))
 
-        # With image
+        self.assertIn('Reported Item Image', lost_fieldsets)
+        self.assertIn('reported_image_display', lost_fieldsets['Reported Item Image']['fields'])
+
+        self.assertIn('Reported Item Image', found_fieldsets)
+        self.assertIn('reported_image_display', found_fieldsets['Reported Item Image']['fields'])
+
+    def test_owner_reported_item_shows_exact_image(self):
+        """Verify Owner-reported Item shows that Owner's actual uploaded report image."""
         from django.core.files.uploadedfile import SimpleUploadedFile
-        test_img = SimpleUploadedFile(name='test_owner_pic.jpg', content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b', content_type='image/jpeg')
-        self.lost_item.image = test_img
+        owner_img = SimpleUploadedFile(
+            name='owner_reported_wallet.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        self.lost_item.image = owner_img
         self.lost_item.save()
 
-        preview_with_img = self.item_admin.image_preview(self.lost_item)
-        self.assertIn('<img', preview_with_img)
-        self.assertIn('test_owner_pic', preview_with_img)
+        display_html = self.item_admin.reported_image_display(self.lost_item)
+        self.assertIn('<img', display_html)
+        self.assertIn('owner_reported_wallet', display_html)
+        self.assertIn('target="_blank"', display_html)
 
-        display_with_img = self.item_admin.image_display(self.lost_item)
-        self.assertIn('<img', display_with_img)
-        self.assertIn('test_owner_pic', display_with_img)
+    def test_finder_reported_item_shows_exact_image(self):
+        """Verify Finder-reported Item shows that Finder's actual uploaded report image."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        finder_img = SimpleUploadedFile(
+            name='finder_reported_keys.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        self.found_item.image = finder_img
+        self.found_item.save()
+
+        display_html = self.item_admin.reported_image_display(self.found_item)
+        self.assertIn('<img', display_html)
+        self.assertIn('finder_reported_keys', display_html)
+        self.assertIn('target="_blank"', display_html)
+
+    def test_owner_and_finder_images_never_mix(self):
+        """Verify Owner and Finder items strictly display only their own uploaded image."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        owner_img = SimpleUploadedFile(
+            name='unique_owner_photo.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        finder_img = SimpleUploadedFile(
+            name='unique_finder_photo.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        self.lost_item.image = owner_img
+        self.lost_item.save()
+        self.found_item.image = finder_img
+        self.found_item.save()
+
+        owner_display = self.item_admin.reported_image_display(self.lost_item)
+        finder_display = self.item_admin.reported_image_display(self.found_item)
+
+        # Owner display contains owner photo and never finder photo
+        self.assertIn('unique_owner_photo', owner_display)
+        self.assertNotIn('unique_finder_photo', owner_display)
+
+        # Finder display contains finder photo and never owner photo
+        self.assertIn('unique_finder_photo', finder_display)
+        self.assertNotIn('unique_owner_photo', finder_display)
+
+    def test_no_image_displays_no_image_text(self):
+        """Verify 'No image' is returned when item has no image."""
+        self.lost_item.image = None
+        self.lost_item.save()
+        display_html = self.item_admin.reported_image_display(self.lost_item)
+        self.assertIn('No image', display_html)
+
+    def test_missing_physical_file_displays_image_unavailable(self):
+        """Verify 'Image unavailable' is returned when DB references a non-existent physical file."""
+        self.lost_item.image.name = 'items/non_existent_file_12345.jpg'
+        self.lost_item.save()
+
+        display_html = self.item_admin.reported_image_display(self.lost_item)
+        self.assertIn('Image unavailable', display_html)
 
 
 class BackblazeB2MediaStorageConfigurationTests(TestCase):
