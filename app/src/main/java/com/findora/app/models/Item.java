@@ -42,6 +42,8 @@ public class Item implements Serializable {
     private boolean ownerReturnedConfirm;
     @SerializedName("finder_returned_confirm")
     private boolean finderReturnedConfirm;
+    @SerializedName("resolved_at")
+    private String resolvedAt;
     @SerializedName("parent_item")
     private Integer parentItem;
     @SerializedName("parent_item_title")
