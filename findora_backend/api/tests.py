@@ -600,7 +600,7 @@ class OwnerFinderChatCommunicationTests(TestCase):
             user=self.owner, type='lost', title='Lost iPhone', category='phone', status='approved'
         )
         self.found_phone = Item.objects.create(
-            user=self.finder, type='found', title='Found iPhone', category='phone', status='approved'
+            user=self.finder, parent_item=self.lost_phone, type='found', title='Lost iPhone', category='phone', status='approved'
         )
 
     def test_finder_initiates_chat_on_lost_item_and_sends_message(self):
@@ -1131,15 +1131,13 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
 
     def test_pending_item_not_matched_for_discovery_until_approved(self):
         """Pending lost item must NOT generate discovery matches for found items until approved."""
-        found_item = Item.objects.create(
-            user=self.finder, title='Found Sony Headphones WH-1000XM4', description='Found on bus seat',
-            category='electronics', type='found', status='approved'
-        )
-
-        # Owner has only a pending lost item and an established match notification
         pending_item = Item.objects.create(
             user=self.owner, title='Lost Sony Headphones', description='Black WH-1000XM4',
             category='electronics', type='lost', status='pending'
+        )
+        found_item = Item.objects.create(
+            user=self.finder, parent_item=pending_item, title='Lost Sony Headphones', description='Found on bus seat',
+            category='electronics', type='found', status='approved'
         )
         Notification.objects.create(
             user=self.owner, related_item=found_item, type='match', message='Possible match found!'
@@ -1299,9 +1297,16 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
         from django.core.files.uploadedfile import SimpleUploadedFile
         photo = SimpleUploadedFile("found_wallet.jpg", b"fake_wallet_bytes", content_type="image/jpeg")
 
-        # 1. Finder reports Found item
+        # Owner has an approved lost wallet report
+        approved_lost = Item.objects.create(
+            user=self.owner, title='Lost Black Leather Wallet', description='Lost wallet in canteen',
+            category='wallet', type='lost', status='approved'
+        )
+
+        # 1. Finder reports Found item against Owner's Lost item
         items_view = ItemListCreateView.as_view()
         req_create = self.factory.post('/api/items/', {
+            'parent_item': approved_lost.id,
             'type': 'found',
             'title': 'Found Black Leather Wallet',
             'description': 'Found near canteen table',
@@ -1317,12 +1322,6 @@ class LostItemAdminApprovalWorkflowTests(TestCase):
 
         found_item = Item.objects.get(id=found_id)
         self.assertEqual(found_item.status, 'pending')
-
-        # Owner has an approved lost wallet report
-        approved_lost = Item.objects.create(
-            user=self.owner, title='Lost Black Leather Wallet', description='Lost wallet in canteen',
-            category='wallet', type='lost', status='approved'
-        )
 
         # 2. Before approval: Finder public dashboard (/api/items/) -> pending found item NOT visible
         req_f = self.factory.get('/api/items/')
@@ -1421,9 +1420,9 @@ class CrossUserFoundItemIndependenceTests(TestCase):
             user=self.owner1, type='lost', title='Lost Dell XPS Laptop', category='electronics', status='approved'
         )
 
-        # Step 2: Finder1 Found Laptop
+        # Step 2: Finder1 Found Laptop linked to Owner1's Lost Laptop
         found1 = Item.objects.create(
-            user=self.finder1, type='found', title='Found Dell XPS Laptop', category='electronics', status='approved'
+            user=self.finder1, parent_item=lost1, type='found', title='Lost Dell XPS Laptop', category='electronics', status='approved'
         )
 
         # Step 3: Owner1 connects with Finder1
@@ -1442,13 +1441,13 @@ class CrossUserFoundItemIndependenceTests(TestCase):
             user=self.owner2, type='lost', title='Lost Lenovo ThinkPad Laptop', category='electronics', status='approved'
         )
 
-        # Step 5: Owner2 dashboard: shows Owner2's Lost Laptop and Finder1's Found Laptop, NOT Owner1's Lost Laptop
+        # Step 5: Owner2 dashboard: shows Owner2's Lost Laptop, NOT Finder1's Found Laptop (which belongs to Owner1), NOT Owner1's Lost Laptop
         req_o2 = self.factory.get('/api/items/')
         force_authenticate(req_o2, user=self.owner2)
         res_o2 = items_view(req_o2)
         o2_ids = [it['id'] for it in res_o2.data]
         self.assertIn(lost2.id, o2_ids)
-        self.assertIn(found1.id, o2_ids)
+        self.assertNotIn(found1.id, o2_ids)
         self.assertNotIn(lost1.id, o2_ids)
 
         # Finder1 dashboard: sees all approved lost and found items
@@ -1466,12 +1465,12 @@ class CrossUserFoundItemIndependenceTests(TestCase):
         """
         items_view = ItemListCreateView.as_view()
 
-        # Phone category
+        # Phone category - Owner1 Lost and Finder1 Found linked to Owner1
         lost_phone_o1 = Item.objects.create(
             user=self.owner1, type='lost', title='Lost iPhone 14', category='phone', status='approved'
         )
         found_phone_f1 = Item.objects.create(
-            user=self.finder1, type='found', title='Found iPhone 14', category='phone', status='approved'
+            user=self.finder1, parent_item=lost_phone_o1, type='found', title='Lost iPhone 14', category='phone', status='approved'
         )
         Notification.objects.create(user=self.owner1, related_item=found_phone_f1, type='match')
 
@@ -1486,7 +1485,7 @@ class CrossUserFoundItemIndependenceTests(TestCase):
         o2_ids = [it['id'] for it in res_o2.data]
 
         self.assertIn(lost_phone_o2.id, o2_ids)
-        self.assertIn(found_phone_f1.id, o2_ids)
+        self.assertNotIn(found_phone_f1.id, o2_ids)
         self.assertNotIn(lost_phone_o1.id, o2_ids)
 
 
