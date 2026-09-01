@@ -250,9 +250,9 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
 
     def test_owner_visibility_and_finder_visibility(self):
         """
-        Owner A sees only Owner A's items.
-        Owner B sees only Owner B's items.
-        Finder sees ALL lost and found items.
+        Owner A sees only Owner A's lost items and found items linked to Owner A's lost items.
+        Owner B sees only Owner B's lost items and found items linked to Owner B's lost items.
+        Finder sees ALL approved lost and found items.
         """
         owner_a = User.objects.create_user(
             username='owner_a', email='owner_a@example.com', password='Password123!', role='owner', is_verified=True
@@ -272,9 +272,13 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
             user=owner_b, title="Owner B's Phone", description="Samsung S23",
             category="phone", type="lost", status="approved"
         )
-        item_f = Item.objects.create(
-            user=finder_a, title="Finder A's Found Watch", description="Casio watch",
-            category="other", type="found", status="approved"
+        item_f_a = Item.objects.create(
+            user=finder_a, parent_item=item_a, title=item_a.title, description="Found wallet",
+            category=item_a.category, type="found", status="approved"
+        )
+        item_f_b = Item.objects.create(
+            user=finder_a, parent_item=item_b, title=item_b.title, description="Found phone",
+            category=item_b.category, type="found", status="approved"
         )
 
         view = ItemListCreateView.as_view()
@@ -285,8 +289,9 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         res_a = view(req_a)
         item_ids_a = [it['id'] for it in res_a.data]
         self.assertIn(item_a.id, item_ids_a)
+        self.assertIn(item_f_a.id, item_ids_a)
         self.assertNotIn(item_b.id, item_ids_a)
-        self.assertIn(item_f.id, item_ids_a)
+        self.assertNotIn(item_f_b.id, item_ids_a)
 
         # 2. Owner B queries dashboard (/api/items/)
         req_b = self.factory.get('/api/items/')
@@ -294,8 +299,9 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         res_b = view(req_b)
         item_ids_b = [it['id'] for it in res_b.data]
         self.assertIn(item_b.id, item_ids_b)
+        self.assertIn(item_f_b.id, item_ids_b)
         self.assertNotIn(item_a.id, item_ids_b)
-        self.assertIn(item_f.id, item_ids_b)
+        self.assertNotIn(item_f_a.id, item_ids_b)
 
         # 3. Finder queries dashboard (/api/items/)
         req_f = self.factory.get('/api/items/')
@@ -304,7 +310,8 @@ class PermanentRoleRegistrationAndEnforcementTests(TestCase):
         item_ids_f = [it['id'] for it in res_f.data]
         self.assertIn(item_a.id, item_ids_f)
         self.assertIn(item_b.id, item_ids_f)
-        self.assertIn(item_f.id, item_ids_f)
+        self.assertIn(item_f_a.id, item_ids_f)
+        self.assertIn(item_f_b.id, item_ids_f)
 
     def test_promote_item_allowed_for_lost_item_forbidden_for_found_item(self):
         """Owner can initiate promotion for Lost Item, but Found Items cannot be promoted."""
@@ -496,20 +503,20 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         self.lost_phone = Item.objects.create(
             user=self.owner, type='lost', title='Black iPhone 13 Pro', category='phone', status='approved'
         )
-        # Iron found an iPhone and established contact with Thor
+        # Iron found Thor's iPhone (linked to Thor's lost item)
         self.matched_found_phone = Item.objects.create(
-            user=self.finder, type='found', title='Found iPhone 13 in Park', category='phone', status='approved'
+            user=self.finder, parent_item=self.lost_phone, type='found', title='Black iPhone 13 Pro', category='phone', status='approved'
         )
         Conversation.objects.create(
             item=self.matched_found_phone, owner=self.owner, finder=self.finder
         )
-        # Iron found unrelated sunglasses
+        # Iron found unrelated sunglasses (not linked to Thor's lost item)
         self.unmatched_found_glasses = Item.objects.create(
             user=self.finder, type='found', title='Found RayBan Sunglasses', category='other', status='approved'
         )
 
     def test_owner_sees_approved_found_items_and_own_lost_items(self):
-        """Owner browsing found items sees approved found items reported by Finders."""
+        """Owner browsing found items sees approved found items linked to their lost report."""
         view = ItemListCreateView.as_view()
         req = self.factory.get('/api/items/?type=found')
         force_authenticate(req, user=self.owner)
@@ -517,7 +524,7 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         self.assertEqual(res.status_code, 200)
         item_ids = [item['id'] for item in res.data]
         self.assertIn(self.matched_found_phone.id, item_ids)
-        self.assertIn(self.unmatched_found_glasses.id, item_ids)
+        self.assertNotIn(self.unmatched_found_glasses.id, item_ids)
 
     def test_finder_sees_all_found_and_lost_items(self):
         """Finder browsing items can see all approved lost and found items."""
@@ -541,7 +548,7 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         self.assertIn(self.unmatched_found_glasses.id, found_ids)
 
     def test_owner_can_view_approved_found_item_details(self):
-        """Owner can retrieve details of any approved found item (HTTP 200)."""
+        """Owner can retrieve details of linked approved found item (HTTP 200) and gets 403 on unlinked."""
         view = ItemDetailView.as_view()
         req = self.factory.get(f'/api/items/{self.matched_found_phone.id}/')
         force_authenticate(req, user=self.owner)
@@ -550,17 +557,16 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
         self.assertEqual(res.data['id'], self.matched_found_phone.id)
         self.assertEqual(res.data['title'], self.matched_found_phone.title)
 
-        # Owner can also view details of unassociated approved found items to initiate contact / claim
+        # Owner cannot view details of found reports not linked to their lost item
         req2 = self.factory.get(f'/api/items/{self.unmatched_found_glasses.id}/')
         force_authenticate(req2, user=self.owner)
         res2 = view(req2, pk=self.unmatched_found_glasses.id)
-        self.assertEqual(res2.status_code, 200)
-        self.assertEqual(res2.data['id'], self.unmatched_found_glasses.id)
+        self.assertEqual(res2.status_code, 403)
 
     def test_unapproved_found_item_hidden_from_other_users(self):
         """Unapproved (pending) found items are not accessible by other users (HTTP 403)."""
         pending_item = Item.objects.create(
-            user=self.finder, type='found', title='Pending Found Keys', category='keys', status='pending'
+            user=self.finder, parent_item=self.lost_phone, type='found', title='Black iPhone 13 Pro', category='phone', status='pending'
         )
         view = ItemDetailView.as_view()
         req = self.factory.get(f'/api/items/{pending_item.id}/')
@@ -1879,21 +1885,29 @@ class FindoraUserAdminProfileDisplayTests(TestCase):
 
 class OwnerDashboardFinderFoundReportsVisibilityTests(TestCase):
     """
-    Comprehensive tests ensuring Finder-reported found items appear on Owner Dashboard & Found section:
-    1. Owner1 Lost Laptop + Finder1 Found Laptop (approved) -> Finder1's item appears in Owner Dashboard -> Found.
-    2. Multiple Finder found reports across different categories work seamlessly.
-    3. Unapproved (pending/rejected) found reports remain hidden.
-    4. Owner's own Lost reports appear on Lost tab and All tab, but not on Found tab.
-    5. No duplicate items appear.
+    Comprehensive tests for Finder reporting against Owner's Lost item:
+    1. Owner1 reports Lost Laptop.
+    2. Finder1 selects that Lost Laptop and reports Found (POST /api/items/ with parent_item).
+    3. Title and Category automatically match Owner1's item.
+    4. Admin approves the report.
+    5. Owner1 sees Finder1's Found Report in Dashboard, Found section, and Account/Profile.
+    6. Owner2 does NOT see Finder1's Found Report.
+    7. Finder reports for another Owner's item and verify visibility remains correctly separated.
+    8. Unapproved/pending reports remain hidden.
+    9. Verify no unrelated/duplicate items appear.
     """
 
     def setUp(self):
         self.factory = APIRequestFactory()
         self.items_view = ItemListCreateView.as_view()
         self.item_detail_view = ItemDetailView.as_view()
+        self.my_reports_view = MyReportsView.as_view()
 
         self.owner1 = User.objects.create_user(
             username='owner_john', email='john@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.owner2 = User.objects.create_user(
+            username='owner_sarah', email='sarah@example.com', password='Password123!', role='owner', is_verified=True
         )
         self.finder1 = User.objects.create_user(
             username='finder_jane', email='jane@example.com', password='Password123!', role='finder', is_verified=True
@@ -1902,96 +1916,174 @@ class OwnerDashboardFinderFoundReportsVisibilityTests(TestCase):
             username='finder_mike', email='mike@example.com', password='Password123!', role='finder', is_verified=True
         )
 
-    def test_owner_dashboard_found_shows_approved_finder_found_item(self):
-        """Owner1 reports Lost Laptop -> Finder1 reports Found Laptop -> Owner1 sees Found Laptop in Owner Dashboard -> Found."""
-        # 1. Owner1 reports Lost Laptop (approved)
+    def test_finder_report_against_owner_lost_item_full_flow(self):
+        """Full end-to-end test of Finder report against Owner lost item."""
+        # 1. Owner1 reports Lost Laptop
         lost_laptop = Item.objects.create(
-            user=self.owner1, type='lost', title='Lost Dell XPS 15', category='electronics', status='approved', reward=500.00
-        )
-        # 2. Finder1 reports Found Laptop (approved)
-        found_laptop = Item.objects.create(
-            user=self.finder1, type='found', title='Found Silver Dell Laptop', category='electronics', status='approved'
+            user=self.owner1,
+            type='lost',
+            title='Dell XPS 15 Silver',
+            category='electronics',
+            description='Lost near central park',
+            status='approved',
+            reward=500.00
         )
 
-        # 3. Owner1 checks Dashboard -> Found (/api/items/?type=found)
+        # 2. Finder1 selects Lost Laptop and reports Found (attempting custom title/category or omitting them)
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        photo = SimpleUploadedFile("found.jpg", b"dummy_content", content_type="image/jpeg")
+
+        post_data = {
+            'parent_item': lost_laptop.id,
+            'title': 'Different Title Attempt',
+            'category': 'other',  # Should be overridden by parent_item category 'electronics'
+            'description': 'I found this silver Dell laptop on the park bench.',
+            'location': 'Central Park Bench #4',
+            'images': [photo],
+        }
+
+        req_post = self.factory.post('/api/items/', post_data, format='multipart')
+        force_authenticate(req_post, user=self.finder1)
+        res_post = self.items_view(req_post)
+
+        self.assertEqual(res_post.status_code, 201)
+        found_item_id = res_post.data['id']
+        found_item = Item.objects.get(pk=found_item_id)
+
+        # 3. Verify Title and Category automatically match Owner1's Lost Item exactly
+        self.assertEqual(found_item.title, lost_laptop.title)
+        self.assertEqual(found_item.category, lost_laptop.category)
+        self.assertEqual(found_item.parent_item, lost_laptop)
+        self.assertEqual(found_item.type, 'found')
+        self.assertEqual(found_item.status, 'pending')
+
+        # 4. Before admin approval, Owner1 cannot see it
+        req_found_pending = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_found_pending, user=self.owner1)
+        res_found_pending = self.items_view(req_found_pending)
+        found_ids_pending = [it['id'] for it in res_found_pending.data]
+        self.assertNotIn(found_item.id, found_ids_pending)
+
+        # 4. Admin approves the report
+        found_item.status = 'approved'
+        found_item.save()
+
+        # 5. Owner1 sees Finder1's Found Report in:
+        # a) Owner Dashboard -> Found (/api/items/?type=found)
         req_found = self.factory.get('/api/items/?type=found')
         force_authenticate(req_found, user=self.owner1)
         res_found = self.items_view(req_found)
-
         self.assertEqual(res_found.status_code, 200)
         found_ids = [it['id'] for it in res_found.data]
-        self.assertIn(found_laptop.id, found_ids)
+        self.assertIn(found_item.id, found_ids)
         self.assertNotIn(lost_laptop.id, found_ids)
 
-        # 4. Owner1 checks Dashboard -> All (/api/items/)
+        # b) Owner Dashboard -> All (/api/items/)
         req_all = self.factory.get('/api/items/')
         force_authenticate(req_all, user=self.owner1)
         res_all = self.items_view(req_all)
-
         self.assertEqual(res_all.status_code, 200)
         all_ids = [it['id'] for it in res_all.data]
         self.assertIn(lost_laptop.id, all_ids)
-        self.assertIn(found_laptop.id, all_ids)
+        self.assertIn(found_item.id, all_ids)
 
-        # 5. Owner1 checks Dashboard -> Lost (/api/items/?type=lost)
-        req_lost = self.factory.get('/api/items/?type=lost')
-        force_authenticate(req_lost, user=self.owner1)
-        res_lost = self.items_view(req_lost)
+        # c) Owner Account / Profile -> Found reports (/api/profile/items/?filter=found)
+        req_profile_found = self.factory.get('/api/profile/items/?filter=found')
+        force_authenticate(req_profile_found, user=self.owner1)
+        res_profile_found = self.my_reports_view(req_profile_found)
+        self.assertEqual(res_profile_found.status_code, 200)
+        profile_found_ids = [it['id'] for it in res_profile_found.data]
+        self.assertIn(found_item.id, profile_found_ids)
 
-        self.assertEqual(res_lost.status_code, 200)
-        lost_ids = [it['id'] for it in res_lost.data]
-        self.assertIn(lost_laptop.id, lost_ids)
-        self.assertNotIn(found_laptop.id, lost_ids)
+        # d) Owner Account / Profile -> All reports (/api/profile/items/)
+        req_profile_all = self.factory.get('/api/profile/items/')
+        force_authenticate(req_profile_all, user=self.owner1)
+        res_profile_all = self.my_reports_view(req_profile_all)
+        self.assertEqual(res_profile_all.status_code, 200)
+        profile_all_ids = [it['id'] for it in res_profile_all.data]
+        self.assertIn(found_item.id, profile_all_ids)
+        self.assertIn(lost_laptop.id, profile_all_ids)
 
-        # 6. Owner1 can view Found Laptop details
-        req_detail = self.factory.get(f'/api/items/{found_laptop.id}/')
+        # e) Owner1 can view Found report detail
+        req_detail = self.factory.get(f'/api/items/{found_item.id}/')
         force_authenticate(req_detail, user=self.owner1)
-        res_detail = self.item_detail_view(req_detail, pk=found_laptop.id)
+        res_detail = self.item_detail_view(req_detail, pk=found_item.id)
         self.assertEqual(res_detail.status_code, 200)
-        self.assertEqual(res_detail.data['id'], found_laptop.id)
-        self.assertEqual(res_detail.data['title'], 'Found Silver Dell Laptop')
+        self.assertEqual(res_detail.data['id'], found_item.id)
+        self.assertEqual(res_detail.data['title'], 'Dell XPS 15 Silver')
+        self.assertEqual(res_detail.data['parent_item'], lost_laptop.id)
 
-    def test_multiple_finder_found_reports_and_different_categories(self):
-        """Multiple Finder Found reports across different categories all appear for Owner."""
-        found_keys = Item.objects.create(
-            user=self.finder1, type='found', title='Found Honda Bike Keys', category='keys', status='approved'
+        # 6. Owner2 does NOT see Finder1's Found Report
+        # a) Owner2 Dashboard -> Found
+        req_owner2_found = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_owner2_found, user=self.owner2)
+        res_owner2_found = self.items_view(req_owner2_found)
+        owner2_found_ids = [it['id'] for it in res_owner2_found.data]
+        self.assertNotIn(found_item.id, owner2_found_ids)
+
+        # b) Owner2 Dashboard -> All
+        req_owner2_all = self.factory.get('/api/items/')
+        force_authenticate(req_owner2_all, user=self.owner2)
+        res_owner2_all = self.items_view(req_owner2_all)
+        owner2_all_ids = [it['id'] for it in res_owner2_all.data]
+        self.assertNotIn(found_item.id, owner2_all_ids)
+
+        # c) Owner2 Account / Profile -> Found
+        req_owner2_profile = self.factory.get('/api/profile/items/?filter=found')
+        force_authenticate(req_owner2_profile, user=self.owner2)
+        res_owner2_profile = self.my_reports_view(req_owner2_profile)
+        owner2_prof_ids = [it['id'] for it in res_owner2_profile.data]
+        self.assertNotIn(found_item.id, owner2_prof_ids)
+
+        # d) Owner2 cannot view details (HTTP 403 Forbidden)
+        req_owner2_detail = self.factory.get(f'/api/items/{found_item.id}/')
+        force_authenticate(req_owner2_detail, user=self.owner2)
+        res_owner2_detail = self.item_detail_view(req_owner2_detail, pk=found_item.id)
+        self.assertEqual(res_owner2_detail.status_code, 403)
+
+        # 7. Finder2 reports for Owner2's item -> Visibility strictly separated
+        lost_phone_owner2 = Item.objects.create(
+            user=self.owner2,
+            type='lost',
+            title='iPhone 14 Red',
+            category='phone',
+            status='approved'
         )
-        found_wallet = Item.objects.create(
-            user=self.finder2, type='found', title='Found Leather Wallet', category='wallet', status='approved'
+        found_phone_owner2 = Item.objects.create(
+            user=self.finder2,
+            parent_item=lost_phone_owner2,
+            type='found',
+            title='iPhone 14 Red',
+            category='phone',
+            status='approved'
         )
-        found_phone = Item.objects.create(
-            user=self.finder1, type='found', title='Found iPhone 14 Pro', category='phone', status='approved'
-        )
 
-        req = self.factory.get('/api/items/?type=found')
-        force_authenticate(req, user=self.owner1)
-        res = self.items_view(req)
+        # Owner2 sees found_phone_owner2 but not found_item (Dell laptop)
+        req_o2_check = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_o2_check, user=self.owner2)
+        res_o2_check = self.items_view(req_o2_check)
+        o2_ids = [it['id'] for it in res_o2_check.data]
+        self.assertIn(found_phone_owner2.id, o2_ids)
+        self.assertNotIn(found_item.id, o2_ids)
 
-        self.assertEqual(res.status_code, 200)
-        item_ids = [it['id'] for it in res.data]
-        self.assertIn(found_keys.id, item_ids)
-        self.assertIn(found_wallet.id, item_ids)
-        self.assertIn(found_phone.id, item_ids)
-
-        # Category filter for wallet
-        req_cat = self.factory.get('/api/items/?type=found&category=wallet')
-        force_authenticate(req_cat, user=self.owner1)
-        res_cat = self.items_view(req_cat)
-        cat_ids = [it['id'] for it in res_cat.data]
-        self.assertIn(found_wallet.id, cat_ids)
-        self.assertNotIn(found_keys.id, cat_ids)
-        self.assertNotIn(found_phone.id, cat_ids)
+        # Owner1 sees found_item (Dell laptop) but not found_phone_owner2
+        req_o1_check = self.factory.get('/api/items/?type=found')
+        force_authenticate(req_o1_check, user=self.owner1)
+        res_o1_check = self.items_view(req_o1_check)
+        o1_ids = [it['id'] for it in res_o1_check.data]
+        self.assertIn(found_item.id, o1_ids)
+        self.assertNotIn(found_phone_owner2.id, o1_ids)
 
     def test_unapproved_found_reports_remain_hidden_from_owner(self):
         """Pending or rejected found reports must NOT be visible to Owner."""
+        lost_item = Item.objects.create(
+            user=self.owner1, type='lost', title='Lost Backpack', category='bag', status='approved'
+        )
         pending_found = Item.objects.create(
-            user=self.finder1, type='found', title='Pending Found Bag', category='bag', status='pending'
+            user=self.finder1, parent_item=lost_item, type='found', title='Lost Backpack', category='bag', status='pending'
         )
         rejected_found = Item.objects.create(
-            user=self.finder2, type='found', title='Rejected Found Ring', category='other', status='rejected'
-        )
-        approved_found = Item.objects.create(
-            user=self.finder1, type='found', title='Approved Found Watch', category='electronics', status='approved'
+            user=self.finder2, parent_item=lost_item, type='found', title='Lost Backpack', category='bag', status='rejected'
         )
 
         req = self.factory.get('/api/items/?type=found')
@@ -2000,7 +2092,6 @@ class OwnerDashboardFinderFoundReportsVisibilityTests(TestCase):
 
         self.assertEqual(res.status_code, 200)
         found_ids = [it['id'] for it in res.data]
-        self.assertIn(approved_found.id, found_ids)
         self.assertNotIn(pending_found.id, found_ids)
         self.assertNotIn(rejected_found.id, found_ids)
 
@@ -2012,8 +2103,11 @@ class OwnerDashboardFinderFoundReportsVisibilityTests(TestCase):
 
     def test_no_duplicate_items_appear(self):
         """Ensure queryset is distinct and does not return duplicate items."""
+        lost_item = Item.objects.create(
+            user=self.owner1, type='lost', title='Lost Watch', category='electronics', status='approved'
+        )
         Item.objects.create(
-            user=self.finder1, type='found', title='Found Watch', category='electronics', status='approved'
+            user=self.finder1, parent_item=lost_item, type='found', title='Lost Watch', category='electronics', status='approved'
         )
         req = self.factory.get('/api/items/?type=found')
         force_authenticate(req, user=self.owner1)

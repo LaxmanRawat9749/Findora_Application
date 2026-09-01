@@ -393,7 +393,7 @@ class ItemAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Item Report Information', {
-            'fields': ('user', 'type', 'title', 'description', 'category', 'reward'),
+            'fields': ('user', 'type', 'parent_item', 'title', 'description', 'category', 'reward'),
         }),
         ('Reported Item Image', {
             'fields': ('reported_image_display',),

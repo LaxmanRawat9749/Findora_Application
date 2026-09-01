@@ -399,12 +399,35 @@ class ItemSerializer(serializers.ModelSerializer):
     user_role = serializers.SerializerMethodField()
     user_profile_image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    parent_item_title = serializers.SerializerMethodField()
     images = ItemImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Item
         fields = '__all__'
         read_only_fields = ['user', 'status', 'reported_at', 'updated_at', 'is_featured', 'featured_until']
+
+    def to_internal_value(self, data):
+        # Auto-fill title & category if parent_item / linked_lost_item is supplied
+        parent_id = data.get('parent_item') or data.get('parent_item_id') or data.get('linked_lost_item') or data.get('lost_item_id')
+        if parent_id:
+            try:
+                parent_obj = Item.objects.filter(pk=int(parent_id), type='lost').first()
+                if parent_obj:
+                    if hasattr(data, '_mutable') and not data._mutable:
+                        data = data.copy()
+                    elif not isinstance(data, dict):
+                        try:
+                            data = data.copy()
+                        except Exception:
+                            pass
+                    if isinstance(data, dict) or hasattr(data, '__setitem__'):
+                        data['title'] = parent_obj.title
+                        data['category'] = parent_obj.category
+                        data['parent_item'] = parent_obj.id
+            except (ValueError, TypeError):
+                pass
+        return super().to_internal_value(data)
 
     def validate(self, data):
         request = self.context.get('request')
@@ -414,6 +437,16 @@ class ItemSerializer(serializers.ModelSerializer):
 
         user_role = getattr(user, 'role', None) if user else None
         item_type = data.get('type', getattr(self.instance, 'type', None))
+
+        parent_item = data.get('parent_item')
+        if parent_item:
+            if parent_item.type != 'lost':
+                raise serializers.ValidationError({"parent_item": "Linked item must be an Owner's Lost item report."})
+            # Automatically populate title and category from the linked lost item
+            data['title'] = parent_item.title
+            data['category'] = parent_item.category
+            data['type'] = 'found'
+            item_type = 'found'
 
         if item_type and user_role:
             if user_role == 'owner' and item_type != 'lost':
@@ -436,6 +469,9 @@ class ItemSerializer(serializers.ModelSerializer):
             data['reward'] = 0.00
 
         return super().validate(data)
+
+    def get_parent_item_title(self, obj):
+        return obj.parent_item.title if obj.parent_item else None
 
     def get_user_name(self, obj):
         return obj.user.get_full_name() or obj.user.username

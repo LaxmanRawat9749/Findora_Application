@@ -293,6 +293,17 @@
                     android:layout_height="@dimen/button_height"
                     android:layout_weight="1"
                     android:text="Chat" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_report_found"
+                    style="@style/Widget.Findora.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/spacing_medium"
+                    android:text="I Found This"
+                    android:visibility="gone"
+                    app:backgroundTint="@color/primary_purple" />
             </LinearLayout>
 
             <LinearLayout

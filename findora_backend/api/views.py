@@ -624,14 +624,14 @@ class ItemListCreateView(APIView):
         # Role-based visibility rules
         if request.user.role == 'owner':
             owner_own_lost = Q(user=request.user, type='lost', status='approved')
-            approved_found = Q(type='found', status='approved')
+            linked_found = Q(type='found', status='approved', parent_item__user=request.user)
             if item_type == 'lost':
                 queryset = queryset.filter(owner_own_lost)
             elif item_type == 'found':
-                queryset = queryset.filter(approved_found)
+                queryset = queryset.filter(linked_found)
             else:
-                # All tab: Owner's own lost items + approved found items reported by Finders
-                queryset = queryset.filter(owner_own_lost | approved_found)
+                # All tab: Owner's own lost items + approved found reports linked to this Owner's lost items
+                queryset = queryset.filter(owner_own_lost | linked_found)
         elif request.user.role == 'finder':
             approved_found = Q(type='found', status='approved')
             approved_lost = Q(type='lost', status='approved')
@@ -687,7 +687,33 @@ class ItemListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = ItemSerializer(data=request.data, context={'request': request})
+        # Auto-fill title & category if parent_item / linked_lost_item is supplied
+        parent_id = request.data.get('parent_item') or request.data.get('parent_item_id') or request.data.get('linked_lost_item') or request.data.get('lost_item_id')
+        parent_lost_item = None
+        if parent_id:
+            try:
+                parent_lost_item = Item.objects.filter(pk=int(parent_id), type='lost').first()
+                if not parent_lost_item:
+                    return Response({'error': 'The selected Owner Lost Item does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                return Response({'error': 'Invalid Owner Lost Item ID.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        request_data = request.data
+        if parent_lost_item:
+            if hasattr(request_data, '_mutable') and not request_data._mutable:
+                request_data = request_data.copy()
+            elif not isinstance(request_data, dict):
+                try:
+                    request_data = request_data.copy()
+                except Exception:
+                    pass
+            if isinstance(request_data, dict) or hasattr(request_data, '__setitem__'):
+                request_data['title'] = parent_lost_item.title
+                request_data['category'] = parent_lost_item.category
+                request_data['type'] = 'found'
+                request_data['parent_item'] = parent_lost_item.id
+
+        serializer = ItemSerializer(data=request_data, context={'request': request})
         
         # Pre-validate images
         images = request.FILES.getlist('images')
@@ -695,7 +721,7 @@ class ItemListCreateView(APIView):
         if single_img and single_img not in images:
             images.append(single_img)
 
-        item_type = request.data.get('type')
+        item_type = request_data.get('type')
         if not item_type and hasattr(request.user, 'role'):
             item_type = 'lost' if request.user.role == 'owner' else 'found'
 
@@ -717,7 +743,13 @@ class ItemListCreateView(APIView):
                 return Response({'error': 'Unsupported format. Allowed: JPG, JPEG, PNG, WEBP.'}, status=status.HTTP_400_BAD_REQUEST)
         
         if serializer.is_valid():
-            item = serializer.save(user=request.user, status='pending')
+            save_kwargs = {'user': request.user, 'status': 'pending'}
+            if parent_lost_item:
+                save_kwargs['parent_item'] = parent_lost_item
+                save_kwargs['title'] = parent_lost_item.title
+                save_kwargs['category'] = parent_lost_item.category
+                save_kwargs['type'] = 'found'
+            item = serializer.save(**save_kwargs)
             
             # Save images
             for i, img in enumerate(images):
@@ -748,7 +780,7 @@ class ItemDetailView(APIView):
 
     def _get_item(self, pk):
         try:
-            return Item.objects.select_related('user', 'user__reputation').prefetch_related('images').get(pk=pk)
+            return Item.objects.select_related('user', 'user__reputation', 'parent_item', 'parent_item__user').prefetch_related('images').get(pk=pk)
         except Item.DoesNotExist:
             return None
 
@@ -760,8 +792,16 @@ class ItemDetailView(APIView):
         # Enforce visibility rules for detail view:
         # Creators can view their own reports; others can view approved items.
         if request.user.role != 'admin':
-            if item.user != request.user and item.status != 'approved':
-                return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+            if item.user != request.user:
+                if item.status != 'approved':
+                    return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
+                if item.type == 'found' and request.user.role == 'owner':
+                    # Owner can only view found reports linked to their own lost items
+                    if not (item.parent_item and item.parent_item.user == request.user):
+                        return Response({'error': 'You do not have permission to view this found report.'}, status=status.HTTP_403_FORBIDDEN)
+                elif item.type == 'lost' and request.user.role == 'owner':
+                    # Owner cannot view another owner's lost item
+                    return Response({'error': 'You do not have permission to view this lost item.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -939,23 +979,40 @@ class MyReportsView(APIView):
 
     def get(self, request):
         now = timezone.now()
-        queryset = Item.objects.filter(user=request.user).prefetch_related('images')
-
         filter_param = (request.query_params.get('filter') or request.query_params.get('type') or '').lower()
         status_param = (request.query_params.get('status') or '').lower()
 
-        if filter_param == 'found':
-            queryset = queryset.filter(type='found')
-        elif filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns']:
-            queryset = queryset.filter(type='found', status='resolved')
-        elif filter_param == 'lost':
-            queryset = queryset.filter(type='lost')
-        elif status_param == 'resolved':
-            queryset = queryset.filter(type='found', status='resolved')
-        elif status_param == 'active':
-            queryset = queryset.filter(type='found').exclude(status='resolved')
+        if request.user.role == 'owner':
+            if filter_param == 'found':
+                queryset = Item.objects.filter(type='found', parent_item__user=request.user, status='approved')
+            elif filter_param == 'lost':
+                queryset = Item.objects.filter(user=request.user, type='lost')
+            elif filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns']:
+                queryset = Item.objects.filter(user=request.user, status='resolved')
+            else:
+                queryset = Item.objects.filter(
+                    Q(user=request.user) | Q(type='found', parent_item__user=request.user, status='approved')
+                )
+        elif request.user.role == 'finder':
+            queryset = Item.objects.filter(user=request.user)
+            if filter_param == 'found':
+                queryset = queryset.filter(type='found')
+            elif filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns']:
+                queryset = queryset.filter(type='found', status='resolved')
+            elif filter_param == 'lost':
+                queryset = queryset.filter(type='lost')
+            elif status_param == 'resolved':
+                queryset = queryset.filter(type='found', status='resolved')
+            elif status_param == 'active':
+                queryset = queryset.filter(type='found').exclude(status='resolved')
+        else:
+            queryset = Item.objects.filter(user=request.user)
+            if filter_param == 'found':
+                queryset = queryset.filter(type='found')
+            elif filter_param == 'lost':
+                queryset = queryset.filter(type='lost')
 
-        queryset = queryset.annotate(
+        queryset = queryset.prefetch_related('images').annotate(
             active_featured=Case(
                 When(is_featured=True, featured_until__gt=now, then=Value(1)),
                 default=Value(0),

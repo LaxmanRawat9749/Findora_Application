@@ -104,6 +104,33 @@ public class UploadItemActivity extends BaseActivity {
             });
         }
 
+        // Auto-fill and lock Title & Category if reporting against an Owner's Lost Item
+        if (getIntent() != null && (getIntent().hasExtra("extra_lost_item_id") || getIntent().hasExtra(Constants.EXTRA_ITEM_ID))) {
+            linkedLostItemId = getIntent().getIntExtra("extra_lost_item_id", getIntent().getIntExtra(Constants.EXTRA_ITEM_ID, 0));
+            String linkedLostItemTitle = getIntent().getStringExtra("extra_lost_item_title");
+            String linkedLostItemCategory = getIntent().getStringExtra("extra_lost_item_category");
+
+            if (linkedLostItemTitle != null && !linkedLostItemTitle.isEmpty()) {
+                binding.etTitle.setText(linkedLostItemTitle);
+                binding.etTitle.setEnabled(false);
+                binding.etTitle.setFocusable(false);
+            }
+            if (linkedLostItemCategory != null && !linkedLostItemCategory.isEmpty()) {
+                for (int i = 0; i < Constants.CATEGORIES.length; i++) {
+                    if (Constants.CATEGORIES[i].equalsIgnoreCase(linkedLostItemCategory)) {
+                        binding.spinnerCategory.setSelection(i);
+                        break;
+                    }
+                }
+                binding.spinnerCategory.setEnabled(false);
+            }
+            binding.rbFound.setChecked(true);
+            binding.rbLost.setVisibility(View.GONE);
+            binding.rbFound.setVisibility(View.VISIBLE);
+            binding.tilReward.setVisibility(View.GONE);
+            updateImageLabels(false);
+        }
+
         // Setup image recycler view
         imageAdapter = new UploadImageAdapter(selectedImages, position -> {
             selectedImages.remove(position);
@@ -118,6 +145,8 @@ public class UploadItemActivity extends BaseActivity {
 
         setupLaunchers();
     }
+
+    private int linkedLostItemId = 0;
 
     private boolean isLostReport() {
         String role = new SessionManager(this).getRole();
@@ -299,6 +328,9 @@ public class UploadItemActivity extends BaseActivity {
         partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
         partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
         partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
+        if (linkedLostItemId > 0) {
+            partMap.put("parent_item", RequestBody.create(MediaType.parse("text/plain"), String.valueOf(linkedLostItemId)));
+        }
         if (!"finder".equalsIgnoreCase(role) && !"found".equalsIgnoreCase(type) && !rewardStr.isEmpty()) {
             partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
         }

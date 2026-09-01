@@ -121,6 +121,16 @@ public class ItemDetailActivity extends BaseActivity {
             }
         });
 
+        binding.btnReportFound.setOnClickListener(v -> {
+            if (currentItem != null) {
+                Intent intent = new Intent(this, UploadItemActivity.class);
+                intent.putExtra("extra_lost_item_id", currentItem.getId());
+                intent.putExtra("extra_lost_item_title", currentItem.getTitle());
+                intent.putExtra("extra_lost_item_category", currentItem.getCategory());
+                startActivity(intent);
+            }
+        });
+
         binding.btnPromote.setOnClickListener(v -> {
             if (currentItem != null) {
                 Intent intent = new Intent(this, PromoteItemActivity.class);
@@ -300,6 +310,7 @@ public class ItemDetailActivity extends BaseActivity {
                 binding.btnChat.setVisibility(View.VISIBLE);
                 binding.btnChat.setText("View Conversations");
                 
+                binding.btnReportFound.setVisibility(View.GONE);
                 if (!item.isOwnerReturnedConfirm()) {
                     binding.layoutReturnActions.setVisibility(View.VISIBLE);
                     binding.btnMarkReturned.setVisibility(View.VISIBLE);
@@ -308,11 +319,17 @@ public class ItemDetailActivity extends BaseActivity {
                 if ("found".equalsIgnoreCase(item.getType())) {
                     binding.layoutDefaultActions.setVisibility(View.GONE);
                     binding.layoutFoundActions.setVisibility(View.VISIBLE);
+                    binding.btnReportFound.setVisibility(View.GONE);
                 } else {
                     binding.layoutDefaultActions.setVisibility(View.VISIBLE);
                     binding.layoutFoundActions.setVisibility(View.GONE);
                     binding.btnChat.setVisibility(View.VISIBLE);
                     binding.btnChat.setText("Contact Owner");
+                    if ("finder".equalsIgnoreCase(baseSessionManager.getRole())) {
+                        binding.btnReportFound.setVisibility(View.VISIBLE);
+                    } else {
+                        binding.btnReportFound.setVisibility(View.GONE);
+                    }
                 }
                 
                 if (item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm()) {

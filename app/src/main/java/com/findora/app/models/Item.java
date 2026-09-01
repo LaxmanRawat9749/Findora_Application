@@ -42,12 +42,20 @@ public class Item implements Serializable {
     private boolean ownerReturnedConfirm;
     @SerializedName("finder_returned_confirm")
     private boolean finderReturnedConfirm;
-    @SerializedName("resolved_at")
-    private String resolvedAt;
-    
+    @SerializedName("parent_item")
+    private Integer parentItem;
+    @SerializedName("parent_item_title")
+    private String parentItemTitle;
+
     private List<ItemImage> images;
 
     public Item() {}
+
+    public Integer getParentItem() { return parentItem; }
+    public void setParentItem(Integer parentItem) { this.parentItem = parentItem; }
+
+    public String getParentItemTitle() { return parentItemTitle; }
+    public void setParentItemTitle(String parentItemTitle) { this.parentItemTitle = parentItemTitle; }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }

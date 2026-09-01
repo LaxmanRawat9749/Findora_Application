@@ -391,8 +391,12 @@ def get_or_create_matched_conversation(item, request_user):
         owner_user = item.user
         finder_user = request_user
     else:
-        owner_user = request_user
-        finder_user = item.user
+        if item.parent_item:
+            owner_user = item.parent_item.user
+            finder_user = item.user
+        else:
+            owner_user = request_user
+            finder_user = item.user
 
     # 1. Look for existing conversation on this exact item
     conv = Conversation.objects.filter(

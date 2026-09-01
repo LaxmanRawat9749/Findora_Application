@@ -172,6 +172,14 @@ class Item(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='items')
+    parent_item = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='found_reports',
+        verbose_name='Linked Lost Item',
+    )
     type = models.CharField(max_length=5, choices=TYPE_CHOICES)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
