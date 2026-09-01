@@ -1746,6 +1746,128 @@ class BackblazeB2MediaStorageConfigurationTests(TestCase):
         self.assertIn('profiles/user_avatar_b2.jpg', m_data['sender_profile_image'])
 
 
+class FindoraUserAdminProfileDisplayTests(TestCase):
+    """
+    Tests for FindoraUserAdmin:
+    1. Users list table excludes avatar/image column.
+    2. Change User page has Profile section at top displaying the user's exact profile image and name.
+    3. Users with no profile image show 'No profile image'.
+    4. Profile images are strictly isolated per user.
+    """
+
+    def setUp(self):
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import FindoraUserAdmin
+
+        self.site = AdminSite()
+        self.user_admin = FindoraUserAdmin(User, self.site)
+
+        self.user_with_img = User.objects.create_user(
+            username='user_has_pic',
+            email='has_pic@example.com',
+            first_name='Alex',
+            last_name='Morgan',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        test_avatar = SimpleUploadedFile(
+            name='alex_avatar.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        self.user_with_img.profile_image = test_avatar
+        self.user_with_img.save()
+
+        self.user_no_img = User.objects.create_user(
+            username='user_no_pic',
+            email='no_pic@example.com',
+            first_name='Sam',
+            last_name='Wilson',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+
+        self.admin_user = User.objects.create_superuser(
+            username='super_admin_user',
+            email='super_user@example.com',
+            password='Password123!',
+        )
+
+    def test_user_admin_list_display_excludes_avatar_preview(self):
+        """Verify Users list table does NOT include avatar_preview or photo column."""
+        self.assertNotIn('avatar_preview', self.user_admin.list_display)
+        self.assertNotIn('profile_image', self.user_admin.list_display)
+        self.assertIn('full_name', self.user_admin.list_display)
+        self.assertIn('username', self.user_admin.list_display)
+
+    def test_user_admin_change_page_fieldsets_contain_profile_at_top(self):
+        """Verify fieldsets start with 'Profile' section containing user_profile_display."""
+        fieldsets = self.user_admin.get_fieldsets(None, self.user_with_img)
+        first_section_title = fieldsets[0][0]
+        first_section_fields = fieldsets[0][1]['fields']
+
+        self.assertEqual(first_section_title, 'Profile')
+        self.assertIn('user_profile_display', first_section_fields)
+
+    def test_user_profile_display_shows_actual_image_and_name(self):
+        """Verify user_profile_display renders the user's actual profile image and full name."""
+        html = self.user_admin.user_profile_display(self.user_with_img)
+        self.assertIn('Alex Morgan', html)
+        self.assertIn('@user_has_pic', html)
+        self.assertIn('<img', html)
+        self.assertIn('alex_avatar', html)
+        self.assertIn('target="_blank"', html)
+
+    def test_user_profile_display_shows_no_profile_image_when_empty(self):
+        """Verify user_profile_display shows 'No profile image' and the user's name when no picture exists."""
+        html = self.user_admin.user_profile_display(self.user_no_img)
+        self.assertIn('Sam Wilson', html)
+        self.assertIn('@user_no_pic', html)
+        self.assertIn('No profile image', html)
+        self.assertNotIn('alex_avatar', html)
+
+    def test_user_profile_display_never_mixes_images(self):
+        """Verify images are strictly bound to the exact User and never cross-contaminate."""
+        user_b = User.objects.create_user(
+            username='user_b_pic',
+            email='user_b@example.com',
+            first_name='Bob',
+            last_name='Ross',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        bob_avatar = SimpleUploadedFile(
+            name='bob_unique_avatar.jpg',
+            content=b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b',
+            content_type='image/jpeg',
+        )
+        user_b.profile_image = bob_avatar
+        user_b.save()
+
+        alex_html = self.user_admin.user_profile_display(self.user_with_img)
+        bob_html = self.user_admin.user_profile_display(user_b)
+
+        self.assertIn('alex_avatar', alex_html)
+        self.assertNotIn('bob_unique_avatar', alex_html)
+
+        self.assertIn('bob_unique_avatar', bob_html)
+        self.assertNotIn('alex_avatar', bob_html)
+
+    def test_user_admin_change_page_renders_successfully(self):
+        """Verify the Change User page in Django Admin loads with 200 OK and contains the profile card."""
+        self.client.login(username='super_admin_user', password='Password123!')
+        res = self.client.get(f'/admin/api/user/{self.user_with_img.id}/change/')
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+        self.assertIn('Alex Morgan', content)
+        self.assertIn('alex_avatar', content)
+
+
 
 
 

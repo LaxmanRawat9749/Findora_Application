@@ -48,7 +48,7 @@ class FindoraUserAdmin(UserAdmin):
     """
 
     list_display = [
-        'avatar_preview', 'full_name', 'username', 'email', 'role_badge', 'account_status',
+        'full_name', 'username', 'email', 'role_badge', 'account_status',
         'lost_reports_count', 'found_reports_count', 'successful_returns_count',
         'points_display', 'reputation_display',
         'is_active', 'created_at',
@@ -57,7 +57,7 @@ class FindoraUserAdmin(UserAdmin):
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering = ['-created_at']
     readonly_fields = [
-        'profile_image_display',
+        'user_profile_display',
         'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
         'finder_performance_summary',
     ]
@@ -65,11 +65,14 @@ class FindoraUserAdmin(UserAdmin):
     date_hierarchy = 'created_at'
 
     fieldsets = (
+        ('Profile', {
+            'fields': ('user_profile_display',),
+        }),
         ('Account Info', {
             'fields': ('username', 'email'),
         }),
         ('Personal Info', {
-            'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image_display'),
+            'fields': ('first_name', 'last_name', 'phone', 'role'),
         }),
         ('Status & Security', {
             'fields': (
@@ -123,11 +126,14 @@ class FindoraUserAdmin(UserAdmin):
             return self.add_fieldsets
 
         fieldsets = [
+            ('Profile', {
+                'fields': ('user_profile_display',),
+            }),
             ('Account Info', {
                 'fields': ('username', 'email'),
             }),
             ('Personal Info', {
-                'fields': ('first_name', 'last_name', 'phone', 'role', 'profile_image_display'),
+                'fields': ('first_name', 'last_name', 'phone', 'role'),
             }),
             ('Status & Security', {
                 'fields': (
@@ -165,44 +171,86 @@ class FindoraUserAdmin(UserAdmin):
 
     actions = ['verify_users', 'unlock_users', 'deactivate_users', 'activate_users']
 
-    # ─── Computed Columns ─────────────────────────────────────────────────────
+    # ─── Computed Columns & Display Methods ───────────────────────────────────
 
-    @admin.display(description='Photo')
-    def avatar_preview(self, obj):
-        if obj.profile_image and hasattr(obj.profile_image, 'url'):
+    @admin.display(description='Profile')
+    def user_profile_display(self, obj):
+        """
+        Display the user's actual profile picture and name together at the top of Change User.
+        Directly uses obj.profile_image for this exact user.
+        If no image or physical file is missing, displays 'No profile image'.
+        """
+        if not obj or not obj.pk:
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No profile image</span>')
+
+        full_name = obj.get_full_name() or obj.username
+        username_str = f"@{obj.username}"
+        role_label = (obj.role or 'user').capitalize()
+
+        role_colors = {
+            'owner': ('#EDE9FE', '#6D28D9'),
+            'finder': ('#DCFCE7', '#16A34A'),
+            'admin': ('#FEF3C7', '#D97706'),
+            'user': ('#E0E7FF', '#4338CA'),
+        }
+        bg_role, fg_role = role_colors.get(obj.role, ('#F3F4F6', '#6B7280'))
+
+        # Check physical existence of the exact user's profile image
+        has_image = False
+        image_url = None
+        if obj.profile_image and hasattr(obj.profile_image, 'name') and obj.profile_image.name:
             try:
-                url = obj.profile_image.url
-                return format_html(
-                    '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view photo">'
-                    '<img src="{}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid #E2E8F0;box-shadow:0 1px 2px rgba(0,0,0,0.06);vertical-align:middle;display:block;" alt="{}" />'
-                    '</a>',
-                    url, url, obj.username,
-                )
-            except ValueError:
-                pass
-        initial = (obj.first_name[:1] or obj.username[:1]).upper()
+                if hasattr(obj.profile_image, 'storage') and obj.profile_image.storage:
+                    if obj.profile_image.storage.exists(obj.profile_image.name):
+                        image_url = obj.profile_image.url
+                        has_image = True
+                else:
+                    image_url = obj.profile_image.url
+                    has_image = True
+            except Exception:
+                has_image = False
+
+        if has_image and image_url:
+            image_block = format_html(
+                '<div style="flex-shrink:0;">'
+                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full photo">'
+                '<img src="{}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #E2E8F0;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;" alt="{}" />'
+                '</a>'
+                '<div style="font-size:11px;color:#64748B;margin-top:4px;text-align:center;">Click to enlarge</div>'
+                '</div>',
+                image_url, image_url, full_name
+            )
+        else:
+            initial = (obj.first_name[:1] or obj.username[:1]).upper()
+            image_block = format_html(
+                '<div style="flex-shrink:0;text-align:center;">'
+                '<div style="width:100px;height:100px;border-radius:50%;background:#F1F5F9;border:2px dashed #CBD5E1;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:32px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.05);">'
+                '{}'
+                '</div>'
+                '<div style="font-size:11px;color:#94A3B8;margin-top:6px;font-weight:500;">No profile image</div>'
+                '</div>',
+                initial
+            )
+
         return format_html(
-            '<div style="width:36px;height:36px;border-radius:50%;background:#E2E8F0;display:inline-flex;align-items:center;justify-content:center;color:#64748B;font-size:12px;font-weight:700;">{}</div>',
-            initial,
+            '<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;display:inline-flex;align-items:center;gap:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);min-width:320px;max-width:550px;">'
+            '{}'
+            '<div>'
+            '<div style="font-size:18px;font-weight:700;color:#0F172A;line-height:1.3;">{}</div>'
+            '<div style="font-size:13px;color:#64748B;margin-top:2px;">{}</div>'
+            '<div style="margin-top:8px;">'
+            '<span style="background:{};color:{};padding:3px 10px;border-radius:4px;font-weight:600;font-size:12px;">{}</span>'
+            '</div>'
+            '</div>'
+            '</div>',
+            image_block,
+            full_name,
+            username_str,
+            bg_role, fg_role, role_label
         )
 
-    @admin.display(description='Profile Image')
-    def profile_image_display(self, obj):
-        if not obj or not obj.profile_image:
-            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No profile photo uploaded.</span>')
-        try:
-            url = obj.profile_image.url
-            return format_html(
-                '<div style="margin-top:4px;">'
-                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full photo">'
-                '<img src="{}" style="width:120px;height:120px;border-radius:50%;border:2px solid #E2E8F0;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.08);" alt="{}" />'
-                '</a>'
-                '<div style="font-size:11px;color:#64748B;margin-top:6px;">Click photo to open full resolution</div>'
-                '</div>',
-                url, url, obj.username,
-            )
-        except ValueError:
-            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No profile photo uploaded.</span>')
+    # Alias profile_image_display for backward compatibility
+    profile_image_display = user_profile_display
 
     @admin.display(description='Full Name')
     def full_name(self, obj):
