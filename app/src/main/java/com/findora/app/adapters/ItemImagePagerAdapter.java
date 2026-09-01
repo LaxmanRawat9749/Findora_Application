@@ -5,22 +5,67 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-import com.bumptech.glide.Glide;
-import com.findora.app.R;
 import com.findora.app.models.ItemImage;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class ItemImagePagerAdapter extends RecyclerView.Adapter<ItemImagePagerAdapter.ViewHolder> {
-    private final List<ItemImage> images;
+    private final List<ItemImage> images = new ArrayList<>();
     private final OnImageClickListener clickListener;
 
     public interface OnImageClickListener {
         void onClick(String imageUrl);
     }
 
-    public ItemImagePagerAdapter(List<ItemImage> images, OnImageClickListener clickListener) {
-        this.images = images;
+    public ItemImagePagerAdapter(List<ItemImage> initialImages, OnImageClickListener clickListener) {
+        if (initialImages != null) {
+            this.images.addAll(initialImages);
+        }
         this.clickListener = clickListener;
+        setHasStableIds(true);
+    }
+
+    public void setImages(List<ItemImage> newImages) {
+        if (newImages == null) {
+            newImages = Collections.emptyList();
+        }
+
+        // Compare current list with new list to avoid unnecessary adapter invalidation & image flashing
+        if (this.images.size() == newImages.size()) {
+            boolean isIdentical = true;
+            for (int i = 0; i < this.images.size(); i++) {
+                String oldUrl = this.images.get(i) != null ? this.images.get(i).getImageUrl() : null;
+                String newUrl = newImages.get(i) != null ? newImages.get(i).getImageUrl() : null;
+                if (!Objects.equals(oldUrl, newUrl)) {
+                    isIdentical = false;
+                    break;
+                }
+            }
+            if (isIdentical) {
+                return; // Nothing changed, keep existing rendered images completely stable without flicker
+            }
+        }
+
+        this.images.clear();
+        this.images.addAll(newImages);
+        notifyDataSetChanged();
+    }
+
+    @Override
+    public long getItemId(int position) {
+        if (position >= 0 && position < images.size() && images.get(position) != null) {
+            ItemImage img = images.get(position);
+            if (img.getId() > 0) {
+                return img.getId();
+            }
+            String url = img.getImageUrl();
+            if (url != null) {
+                return url.hashCode();
+            }
+        }
+        return position;
     }
 
     @NonNull
@@ -36,7 +81,15 @@ public class ItemImagePagerAdapter extends RecyclerView.Adapter<ItemImagePagerAd
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        if (position < 0 || position >= images.size() || images.get(position) == null) return;
         String url = images.get(position).getImageUrl();
+
+        // Avoid re-triggering Glide if this viewholder is already displaying this exact image URL
+        if (url != null && url.equals(holder.boundUrl) && holder.imageView.getDrawable() != null) {
+            return;
+        }
+        holder.boundUrl = url;
+
         com.findora.app.utils.GlideImageHelper.loadItemDetail(holder.imageView.getContext(), url, holder.imageView);
 
         holder.imageView.setOnClickListener(v -> {
@@ -51,6 +104,8 @@ public class ItemImagePagerAdapter extends RecyclerView.Adapter<ItemImagePagerAd
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
+        String boundUrl;
+
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             imageView = (ImageView) itemView;

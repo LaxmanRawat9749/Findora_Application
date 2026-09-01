@@ -41,6 +41,8 @@ public class ItemDetailActivity extends BaseActivity {
     private int passedConversationId = -1;
     private Call<Item> itemDetailCall;
     private Call<ConversationInitResponse> conversationInitCall;
+    private ItemImagePagerAdapter imagePagerAdapter;
+    private boolean isFirstLaunch = true;
 
     private long lastActionTime = 0;
 
@@ -163,9 +165,10 @@ public class ItemDetailActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (currentItem != null) {
+        if (!isFirstLaunch && currentItem != null) {
             loadItemDetail();
         }
+        isFirstLaunch = false;
     }
 
     private void loadItemDetail() {
@@ -205,6 +208,25 @@ public class ItemDetailActivity extends BaseActivity {
                 }
             }
         });
+    }
+
+    private void setupOrUpdateImagePager(java.util.List<ItemImage> images) {
+        if (images == null || images.isEmpty()) {
+            binding.vpImages.setVisibility(View.GONE);
+            return;
+        }
+
+        binding.vpImages.setVisibility(View.VISIBLE);
+        if (imagePagerAdapter == null) {
+            imagePagerAdapter = new ItemImagePagerAdapter(images, url -> {
+                Intent intent = new Intent(this, FullScreenImageActivity.class);
+                intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, url);
+                startActivity(intent);
+            });
+            binding.vpImages.setAdapter(imagePagerAdapter);
+        } else {
+            imagePagerAdapter.setImages(images);
+        }
     }
 
     private void displayItem(Item item) {
@@ -254,34 +276,16 @@ public class ItemDetailActivity extends BaseActivity {
             binding.tvReward.setVisibility(View.GONE);
         }
 
-        if (item.getImages() != null && !item.getImages().isEmpty()) {
-            binding.vpImages.setVisibility(View.VISIBLE);
-            ItemImagePagerAdapter adapter = new ItemImagePagerAdapter(item.getImages(), url -> {
-                Intent intent = new Intent(this, FullScreenImageActivity.class);
-                intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, url);
-                startActivity(intent);
-            });
-            binding.vpImages.setAdapter(adapter);
-        } else {
-            // Backwards compatibility for old items with single image
-            String imageUrl = item.getImageUrl() != null ? item.getImageUrl() : item.getImage();
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                ItemImage oldImage = new ItemImage();
-                oldImage.setImageUrl(imageUrl);
-                java.util.List<ItemImage> list = new java.util.ArrayList<>();
-                list.add(oldImage);
-                
-                binding.vpImages.setVisibility(View.VISIBLE);
-                ItemImagePagerAdapter adapter = new ItemImagePagerAdapter(list, url -> {
-                    Intent intent = new Intent(this, FullScreenImageActivity.class);
-                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, url);
-                    startActivity(intent);
-                });
-                binding.vpImages.setAdapter(adapter);
-            } else {
-                binding.vpImages.setVisibility(View.GONE);
+        java.util.List<ItemImage> imageList = item.getImages();
+        if (imageList == null || imageList.isEmpty()) {
+            String singleUrl = item.getImageUrl() != null ? item.getImageUrl() : item.getImage();
+            if (singleUrl != null && !singleUrl.isEmpty()) {
+                ItemImage singleImage = new ItemImage();
+                singleImage.setImageUrl(singleUrl);
+                imageList = java.util.Collections.singletonList(singleImage);
             }
         }
+        setupOrUpdateImagePager(imageList);
 
         binding.layoutReturnActions.setVisibility(View.GONE);
         binding.layoutOwnerActions.setVisibility(View.GONE);

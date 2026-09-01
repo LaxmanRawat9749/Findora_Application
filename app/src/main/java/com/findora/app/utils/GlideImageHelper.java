@@ -64,14 +64,22 @@ public final class GlideImageHelper {
             return;
         }
 
-        Glide.with(context)
+        android.graphics.drawable.Drawable currentDrawable = target.getDrawable();
+        com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> builder = Glide.with(context)
                 .load(model)
                 .thumbnail(0.25f)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop()
-                .placeholder(R.drawable.ic_image)
-                .error(R.drawable.ic_image)
-                .into(target);
+                .dontAnimate()
+                .error(R.drawable.ic_image);
+
+        if (currentDrawable != null) {
+            builder = builder.placeholder(currentDrawable);
+        } else {
+            builder = builder.placeholder(R.drawable.ic_image);
+        }
+
+        builder.into(target);
     }
 
     /**
@@ -85,13 +93,29 @@ public final class GlideImageHelper {
             return;
         }
 
-        Glide.with(context)
+        android.graphics.drawable.Drawable currentDrawable = target.getDrawable();
+        com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> builder = Glide.with(context)
                 .load(model)
+                .thumbnail(
+                        Glide.with(context)
+                                .load(model)
+                                .thumbnail(0.25f)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .centerCrop()
+                                .dontAnimate()
+                )
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop()
-                .placeholder(R.drawable.ic_image)
-                .error(R.drawable.ic_image)
-                .into(target);
+                .dontAnimate()
+                .error(R.drawable.ic_image);
+
+        if (currentDrawable != null) {
+            builder = builder.placeholder(currentDrawable);
+        } else {
+            builder = builder.placeholder(R.drawable.ic_image);
+        }
+
+        builder.into(target);
     }
 
     /**
@@ -105,14 +129,21 @@ public final class GlideImageHelper {
             return;
         }
 
-        Glide.with(context)
+        android.graphics.drawable.Drawable currentDrawable = target.getDrawable();
+        com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> builder = Glide.with(context)
                 .load(model)
                 .circleCrop()
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontAnimate()
-                .placeholder(R.drawable.ic_person)
-                .error(R.drawable.ic_person)
-                .into(target);
+                .error(R.drawable.ic_person);
+
+        if (currentDrawable != null) {
+            builder = builder.placeholder(currentDrawable);
+        } else {
+            builder = builder.placeholder(R.drawable.ic_person);
+        }
+
+        builder.into(target);
     }
 
     /**
