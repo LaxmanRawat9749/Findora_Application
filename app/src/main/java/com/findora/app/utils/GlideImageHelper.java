@@ -75,8 +75,6 @@ public final class GlideImageHelper {
 
         if (currentDrawable != null) {
             builder = builder.placeholder(currentDrawable);
-        } else {
-            builder = builder.placeholder(R.drawable.ic_image);
         }
 
         builder.into(target);
@@ -111,8 +109,6 @@ public final class GlideImageHelper {
 
         if (currentDrawable != null) {
             builder = builder.placeholder(currentDrawable);
-        } else {
-            builder = builder.placeholder(R.drawable.ic_image);
         }
 
         builder.into(target);
@@ -139,8 +135,6 @@ public final class GlideImageHelper {
 
         if (currentDrawable != null) {
             builder = builder.placeholder(currentDrawable);
-        } else {
-            builder = builder.placeholder(R.drawable.ic_person);
         }
 
         builder.into(target);
