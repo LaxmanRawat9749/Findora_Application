@@ -66,9 +66,7 @@ from .serializers import (
 )
 from .utils import (
     create_otp,
-    get_matched_found_items_query_for_owner,
     get_or_create_matched_conversation,
-    is_found_item_matched_for_owner,
     send_otp_email,
     verify_otp,
 )
@@ -78,6 +76,9 @@ logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Authentication Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+# (Authentication views continue below...)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class RegisterView(APIView):
@@ -622,16 +623,15 @@ class ItemListCreateView(APIView):
 
         # Role-based visibility rules
         if request.user.role == 'owner':
-            matched_found_q = get_matched_found_items_query_for_owner(request.user)
             owner_own_lost = Q(user=request.user, type='lost', status='approved')
-            matched_found = Q(type='found', status='approved') & matched_found_q
+            approved_found = Q(type='found', status='approved')
             if item_type == 'lost':
                 queryset = queryset.filter(owner_own_lost)
             elif item_type == 'found':
-                queryset = queryset.filter(matched_found)
+                queryset = queryset.filter(approved_found)
             else:
-                # All tab: Owner's own lost items + matched found items reported by Finders
-                queryset = queryset.filter(owner_own_lost | matched_found)
+                # All tab: Owner's own lost items + approved found items reported by Finders
+                queryset = queryset.filter(owner_own_lost | approved_found)
         elif request.user.role == 'finder':
             approved_found = Q(type='found', status='approved')
             approved_lost = Q(type='lost', status='approved')
@@ -757,23 +757,11 @@ class ItemDetailView(APIView):
         if not item:
             return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
             
-        # Enforce visibility rules for detail view
+        # Enforce visibility rules for detail view:
+        # Creators can view their own reports; others can view approved items.
         if request.user.role != 'admin':
-            if item.user != request.user:
-                if item.type == 'lost':
-                    if item.status != 'approved':
-                        return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
-                elif item.type == 'found':
-                    if item.status != 'approved':
-                        return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
-                    if request.user.role == 'owner':
-                        is_matched = is_found_item_matched_for_owner(item, request.user)
-                        has_conv = Conversation.objects.filter(
-                            Q(item=item) & (Q(owner=request.user) | Q(finder=request.user))
-                        ).exists()
-                        has_claim = Claim.objects.filter(item=item, claimant=request.user).exists()
-                        if not (is_matched or has_conv or has_claim):
-                            return Response({'error': 'You do not have permission to view this found item.'}, status=status.HTTP_403_FORBIDDEN)
+            if item.user != request.user and item.status != 'approved':
+                return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
