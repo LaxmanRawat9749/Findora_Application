@@ -37,6 +37,11 @@ import java.io.InputStream;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import androidx.exifinterface.media.ExifInterface;
+import java.util.concurrent.Executors;
 import com.findora.app.R;
 import com.findora.app.cache.FindoraCache;
 import com.findora.app.utils.GlideImageHelper;
@@ -48,6 +53,7 @@ public class ProfileActivity extends BaseActivity {
     
     private boolean isPasswordFormVisible = false;
     private boolean isUsernameFormVisible = false;
+    private boolean isUploadingProfilePicture = false;
 
     private Uri currentPhotoUri;
     private BottomSheetDialog bottomSheetDialog;
@@ -186,57 +192,61 @@ public class ProfileActivity extends BaseActivity {
 
     private com.findora.app.adapters.BadgeAdapter badgeAdapter;
 
+    private void bindUserData(User user, boolean invalidateAvatarCache) {
+        if (user == null) return;
+        FindoraCache.getInstance(this).saveUserProfile(user);
+        binding.tvFullName.setText(user.getFullName());
+        binding.tvEmail.setText(user.getEmail());
+        binding.tvRole.setText("Role: " + capitalize(user.getRole()));
+        if (user.getUsername() != null) {
+            binding.etCurrentUsername.setText(user.getUsername());
+            baseSessionManager.saveUsername(user.getUsername());
+        }
+        if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
+            baseSessionManager.saveProfileImage(user.getProfileImage());
+            GlideImageHelper.loadAvatar(this, user.getProfileImage(), binding.ivProfilePicture, invalidateAvatarCache);
+        } else {
+            baseSessionManager.saveProfileImage("");
+            binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
+        }
+
+        // Load Finder Reputation & Activity ONLY if user is a Finder
+        if ("finder".equalsIgnoreCase(user.getRole())) {
+            binding.cvReputationSection.setVisibility(View.VISIBLE);
+            binding.cvActivitySection.setVisibility(View.VISIBLE);
+            binding.btnLostReportsActivity.setVisibility(View.GONE);
+            binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
+            binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
+
+            binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
+            binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
+
+            if (user.isTrustedFinder()) {
+                binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
+            } else {
+                binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+            }
+
+            loadReputation();
+        } else {
+            // Owner profile view
+            binding.cvReputationSection.setVisibility(View.GONE);
+            binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
+            binding.cvActivitySection.setVisibility(View.VISIBLE);
+            binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
+            binding.btnFoundReportsActivity.setVisibility(View.GONE);
+            binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
+
+            binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
+        }
+    }
+
     private void loadProfile() {
         apiService.getProfile().enqueue(new Callback<User>() {
             @Override
             public void onResponse(Call<User> call, Response<User> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    User user = response.body();
-                    FindoraCache.getInstance(ProfileActivity.this).saveUserProfile(user);
-                    binding.tvFullName.setText(user.getFullName());
-                    binding.tvEmail.setText(user.getEmail());
-                    binding.tvRole.setText("Role: " + capitalize(user.getRole()));
-                    if (user.getUsername() != null) {
-                        binding.etCurrentUsername.setText(user.getUsername());
-                        baseSessionManager.saveUsername(user.getUsername());
-                    }
-                    if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
-                        baseSessionManager.saveProfileImage(user.getProfileImage());
-                        GlideImageHelper.loadAvatar(ProfileActivity.this, user.getProfileImage(), binding.ivProfilePicture);
-                    } else {
-                        baseSessionManager.saveProfileImage("");
-                        binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
-                    }
-
-                    // Load Finder Reputation & Activity ONLY if user is a Finder
-                    if ("finder".equalsIgnoreCase(user.getRole())) {
-                        binding.cvReputationSection.setVisibility(View.VISIBLE);
-                        binding.cvActivitySection.setVisibility(View.VISIBLE);
-                        binding.btnLostReportsActivity.setVisibility(View.GONE);
-                        binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
-                        binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
-
-                        binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
-                        binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
-
-                        if (user.isTrustedFinder()) {
-                            binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
-                        } else {
-                            binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
-                        }
-
-                        loadReputation();
-                    } else {
-                        // Owner profile view
-                        binding.cvReputationSection.setVisibility(View.GONE);
-                        binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
-                        binding.cvActivitySection.setVisibility(View.VISIBLE);
-                        binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
-                        binding.btnFoundReportsActivity.setVisibility(View.GONE);
-                        binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
-
-                        binding.tvLostReportsCount.setText(String.valueOf(user.getLostReports()));
-                    }
+                    bindUserData(response.body(), false);
                 } else {
                     // Unexpected server error — fall back to cache as last resort
                     showCachedProfile();
@@ -288,44 +298,7 @@ public class ProfileActivity extends BaseActivity {
     private void showCachedProfile() {
         User cachedUser = FindoraCache.getInstance(this).getCachedUserProfile();
         if (cachedUser != null) {
-            binding.tvFullName.setText(cachedUser.getFullName());
-            binding.tvEmail.setText(cachedUser.getEmail());
-            binding.tvRole.setText("Role: " + capitalize(cachedUser.getRole()));
-            if (cachedUser.getUsername() != null) {
-                binding.etCurrentUsername.setText(cachedUser.getUsername());
-            }
-
-            if ("finder".equalsIgnoreCase(cachedUser.getRole())) {
-                binding.cvReputationSection.setVisibility(View.VISIBLE);
-                binding.cvActivitySection.setVisibility(View.VISIBLE);
-                binding.btnLostReportsActivity.setVisibility(View.GONE);
-                binding.btnFoundReportsActivity.setVisibility(View.VISIBLE);
-                binding.btnItemsRecoveredActivity.setVisibility(View.VISIBLE);
-
-                binding.tvFoundReportsCount.setText(String.valueOf(cachedUser.getFoundReports()));
-                binding.tvItemsRecoveredCount.setText(String.valueOf(cachedUser.getItemsRecovered()));
-
-                if (cachedUser.isTrustedFinder()) {
-                    binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
-                } else {
-                    binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
-                }
-            } else {
-                binding.cvReputationSection.setVisibility(View.GONE);
-                binding.layoutTrustedFinderBadge.setVisibility(View.GONE);
-                binding.cvActivitySection.setVisibility(View.VISIBLE);
-                binding.btnLostReportsActivity.setVisibility(View.VISIBLE);
-                binding.btnFoundReportsActivity.setVisibility(View.GONE);
-                binding.btnItemsRecoveredActivity.setVisibility(View.GONE);
-
-                binding.tvLostReportsCount.setText(String.valueOf(cachedUser.getLostReports()));
-            }
-
-            if (cachedUser.getProfileImage() != null && !cachedUser.getProfileImage().isEmpty()) {
-                GlideImageHelper.loadAvatar(this, cachedUser.getProfileImage(), binding.ivProfilePicture);
-            } else {
-                binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
-            }
+            bindUserData(cachedUser, false);
             return;
         }
 
@@ -560,50 +533,132 @@ public class ProfileActivity extends BaseActivity {
         
         Intent intent = UCrop.of(sourceUri, destinationUri)
                 .withAspectRatio(1, 1)
-                .withMaxResultSize(1000, 1000)
+                .withMaxResultSize(512, 512)
                 .withOptions(options)
                 .getIntent(this);
         cropImageLauncher.launch(intent);
     }
+
+    private void setProfilePictureLoading(boolean loading) {
+        if (binding.pbProfilePictureLoading != null) {
+            binding.pbProfilePictureLoading.setVisibility(loading ? View.VISIBLE : View.GONE);
+        }
+        binding.ivProfilePicture.setAlpha(loading ? 0.4f : 1.0f);
+        binding.btnEditProfilePicture.setEnabled(!loading);
+    }
+
+    private File compressProfileImage(Uri uri) {
+        try {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            InputStream boundsInput = getContentResolver().openInputStream(uri);
+            if (boundsInput == null) return null;
+            BitmapFactory.decodeStream(boundsInput, null, options);
+            boundsInput.close();
+
+            int rawWidth = options.outWidth;
+            int rawHeight = options.outHeight;
+            if (rawWidth <= 0 || rawHeight <= 0) {
+                return null;
+            }
+
+            int inSampleSize = 1;
+            int maxDim = Math.max(rawWidth, rawHeight);
+            while (maxDim / inSampleSize > 512) {
+                inSampleSize *= 2;
+            }
+
+            BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
+            decodeOptions.inSampleSize = inSampleSize;
+            decodeOptions.inPreferredConfig = Bitmap.Config.RGB_565;
+
+            InputStream input = getContentResolver().openInputStream(uri);
+            if (input == null) return null;
+            Bitmap bitmap = BitmapFactory.decodeStream(input, null, decodeOptions);
+            input.close();
+
+            if (bitmap == null) return null;
+
+            // Handle EXIF rotation safely
+            int orientation = ExifInterface.ORIENTATION_NORMAL;
+            try {
+                InputStream exifInput = getContentResolver().openInputStream(uri);
+                if (exifInput != null) {
+                    ExifInterface exif = new ExifInterface(exifInput);
+                    orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                    exifInput.close();
+                }
+            } catch (Throwable ignored) {}
+
+            Matrix matrix = new Matrix();
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) matrix.postRotate(90);
+            else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) matrix.postRotate(180);
+            else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) matrix.postRotate(270);
+
+            if (orientation != ExifInterface.ORIENTATION_NORMAL && orientation != ExifInterface.ORIENTATION_UNDEFINED) {
+                Bitmap rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                if (rotated != bitmap) {
+                    bitmap.recycle();
+                    bitmap = rotated;
+                }
+            }
+
+            // Final resize if still above 512
+            int curMax = Math.max(bitmap.getWidth(), bitmap.getHeight());
+            if (curMax > 512) {
+                float scale = 512f / curMax;
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, (int)(bitmap.getWidth() * scale), (int)(bitmap.getHeight() * scale), true);
+                if (scaled != bitmap) {
+                    bitmap.recycle();
+                    bitmap = scaled;
+                }
+            }
+
+            File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
+            File file = new File(cacheDir, "compressed_profile_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream fos = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, fos);
+            fos.flush();
+            fos.close();
+            bitmap.recycle();
+            return file;
+        } catch (Throwable t) {
+            android.util.Log.e("ProfileActivity", "Error compressing profile picture", t);
+        }
+        return null;
+    }
     
     private void uploadProfilePicture(Uri uri) {
-        File tempFile = null;
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            if (inputStream == null) {
-                Toast.makeText(this, "Could not read selected image", Toast.LENGTH_SHORT).show();
+        if (isUploadingProfilePicture) return;
+        isUploadingProfilePicture = true;
+        setProfilePictureLoading(true);
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            File compressedFile = compressProfileImage(uri);
+            if (compressedFile == null) {
+                runOnUiThread(() -> {
+                    isUploadingProfilePicture = false;
+                    setProfilePictureLoading(false);
+                    Toast.makeText(ProfileActivity.this, "Could not process selected image", Toast.LENGTH_SHORT).show();
+                });
                 return;
             }
 
-            tempFile = new File(getCacheDir(), "upload_profile_" + System.currentTimeMillis() + ".jpg");
-            FileOutputStream out = new FileOutputStream(tempFile);
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = inputStream.read(buf)) > 0) {
-                out.write(buf, 0, len);
-            }
-            out.close();
-            inputStream.close();
+            RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), compressedFile);
+            MultipartBody.Part body = MultipartBody.Part.createFormData("image", compressedFile.getName(), requestFile);
 
-            RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), tempFile);
-            MultipartBody.Part body = MultipartBody.Part.createFormData("image", tempFile.getName(), requestFile);
-
-            final File fileToDelete = tempFile;
             apiService.updateProfileImage(body).enqueue(new Callback<User>() {
                 @Override
                 public void onResponse(Call<User> call, Response<User> response) {
-                    if (fileToDelete.exists()) {
-                        fileToDelete.delete();
+                    isUploadingProfilePicture = false;
+                    setProfilePictureLoading(false);
+                    if (compressedFile.exists()) {
+                        compressedFile.delete();
                     }
                     if (response.isSuccessful() && response.body() != null) {
                         User user = response.body();
-                        FindoraCache.getInstance(ProfileActivity.this).saveUserProfile(user);
+                        bindUserData(user, true);
                         Toast.makeText(ProfileActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
-                        if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
-                            baseSessionManager.saveProfileImage(user.getProfileImage());
-                            GlideImageHelper.loadAvatar(ProfileActivity.this, user.getProfileImage(), binding.ivProfilePicture);
-                        }
-                        loadProfile();
                     } else {
                         String errorDetails = "";
                         try {
@@ -618,31 +673,37 @@ public class ProfileActivity extends BaseActivity {
 
                 @Override
                 public void onFailure(Call<User> call, Throwable t) {
-                    if (fileToDelete.exists()) {
-                        fileToDelete.delete();
+                    isUploadingProfilePicture = false;
+                    setProfilePictureLoading(false);
+                    if (compressedFile.exists()) {
+                        compressedFile.delete();
                     }
                     android.util.Log.e("ProfileActivity", "Upload network failure", t);
                     Toast.makeText(ProfileActivity.this, "Network error. Please try again.", Toast.LENGTH_SHORT).show();
                 }
             });
-        } catch (Exception e) {
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-            }
-            android.util.Log.e("ProfileActivity", "Error processing image", e);
-            Toast.makeText(this, "Error processing image", Toast.LENGTH_SHORT).show();
-        }
+        });
     }
 
     private void removeProfilePicture() {
+        if (isUploadingProfilePicture) return;
+        isUploadingProfilePicture = true;
+        setProfilePictureLoading(true);
+
         apiService.deleteProfileImage().enqueue(new Callback<User>() {
             @Override
             public void onResponse(Call<User> call, Response<User> response) {
+                isUploadingProfilePicture = false;
+                setProfilePictureLoading(false);
                 if (response.isSuccessful()) {
                     Toast.makeText(ProfileActivity.this, "Profile picture removed", Toast.LENGTH_SHORT).show();
                     baseSessionManager.saveProfileImage("");
                     binding.ivProfilePicture.setImageResource(R.drawable.ic_person);
-                    loadProfile();
+                    User cached = FindoraCache.getInstance(ProfileActivity.this).getCachedUserProfile();
+                    if (cached != null) {
+                        cached.setProfileImage(null);
+                        FindoraCache.getInstance(ProfileActivity.this).saveUserProfile(cached);
+                    }
                 } else {
                     Toast.makeText(ProfileActivity.this, "Failed to remove profile picture", Toast.LENGTH_SHORT).show();
                 }
@@ -650,6 +711,8 @@ public class ProfileActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<User> call, Throwable t) {
+                isUploadingProfilePicture = false;
+                setProfilePictureLoading(false);
                 Toast.makeText(ProfileActivity.this, "Network error. Please try again.", Toast.LENGTH_SHORT).show();
             }
         });

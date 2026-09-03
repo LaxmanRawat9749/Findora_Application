@@ -118,6 +118,13 @@ public final class GlideImageHelper {
      * Loads a circular user avatar with fallback to ic_person.
      */
     public static void loadAvatar(Context context, String url, ImageView target) {
+        loadAvatar(context, url, target, false);
+    }
+
+    /**
+     * Loads a circular user avatar with optional cache invalidation.
+     */
+    public static void loadAvatar(Context context, String url, ImageView target, boolean invalidateCache) {
         if (context == null || target == null) return;
         Object model = getGlideModel(url);
         if (model == null) {
@@ -129,9 +136,16 @@ public final class GlideImageHelper {
         com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> builder = Glide.with(context)
                 .load(model)
                 .circleCrop()
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontAnimate()
                 .error(R.drawable.ic_person);
+
+        if (invalidateCache) {
+            builder = builder.signature(new com.bumptech.glide.signature.ObjectKey(System.currentTimeMillis()))
+                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true);
+        } else {
+            builder = builder.diskCacheStrategy(DiskCacheStrategy.ALL);
+        }
 
         if (currentDrawable != null) {
             builder = builder.placeholder(currentDrawable);

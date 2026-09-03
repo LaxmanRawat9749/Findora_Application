@@ -16,7 +16,11 @@ Implements all business logic for:
 import logging
 import time
 import re
+import threading
+from io import BytesIO
+from PIL import Image, ImageOps
 
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.contrib.auth import authenticate
 from django.db.models import Q, Max, Case, When, Value, IntegerField
 from django.utils import timezone
@@ -531,6 +535,46 @@ class ProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _delete_old_profile_image_async(image_file):
+    if image_file:
+        try:
+            image_file.delete(save=False)
+        except Exception:
+            pass
+
+
+def _optimize_uploaded_profile_image(uploaded_file):
+    """
+    Ensure the profile image does not exceed 512x512 and is compressed
+    as a high-quality JPEG to prevent slow storage/network transfers.
+    """
+    try:
+        img = Image.open(uploaded_file)
+        img = ImageOps.exif_transpose(img)
+        if img.mode not in ('RGB', 'L'):
+            img = img.convert('RGB')
+
+        max_dim = 512
+        if img.width > max_dim or img.height > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG', quality=85, optimize=True)
+        buffer.seek(0)
+
+        filename = uploaded_file.name.rsplit('.', 1)[0] + '.jpg'
+        return InMemoryUploadedFile(
+            buffer,
+            'ImageField',
+            filename,
+            'image/jpeg',
+            buffer.getbuffer().nbytes,
+            None
+        )
+    except Exception:
+        return uploaded_file
+
+
 class ProfileImageView(APIView):
     """
     PUT    /api/profile/image/ — Upload/replace profile image.
@@ -564,23 +608,22 @@ class ProfileImageView(APIView):
         if ext not in ['jpg', 'jpeg', 'png', 'webp']:
             return Response({'error': 'Unsupported format. Allowed: JPG, JPEG, PNG, WEBP.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Remove old image file if replacing
-        if request.user.profile_image:
-            try:
-                request.user.profile_image.delete(save=False)
-            except Exception:
-                pass
+        # Optimize image with Pillow before storage
+        optimized_image = _optimize_uploaded_profile_image(image)
 
-        request.user.profile_image = image
+        # Delete old image file asynchronously in a background thread to prevent blocking
+        old_image = request.user.profile_image
+        if old_image:
+            threading.Thread(target=_delete_old_profile_image_async, args=(old_image,), daemon=True).start()
+
+        request.user.profile_image = optimized_image
         request.user.save(update_fields=['profile_image'])
         return Response(UserSerializer(request.user, context={'request': request}).data, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        if request.user.profile_image:
-            try:
-                request.user.profile_image.delete(save=False)
-            except Exception:
-                pass
+        old_image = request.user.profile_image
+        if old_image:
+            threading.Thread(target=_delete_old_profile_image_async, args=(old_image,), daemon=True).start()
             request.user.profile_image = None
             request.user.save(update_fields=['profile_image'])
         return Response({'message': 'Profile image removed successfully.'}, status=status.HTTP_200_OK)
