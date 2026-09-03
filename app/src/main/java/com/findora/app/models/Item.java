@@ -125,7 +125,7 @@ public class Item implements Serializable {
     public boolean isFinderReturnedConfirm() { return finderReturnedConfirm; }
     public void setFinderReturnedConfirm(boolean finderReturnedConfirm) { this.finderReturnedConfirm = finderReturnedConfirm; }
 
-    public String getResolvedAt() { return resolvedAt; }
+    public String getResolvedAt() { return  resolvedAt; }
     public void setResolvedAt(String resolvedAt) { this.resolvedAt = resolvedAt; }
 
     public List<ItemImage> getImages() { return images; }

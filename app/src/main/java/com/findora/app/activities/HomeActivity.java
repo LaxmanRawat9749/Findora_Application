@@ -127,6 +127,7 @@ public class HomeActivity extends BaseActivity {
         clearSearchFocus();
         baseSessionManager.updateLastActivity();
         updateGreeting();
+        updateBottomNav();
         if (binding.bottomNav.getSelectedItemId() != R.id.nav_home) {
             binding.bottomNav.getMenu().findItem(R.id.nav_home).setChecked(true);
         }
@@ -338,6 +339,7 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void setupBottomNav() {
+        updateBottomNav();
         binding.bottomNav.setOnItemSelectedListener(item -> {
             clearSearchFocus();
             int id = item.getItemId();
@@ -354,6 +356,16 @@ public class HomeActivity extends BaseActivity {
             }
             return false;
         });
+    }
+
+    private void updateBottomNav() {
+        if (binding != null && binding.bottomNav != null && binding.bottomNav.getMenu() != null) {
+            boolean isFinder = "finder".equalsIgnoreCase(baseSessionManager.getRole());
+            android.view.MenuItem reportItem = binding.bottomNav.getMenu().findItem(R.id.nav_report);
+            if (reportItem != null) {
+                reportItem.setVisible(!isFinder);
+            }
+        }
     }
 
     private void loadItems() {
