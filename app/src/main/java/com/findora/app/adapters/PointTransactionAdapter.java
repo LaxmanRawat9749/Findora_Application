@@ -65,23 +65,23 @@ public class PointTransactionAdapter extends RecyclerView.Adapter<PointTransacti
             if (type != null) {
                 switch (type) {
                     case "SUCCESSFUL_RETURN":
-                        title = "🤝 Successful Return";
+                        title = "Successful Return";
                         pointsColor = ContextCompat.getColor(context, R.color.primary_purple);
                         break;
                     case "FOUND_REPORT":
-                        title = "📝 Found Item Report";
+                        title = "Found Item Report";
                         pointsColor = ContextCompat.getColor(context, R.color.success_green);
                         break;
                     case "POSITIVE_RATING":
-                        title = "⭐ Positive Owner Rating";
+                        title = "Positive Owner Rating";
                         pointsColor = ContextCompat.getColor(context, R.color.warning_orange);
                         break;
                     case "ADMIN_ADJUSTMENT":
-                        title = "⚙️ Admin Adjustment";
+                        title = "Admin Adjustment";
                         pointsColor = ContextCompat.getColor(context, R.color.primary_purple);
                         break;
                     case "PENALTY":
-                        title = "⚠️ Penalty";
+                        title = "Penalty";
                         pointsColor = ContextCompat.getColor(context, R.color.error_red);
                         break;
                     default:

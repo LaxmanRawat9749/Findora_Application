@@ -192,7 +192,7 @@ public class HomeActivity extends BaseActivity {
             public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     int points = response.body().getTotalPoints();
-                    binding.tvHomePointsPill.setText("🏆 " + points + " pts");
+                    binding.tvHomePointsPill.setText(points + " pts");
                     binding.tvHomePointsPill.setVisibility(View.VISIBLE);
                     binding.tvHomePointsPill.setOnClickListener(v -> {
                         clearSearchFocus();
@@ -488,9 +488,9 @@ public class HomeActivity extends BaseActivity {
         }
 
         if (nameToDisplay != null && !nameToDisplay.isEmpty()) {
-            binding.tvGreeting.setText("Hello, " + nameToDisplay + " 👋");
+            binding.tvGreeting.setText("Hello, " + nameToDisplay);
         } else {
-            binding.tvGreeting.setText("Hello 👋");
+            binding.tvGreeting.setText("Hello");
         }
 
         boolean isFinder = "finder".equalsIgnoreCase(baseSessionManager.getRole());

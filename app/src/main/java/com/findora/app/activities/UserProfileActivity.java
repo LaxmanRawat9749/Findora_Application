@@ -108,7 +108,7 @@ public class UserProfileActivity extends BaseActivity {
         // Bind Reputation & Points ONLY for Finders
         if ("finder".equalsIgnoreCase(profile.getRole())) {
             binding.cvReputationInfo.setVisibility(View.VISIBLE);
-            binding.tvUserReputation.setText("⭐ " + profile.getReputationDisplay());
+            binding.tvUserReputation.setText(profile.getReputationDisplay());
             binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
             binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
 

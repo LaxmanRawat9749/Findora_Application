@@ -358,14 +358,16 @@ public class ItemDetailActivity extends BaseActivity {
                         binding.cvRateFinder.setVisibility(View.VISIBLE);
                         binding.tvRateTitle.setText("Rate the Finder");
                         binding.tvRateSubtitle.setText("Reward your finder with positive reputation & points");
-                        binding.btnRateFinder.setText("Rate ⭐");
+                        binding.btnRateFinder.setIconResource(R.drawable.ic_star);
+                        binding.btnRateFinder.setText("Rate");
                         binding.btnRateFinder.setEnabled(true);
                         binding.btnRateFinder.setOnClickListener(v -> showRatingDialog());
                     } else if (status.isHasRated() && status.getRating() != null) {
                         binding.cvRateFinder.setVisibility(View.VISIBLE);
                         binding.tvRateTitle.setText("Finder Rated");
-                        binding.tvRateSubtitle.setText("You gave " + status.getRating().getRating() + " / 5 stars ⭐");
-                        binding.btnRateFinder.setText("Rated ✓");
+                        binding.tvRateSubtitle.setText("You gave " + status.getRating().getRating() + " / 5 stars");
+                        binding.btnRateFinder.setIconResource(R.drawable.ic_check);
+                        binding.btnRateFinder.setText("Rated");
                         binding.btnRateFinder.setEnabled(false);
                     } else {
                         binding.cvRateFinder.setVisibility(View.GONE);

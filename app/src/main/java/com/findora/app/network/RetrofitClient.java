@@ -148,25 +148,25 @@ public class RetrofitClient {
                             return response;
                         } catch (ConnectException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
-                            Log.e(TAG, "✗ ConnectException on " + endpoint
+                            Log.e(TAG, "ConnectException on " + endpoint
                                     + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (SocketTimeoutException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
-                            Log.e(TAG, "✗ SocketTimeoutException on " + endpoint
+                            Log.e(TAG, "SocketTimeoutException on " + endpoint
                                     + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (UnknownHostException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
-                            Log.e(TAG, "✗ UnknownHostException on " + endpoint
+                            Log.e(TAG, "UnknownHostException on " + endpoint
                                     + " after " + elapsedMs + " ms: "
                                     + e.getMessage());
                             throw e;
                         } catch (IOException e) {
                             long elapsedMs = System.currentTimeMillis() - startMs;
-                            Log.e(TAG, "✗ IOException (" + e.getClass().getSimpleName()
+                            Log.e(TAG, "IOException (" + e.getClass().getSimpleName()
                                     + ") on " + endpoint
                                     + " after " + elapsedMs + " ms: "
                                     + e.getMessage(), e);

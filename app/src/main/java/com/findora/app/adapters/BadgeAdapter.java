@@ -55,7 +55,7 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.ViewHolder> 
         }
 
         void bind(UserBadge badge) {
-            binding.tvBadgeIcon.setText(badge.getIcon());
+            binding.ivBadgeIcon.setImageResource(badge.getIconDrawableRes());
             binding.tvBadgeName.setText(badge.getName());
             binding.tvBadgeDescription.setText(badge.getDescription());
 
@@ -64,14 +64,14 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.ViewHolder> 
                         ContextCompat.getColor(context, R.color.light_green));
                 binding.tvBadgeStatus.setTextColor(
                         ContextCompat.getColor(context, R.color.success_green));
-                binding.tvBadgeStatus.setText("Unlocked ✓");
+                binding.tvBadgeStatus.setText("Unlocked");
                 binding.layoutProgress.setVisibility(View.GONE);
             } else {
                 binding.cvStatusBadge.setCardBackgroundColor(
                         ContextCompat.getColor(context, R.color.surface_02));
                 binding.tvBadgeStatus.setTextColor(
                         ContextCompat.getColor(context, R.color.text_gray));
-                binding.tvBadgeStatus.setText("Locked 🔒");
+                binding.tvBadgeStatus.setText("Locked");
 
                 binding.layoutProgress.setVisibility(View.VISIBLE);
                 binding.tvProgressFraction.setText(badge.getProgressText() != null ?

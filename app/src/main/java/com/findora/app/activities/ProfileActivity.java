@@ -258,9 +258,9 @@ public class ProfileActivity extends BaseActivity {
             public void onResponse(Call<com.findora.app.models.FinderReputation> call, Response<com.findora.app.models.FinderReputation> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     com.findora.app.models.FinderReputation rep = response.body();
-                    binding.tvReputationScore.setText("⭐ " + rep.getReputationDisplay());
-                    binding.tvPointsScore.setText("🏆 " + rep.getTotalPoints() + " Pts");
-                    binding.tvReturnsScore.setText("🤝 " + rep.getSuccessfulReturns());
+                    binding.tvReputationScore.setText(rep.getReputationDisplay());
+                    binding.tvPointsScore.setText(rep.getTotalPoints() + " Pts");
+                    binding.tvReturnsScore.setText(String.valueOf(rep.getSuccessfulReturns()));
 
                     binding.tvFoundReportsCount.setText(String.valueOf(rep.getFoundReports()));
                     binding.tvItemsRecoveredCount.setText(String.valueOf(rep.getItemsRecovered()));

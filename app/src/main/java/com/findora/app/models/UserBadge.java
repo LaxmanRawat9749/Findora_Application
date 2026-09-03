@@ -39,8 +39,32 @@ public class UserBadge {
     public int getRequiredReturns() { return requiredReturns; }
     public void setRequiredReturns(int requiredReturns) { this.requiredReturns = requiredReturns; }
 
-    public String getIcon() { return icon != null ? icon : "🏅"; }
+    public String getIcon() { return icon != null ? icon : ""; }
     public void setIcon(String icon) { this.icon = icon; }
+
+    public int getIconDrawableRes() {
+        if (badgeKey != null) {
+            switch (badgeKey.toLowerCase()) {
+                case "first_return":
+                case "seedling":
+                    return com.findora.app.R.drawable.ic_eco;
+                case "reliable_finder":
+                case "bronze":
+                    return com.findora.app.R.drawable.ic_handshake;
+                case "trusted_finder":
+                case "silver":
+                    return com.findora.app.R.drawable.ic_verified;
+                case "hero_finder":
+                case "gold":
+                    return com.findora.app.R.drawable.ic_trophy;
+                case "legendary_finder":
+                case "master":
+                case "crown":
+                    return com.findora.app.R.drawable.ic_crown;
+            }
+        }
+        return com.findora.app.R.drawable.ic_military_tech;
+    }
 
     public boolean isEarned() { return isEarned; }
     public void setEarned(boolean earned) { isEarned = earned; }

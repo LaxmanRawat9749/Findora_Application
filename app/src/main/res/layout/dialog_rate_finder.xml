@@ -9,12 +9,13 @@
     android:background="@color/card_background">
 
     <!-- Header Icon -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <ImageView
+        android:layout_width="44dp"
+        android:layout_height="44dp"
         android:layout_gravity="center"
-        android:text="⭐"
-        android:textSize="36sp" />
+        android:src="@drawable/ic_star"
+        app:tint="@color/warning_orange"
+        android:contentDescription="Rate Finder" />
 
     <TextView
         android:id="@+id/tvDialogTitle"

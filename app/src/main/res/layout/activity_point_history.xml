@@ -64,12 +64,13 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🏆"
-                        android:textSize="32sp"
-                        android:layout_marginEnd="8dp" />
+                    <ImageView
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:src="@drawable/ic_trophy"
+                        app:tint="@color/primary_purple"
+                        android:layout_marginEnd="10dp"
+                        android:contentDescription="Total Points Trophy" />
 
                     <TextView
                         android:id="@+id/tvTotalPoints"
@@ -130,11 +131,13 @@
                 android:padding="32dp"
                 android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🌱"
-                    android:textSize="48sp" />
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:src="@drawable/ic_history"
+                    app:tint="@color/text_hint"
+                    android:alpha="0.6"
+                    android:contentDescription="No Points History" />
 
                 <TextView
                     android:layout_width="wrap_content"

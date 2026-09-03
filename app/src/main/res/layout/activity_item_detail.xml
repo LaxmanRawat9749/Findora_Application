@@ -87,12 +87,16 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
                                 android:background="@drawable/bg_badge_featured"
-                                android:paddingHorizontal="12dp"
+                                android:paddingHorizontal="10dp"
                                 android:paddingVertical="4dp"
-                                android:text="⭐ FEATURED"
+                                android:drawableStart="@drawable/ic_star"
+                                android:drawablePadding="4dp"
+                                android:drawableTint="@color/primary_purple"
+                                android:gravity="center_vertical"
+                                android:text="FEATURED"
                                 android:textColor="@color/primary_purple"
                                 android:textSize="@dimen/text_caption"
-                                android:fontFamily="sans-serif-medium"
+                                android:fontFamily="sans-serif-bold"
                                 android:visibility="gone" />
 
                             <TextView
@@ -115,12 +119,16 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_badge_found"
-                                android:paddingHorizontal="12dp"
+                                android:paddingHorizontal="10dp"
                                 android:paddingVertical="4dp"
-                                android:text="✓ RETURNED"
+                                android:drawableStart="@drawable/ic_check_circle"
+                                android:drawablePadding="4dp"
+                                android:drawableTint="@color/success_green"
+                                android:gravity="center_vertical"
+                                android:text="RETURNED"
                                 android:textColor="@color/success_green"
                                 android:textSize="@dimen/text_caption"
-                                android:fontFamily="sans-serif-medium"
+                                android:fontFamily="sans-serif-bold"
                                 android:visibility="gone" />
                         </LinearLayout>
 
@@ -275,7 +283,10 @@
                     style="@style/Widget.Findora.Button.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/button_height"
-                    android:text="⭐ Promote This Item" />
+                    app:icon="@drawable/ic_star"
+                    app:iconTint="@color/primary_purple"
+                    app:iconGravity="textStart"
+                    android:text="Promote This Item" />
             </LinearLayout>
 
             <!-- Action Buttons for Lost Items / Default -->
@@ -358,12 +369,13 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="⭐"
-                            android:textSize="24sp"
-                            android:layout_marginEnd="8dp" />
+                        <ImageView
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:src="@drawable/ic_star"
+                            app:tint="@color/warning_orange"
+                            android:layout_marginEnd="10dp"
+                            android:contentDescription="Rating Icon" />
 
                         <LinearLayout
                             android:layout_width="0dp"
@@ -394,7 +406,10 @@
                             style="@style/Widget.Findora.Button"
                             android:layout_width="wrap_content"
                             android:layout_height="40dp"
-                            android:text="Rate ⭐"
+                            app:icon="@drawable/ic_star"
+                            app:iconTint="@color/white"
+                            app:iconGravity="textStart"
+                            android:text="Rate"
                             android:textSize="12sp"
                             app:backgroundTint="@color/warning_orange" />
                     </LinearLayout>

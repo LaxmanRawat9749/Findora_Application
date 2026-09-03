@@ -8,7 +8,7 @@ public class Constants {
     // For Android Emulator: "http://10.0.2.2:8000/api/"
     // Laxman's machine: "http://192.168.1.85:8000/api/"
 
-    // ✅ Production — Render deployment
+    // Production — Render deployment
     public static final String BASE_URL = "https://findora-application.onrender.com/api/";
 
     public static final String EXTRA_ITEM_ID = "extra_item_id";
