@@ -46,7 +46,10 @@
         <activity android:name=".activities.ForgotPasswordActivity" android:exported="false" />
         <activity android:name=".activities.ResetPasswordActivity" android:exported="false" />
         <activity android:name=".activities.HomeActivity" android:exported="false" />
-        <activity android:name=".activities.UploadItemActivity" android:exported="false" />
+        <activity
+            android:name=".activities.UploadItemActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.ItemDetailActivity" android:exported="false" />
         <activity android:name=".activities.SearchActivity" android:exported="false" />
         <activity android:name=".activities.ChatActivity" android:exported="false" />
