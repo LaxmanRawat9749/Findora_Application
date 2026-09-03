@@ -3,16 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white"
+    android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
     android:padding="16dp">
 
     <TextView
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingBottom="16dp"
+        android:layout_marginBottom="16dp"
         android:text="Profile Picture"
-        android:textColor="@android:color/black"
+        android:textColor="@color/text_dark"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -20,25 +20,24 @@
         android:id="@+id/btnTakePhoto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
-        android:orientation="horizontal"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
         android:paddingVertical="12dp">
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_camera"
-            app:tint="@android:color/black" />
+            app:tint="@color/text_dark" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
             android:layout_marginStart="16dp"
             android:text="Take Photo"
-            android:textColor="@android:color/black"
+            android:textColor="@color/text_dark"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -46,25 +45,24 @@
         android:id="@+id/btnChooseGallery"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
-        android:orientation="horizontal"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
         android:paddingVertical="12dp">
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_gallery"
-            app:tint="@android:color/black" />
+            app:tint="@color/text_dark" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
             android:layout_marginStart="16dp"
             android:text="Choose from Gallery"
-            android:textColor="@android:color/black"
+            android:textColor="@color/text_dark"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -72,25 +70,24 @@
         android:id="@+id/btnRemovePhoto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
-        android:orientation="horizontal"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
         android:paddingVertical="12dp">
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_delete"
-            app:tint="#D32F2F" />
+            app:tint="@color/error_red" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
             android:layout_marginStart="16dp"
             android:text="Remove Photo"
-            android:textColor="#D32F2F"
+            android:textColor="@color/error_red"
             android:textSize="16sp" />
     </LinearLayout>
 
