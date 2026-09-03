@@ -48,10 +48,15 @@ public class Item implements Serializable {
     private Integer parentItem;
     @SerializedName("parent_item_title")
     private String parentItemTitle;
+    @SerializedName("has_reported")
+    private boolean hasReported;
 
     private List<ItemImage> images;
 
     public Item() {}
+
+    public boolean isHasReported() { return hasReported; }
+    public void setHasReported(boolean hasReported) { this.hasReported = hasReported; }
 
     public Integer getParentItem() { return parentItem; }
     public void setParentItem(Integer parentItem) { this.parentItem = parentItem; }

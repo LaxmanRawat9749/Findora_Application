@@ -565,8 +565,11 @@ class ItemMatchingAndRoleVisibilityTests(TestCase):
 
     def test_unapproved_found_item_hidden_from_other_users(self):
         """Unapproved (pending) found items are not accessible by other users (HTTP 403)."""
+        finder_pending = User.objects.create_user(
+            username='finder_pending', email='pending@test.com', password='Password123!', role='finder'
+        )
         pending_item = Item.objects.create(
-            user=self.finder, parent_item=self.lost_phone, type='found', title='Black iPhone 13 Pro', category='phone', status='pending'
+            user=finder_pending, parent_item=self.lost_phone, type='found', title='Black iPhone 13 Pro', category='phone', status='pending'
         )
         view = ItemDetailView.as_view()
         req = self.factory.get(f'/api/items/{pending_item.id}/')
@@ -2115,6 +2118,246 @@ class OwnerDashboardFinderFoundReportsVisibilityTests(TestCase):
         self.assertEqual(res.status_code, 200)
         ids = [it['id'] for it in res.data]
         self.assertEqual(len(ids), len(set(ids)))
+
+
+class DuplicateFinderReportPreventionTests(TestCase):
+    """
+    Test suite for enforcing that a Finder can report each Owner-uploaded lost item ONLY ONCE.
+    """
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.items_view = ItemListCreateView.as_view()
+        self.item_detail_view = ItemDetailView.as_view()
+
+        self.owner = User.objects.create_user(
+            username='owner_user',
+            email='owner@findora.test',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+        self.finder_a = User.objects.create_user(
+            username='finder_a',
+            email='findera@findora.test',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+        self.finder_b = User.objects.create_user(
+            username='finder_b',
+            email='finderb@findora.test',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+
+        self.owner_item_1 = Item.objects.create(
+            user=self.owner,
+            type='lost',
+            title='Lost Black Leather Wallet',
+            description='Contains citizenship card and cash',
+            category='wallet',
+            status='approved',
+        )
+        self.owner_item_2 = Item.objects.create(
+            user=self.owner,
+            type='lost',
+            title='Lost House Keys',
+            description='Keyring with red lanyard',
+            category='keys',
+            status='approved',
+        )
+
+    def test_finder_a_reports_owner_item_1_success(self):
+        """Finder A reports Owner Item #1 -> SUCCESS (201 Created)."""
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = BytesIO()
+        Image.new('RGB', (100, 100), color='green').save(buf, format='JPEG')
+        buf.seek(0)
+        img = SimpleUploadedFile('found.jpg', buf.read(), content_type='image/jpeg')
+
+        req = self.factory.post('/api/items/', {
+            'parent_item': self.owner_item_1.id,
+            'description': 'Found near coffee shop on ground',
+            'location': 'Downtown Cafe',
+            'images': [img],
+        }, format='multipart')
+        force_authenticate(req, user=self.finder_a)
+        req.user = self.finder_a
+
+        res = self.items_view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(
+            Item.objects.filter(user=self.finder_a, parent_item=self.owner_item_1, type='found').count(), 1
+        )
+
+    def test_finder_a_reports_owner_item_1_again_blocked_409(self):
+        """Finder A reporting the same Owner Item #1 again is BLOCKED with 409 Conflict."""
+        # First report
+        Item.objects.create(
+            user=self.finder_a,
+            parent_item=self.owner_item_1,
+            type='found',
+            title=self.owner_item_1.title,
+            category=self.owner_item_1.category,
+            status='pending',
+        )
+
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = BytesIO()
+        Image.new('RGB', (100, 100), color='green').save(buf, format='JPEG')
+        buf.seek(0)
+        img = SimpleUploadedFile('found2.jpg', buf.read(), content_type='image/jpeg')
+
+        # Duplicate report attempt
+        req = self.factory.post('/api/items/', {
+            'parent_item': self.owner_item_1.id,
+            'description': 'Found it again duplicate',
+            'location': 'Downtown Cafe',
+            'images': [img],
+        }, format='multipart')
+        force_authenticate(req, user=self.finder_a)
+        req.user = self.finder_a
+
+        res = self.items_view(req)
+        self.assertEqual(res.status_code, 409)
+        self.assertIn('already reported', res.data.get('error', '').lower())
+        # Ensure no second record was created
+        self.assertEqual(
+            Item.objects.filter(user=self.finder_a, parent_item=self.owner_item_1, type='found').count(), 1
+        )
+
+    def test_finder_b_can_report_same_owner_item_1(self):
+        """Finder B can report the same Owner Item #1 (different finders are allowed)."""
+        Item.objects.create(
+            user=self.finder_a,
+            parent_item=self.owner_item_1,
+            type='found',
+            title=self.owner_item_1.title,
+            category=self.owner_item_1.category,
+            status='pending',
+        )
+
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = BytesIO()
+        Image.new('RGB', (100, 100), color='blue').save(buf, format='JPEG')
+        buf.seek(0)
+        img = SimpleUploadedFile('found_b.jpg', buf.read(), content_type='image/jpeg')
+
+        req = self.factory.post('/api/items/', {
+            'parent_item': self.owner_item_1.id,
+            'description': 'Finder B spotted the wallet near fountain',
+            'location': 'Central Park Fountain',
+            'images': [img],
+        }, format='multipart')
+        force_authenticate(req, user=self.finder_b)
+        req.user = self.finder_b
+
+        res = self.items_view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(
+            Item.objects.filter(parent_item=self.owner_item_1, type='found').count(), 2
+        )
+
+    def test_finder_a_reports_different_owner_item_2_allowed(self):
+        """Finder A can report a different Owner Item #2."""
+        Item.objects.create(
+            user=self.finder_a,
+            parent_item=self.owner_item_1,
+            type='found',
+            title=self.owner_item_1.title,
+            category=self.owner_item_1.category,
+            status='pending',
+        )
+
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = BytesIO()
+        Image.new('RGB', (100, 100), color='red').save(buf, format='JPEG')
+        buf.seek(0)
+        img = SimpleUploadedFile('keys.jpg', buf.read(), content_type='image/jpeg')
+
+        req = self.factory.post('/api/items/', {
+            'parent_item': self.owner_item_2.id,
+            'description': 'Found keys on bench',
+            'location': 'Library Bench',
+            'images': [img],
+        }, format='multipart')
+        force_authenticate(req, user=self.finder_a)
+        req.user = self.finder_a
+
+        res = self.items_view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(
+            Item.objects.filter(user=self.finder_a, parent_item=self.owner_item_2, type='found').count(), 1
+        )
+
+    def test_has_reported_serializer_field(self):
+        """ItemSerializer.has_reported correctly reflects true only for the reporting finder."""
+        Item.objects.create(
+            user=self.finder_a,
+            parent_item=self.owner_item_1,
+            type='found',
+            title=self.owner_item_1.title,
+            category=self.owner_item_1.category,
+            status='pending',
+        )
+
+        # Detail view as Finder A on item 1 -> has_reported is True
+        req_a = self.factory.get(f'/api/items/{self.owner_item_1.id}/')
+        force_authenticate(req_a, user=self.finder_a)
+        res_a = self.item_detail_view(req_a, pk=self.owner_item_1.id)
+        self.assertEqual(res_a.status_code, 200)
+        self.assertTrue(res_a.data.get('has_reported'))
+
+        # Detail view as Finder B on item 1 -> has_reported is False
+        req_b = self.factory.get(f'/api/items/{self.owner_item_1.id}/')
+        force_authenticate(req_b, user=self.finder_b)
+        res_b = self.item_detail_view(req_b, pk=self.owner_item_1.id)
+        self.assertEqual(res_b.status_code, 200)
+        self.assertFalse(res_b.data.get('has_reported'))
+
+        # Detail view as Finder A on item 2 -> has_reported is False
+        req_a2 = self.factory.get(f'/api/items/{self.owner_item_2.id}/')
+        force_authenticate(req_a2, user=self.finder_a)
+        res_a2 = self.item_detail_view(req_a2, pk=self.owner_item_2.id)
+        self.assertEqual(res_a2.status_code, 200)
+        self.assertFalse(res_a2.data.get('has_reported'))
+
+    def test_database_constraint_blocks_duplicate_insert(self):
+        """Database UniqueConstraint prevents duplicate direct inserts for same user and parent_item."""
+        from django.db import IntegrityError
+
+        Item.objects.create(
+            user=self.finder_a,
+            parent_item=self.owner_item_1,
+            type='found',
+            title=self.owner_item_1.title,
+            category=self.owner_item_1.category,
+            status='pending',
+        )
+
+        with self.assertRaises(IntegrityError):
+            Item.objects.create(
+                user=self.finder_a,
+                parent_item=self.owner_item_1,
+                type='found',
+                title=self.owner_item_1.title,
+                category=self.owner_item_1.category,
+                status='pending',
+            )
 
 
 

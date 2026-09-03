@@ -400,6 +400,7 @@ class ItemSerializer(serializers.ModelSerializer):
     user_profile_image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     parent_item_title = serializers.SerializerMethodField()
+    has_reported = serializers.SerializerMethodField()
     images = ItemImageSerializer(many=True, read_only=True)
 
     class Meta:
@@ -442,6 +443,10 @@ class ItemSerializer(serializers.ModelSerializer):
         if parent_item:
             if parent_item.type != 'lost':
                 raise serializers.ValidationError({"parent_item": "Linked item must be an Owner's Lost item report."})
+            # Check duplicate report by same finder on this parent lost item
+            if not self.instance and user:
+                if Item.objects.filter(user=user, parent_item=parent_item, type='found').exists():
+                    raise serializers.ValidationError({"non_field_errors": ["You have already reported this item."]})
             # Automatically populate title and category from the linked lost item
             data['title'] = parent_item.title
             data['category'] = parent_item.category
@@ -469,6 +474,15 @@ class ItemSerializer(serializers.ModelSerializer):
             data['reward'] = 0.00
 
         return super().validate(data)
+
+    def get_has_reported(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        if not user or not user.is_authenticated:
+            return False
+        if obj.type == 'lost' and getattr(user, 'role', '') == 'finder':
+            return Item.objects.filter(user=user, parent_item=obj, type='found').exists()
+        return False
 
     def get_parent_item_title(self, obj):
         return obj.parent_item.title if obj.parent_item else None

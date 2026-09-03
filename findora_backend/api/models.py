@@ -203,6 +203,13 @@ class Item(models.Model):
         ordering = ['-reported_at']
         verbose_name = 'Item'
         verbose_name_plural = 'Items'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'parent_item'],
+                condition=models.Q(parent_item__isnull=False, type='found'),
+                name='unique_finder_report_per_owner_item',
+            )
+        ]
 
     def __str__(self):
         return f"[{self.type.upper()}] {self.title} — {self.status}"

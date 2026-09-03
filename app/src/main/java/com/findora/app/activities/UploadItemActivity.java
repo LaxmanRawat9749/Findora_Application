@@ -53,6 +53,7 @@ public class UploadItemActivity extends BaseActivity {
     private List<Uri> selectedImages = new ArrayList<>();
     private UploadImageAdapter imageAdapter;
     private Uri currentPhotoUri;
+    private boolean isSubmitting = false;
 
     private ActivityResultLauncher<String[]> requestPermissionsLauncher;
     private ActivityResultLauncher<Uri> takePictureLauncher;
@@ -288,6 +289,8 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void submitReport() {
+        if (isSubmitting) return;
+
         String role = new SessionManager(this).getRole();
         String type;
         if ("owner".equalsIgnoreCase(role)) {
@@ -320,6 +323,7 @@ public class UploadItemActivity extends BaseActivity {
             return;
         }
 
+        isSubmitting = true;
         setLoading(true);
 
         Map<String, RequestBody> partMap = new HashMap<>();
@@ -343,6 +347,7 @@ public class UploadItemActivity extends BaseActivity {
                 MultipartBody.Part body = MultipartBody.Part.createFormData("images", file.getName(), requestFile);
                 imageParts.add(body);
             } else {
+                isSubmitting = false;
                 setLoading(false);
                 Toast.makeText(this, "Failed to process selected image. Please re-select the photo.", Toast.LENGTH_SHORT).show();
                 return;
@@ -352,20 +357,60 @@ public class UploadItemActivity extends BaseActivity {
         apiService.reportItemWithImages(partMap, imageParts).enqueue(new Callback<Item>() {
             @Override
             public void onResponse(Call<Item> call, Response<Item> response) {
+                isSubmitting = false;
                 setLoading(false);
                 if (response.isSuccessful()) {
                     if (response.body() != null) {
                         com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).updateOrInsertItem(response.body());
                     }
+                    if (linkedLostItemId > 0) {
+                        Item parentItem = com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).getCachedItemDetail(linkedLostItemId);
+                        if (parentItem != null) {
+                            parentItem.setHasReported(true);
+                            com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).saveItemDetail(parentItem);
+                        }
+                    }
                     Toast.makeText(UploadItemActivity.this, "Item reported successfully!", Toast.LENGTH_LONG).show();
                     finish();
+                } else if (response.code() == 409) {
+                    String errorMsg = "You have already reported this item.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errJson = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errJson);
+                            if (obj.has("error")) {
+                                errorMsg = obj.getString("error");
+                            } else if (obj.has("detail")) {
+                                errorMsg = obj.getString("detail");
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    if (linkedLostItemId > 0) {
+                        Item parentItem = com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).getCachedItemDetail(linkedLostItemId);
+                        if (parentItem != null) {
+                            parentItem.setHasReported(true);
+                            com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).saveItemDetail(parentItem);
+                        }
+                    }
+                    Toast.makeText(UploadItemActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+                    finish();
                 } else {
-                    Toast.makeText(UploadItemActivity.this, "Failed to submit report.", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Failed to submit report.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errJson = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errJson);
+                            if (obj.has("error")) errorMsg = obj.getString("error");
+                            else if (obj.has("detail")) errorMsg = obj.getString("detail");
+                        }
+                    } catch (Exception ignored) {}
+                    Toast.makeText(UploadItemActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Item> call, Throwable t) {
+                isSubmitting = false;
                 setLoading(false);
                 Toast.makeText(UploadItemActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }

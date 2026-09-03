@@ -88,7 +88,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemViewHolder
                     && oldItem.getReward() == newItem.getReward()
                     && oldItem.isFeatured() == newItem.isFeatured()
                     && oldItem.isFinderReturnedConfirm() == newItem.isFinderReturnedConfirm()
-                    && oldItem.isOwnerReturnedConfirm() == newItem.isOwnerReturnedConfirm();
+                    && oldItem.isOwnerReturnedConfirm() == newItem.isOwnerReturnedConfirm()
+                    && oldItem.isHasReported() == newItem.isHasReported();
         }
 
         private boolean equals(String a, String b) {

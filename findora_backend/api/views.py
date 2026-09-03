@@ -22,6 +22,7 @@ from PIL import Image, ImageOps
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.contrib.auth import authenticate
+from django.db import IntegrityError
 from django.db.models import Q, Max, Case, When, Value, IntegerField
 from django.utils import timezone
 
@@ -741,6 +742,14 @@ class ItemListCreateView(APIView):
             except (ValueError, TypeError):
                 return Response({'error': 'Invalid Owner Lost Item ID.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Enforce uniqueness: A Finder can report each Owner-uploaded lost item only once
+        if parent_lost_item and request.user.is_authenticated:
+            if Item.objects.filter(user=request.user, parent_item=parent_lost_item, type='found').exists():
+                return Response(
+                    {'error': 'You have already reported this item.', 'detail': 'You have already reported this item.'},
+                    status=status.HTTP_409_CONFLICT
+                )
+
         request_data = request.data
         if parent_lost_item:
             if hasattr(request_data, '_mutable') and not request_data._mutable:
@@ -792,7 +801,13 @@ class ItemListCreateView(APIView):
                 save_kwargs['title'] = parent_lost_item.title
                 save_kwargs['category'] = parent_lost_item.category
                 save_kwargs['type'] = 'found'
-            item = serializer.save(**save_kwargs)
+            try:
+                item = serializer.save(**save_kwargs)
+            except IntegrityError:
+                return Response(
+                    {'error': 'You have already reported this item.', 'detail': 'You have already reported this item.'},
+                    status=status.HTTP_409_CONFLICT
+                )
             
             # Save images
             for i, img in enumerate(images):
@@ -808,6 +823,16 @@ class ItemListCreateView(APIView):
                 award_found_report_points(request.user, item)
 
             return Response(ItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        
+        # If serializer validation caught duplicate, return 409 instead of generic 400 if it's duplicate
+        if 'non_field_errors' in serializer.errors:
+            for err in serializer.errors['non_field_errors']:
+                if 'already reported' in str(err).lower():
+                    return Response(
+                        {'error': 'You have already reported this item.', 'detail': 'You have already reported this item.'},
+                        status=status.HTTP_409_CONFLICT
+                    )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

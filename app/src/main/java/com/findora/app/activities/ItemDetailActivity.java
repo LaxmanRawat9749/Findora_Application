@@ -125,6 +125,10 @@ public class ItemDetailActivity extends BaseActivity {
 
         binding.btnReportFound.setOnClickListener(v -> {
             if (currentItem != null) {
+                if (currentItem.isHasReported()) {
+                    Toast.makeText(this, "You have already reported this item.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 Intent intent = new Intent(this, UploadItemActivity.class);
                 intent.putExtra("extra_lost_item_id", currentItem.getId());
                 intent.putExtra("extra_lost_item_title", currentItem.getTitle());
@@ -331,6 +335,15 @@ public class ItemDetailActivity extends BaseActivity {
                     binding.btnChat.setText("Contact Owner");
                     if ("finder".equalsIgnoreCase(baseSessionManager.getRole())) {
                         binding.btnReportFound.setVisibility(View.VISIBLE);
+                        if (item.isHasReported()) {
+                            binding.btnReportFound.setText("Already Reported");
+                            binding.btnReportFound.setEnabled(false);
+                            binding.btnReportFound.setAlpha(0.6f);
+                        } else {
+                            binding.btnReportFound.setText("I Found This");
+                            binding.btnReportFound.setEnabled(true);
+                            binding.btnReportFound.setAlpha(1.0f);
+                        }
                     } else {
                         binding.btnReportFound.setVisibility(View.GONE);
                     }
