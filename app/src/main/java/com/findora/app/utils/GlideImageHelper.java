@@ -50,6 +50,9 @@ public final class GlideImageHelper {
                 }
             };
         }
+        if (url.startsWith("content://") || url.startsWith("file://")) {
+            return android.net.Uri.parse(url);
+        }
         return url;
     }
 
@@ -162,12 +165,18 @@ public final class GlideImageHelper {
         Object model = getGlideModel(url);
         if (model == null) return;
 
-        Glide.with(context)
+        android.graphics.drawable.Drawable currentDrawable = target.getDrawable();
+        com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> builder = Glide.with(context)
                 .load(model)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontAnimate()
-                .fitCenter()
-                .into(target);
+                .fitCenter();
+
+        if (currentDrawable != null) {
+            builder = builder.placeholder(currentDrawable);
+        }
+
+        builder.into(target);
     }
 
     /**

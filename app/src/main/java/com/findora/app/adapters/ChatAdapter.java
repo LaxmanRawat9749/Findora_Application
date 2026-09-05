@@ -42,9 +42,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public void setMessages(List<ChatMessage> newMessages) {
         if (newMessages == null) newMessages = new ArrayList<>();
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ChatDiffCallback(this.messages, newMessages));
+
+        // Preserve any in-flight temporary messages (id < 0) that are still uploading/sending
+        List<ChatMessage> pendingTempMessages = new ArrayList<>();
+        for (ChatMessage m : this.messages) {
+            if (m != null && m.getId() < 0) {
+                pendingTempMessages.add(m);
+            }
+        }
+
+        List<ChatMessage> combinedList = new ArrayList<>(newMessages);
+        if (!pendingTempMessages.isEmpty()) {
+            for (ChatMessage tempMsg : pendingTempMessages) {
+                combinedList.add(tempMsg);
+            }
+        }
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ChatDiffCallback(this.messages, combinedList));
         this.messages.clear();
-        this.messages.addAll(newMessages);
+        this.messages.addAll(combinedList);
         diffResult.dispatchUpdatesTo(this);
     }
     
@@ -65,13 +81,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         
         @Override
         public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-            return oldList.get(oldItemPosition).getId() == newList.get(newItemPosition).getId();
+            ChatMessage oldMsg = oldList.get(oldItemPosition);
+            ChatMessage newMsg = newList.get(newItemPosition);
+            if (oldMsg == null || newMsg == null) return false;
+            return oldMsg.getId() == newMsg.getId();
         }
         
         @Override
         public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
             ChatMessage oldMsg = oldList.get(oldItemPosition);
             ChatMessage newMsg = newList.get(newItemPosition);
+            if (oldMsg == null || newMsg == null) return false;
             
             String oldMessage = oldMsg.getMessage() != null ? oldMsg.getMessage() : "";
             String newMessage = newMsg.getMessage() != null ? newMsg.getMessage() : "";
@@ -79,10 +99,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             String newCaption = newMsg.getCaption() != null ? newMsg.getCaption() : "";
             String oldImg = oldMsg.getImageUrl() != null ? oldMsg.getImageUrl() : "";
             String newImg = newMsg.getImageUrl() != null ? newMsg.getImageUrl() : "";
+            String oldSenderImg = oldMsg.getSenderProfileImage() != null ? oldMsg.getSenderProfileImage() : "";
+            String newSenderImg = newMsg.getSenderProfileImage() != null ? newMsg.getSenderProfileImage() : "";
             
             return oldMessage.equals(newMessage) &&
                    oldCaption.equals(newCaption) &&
                    oldImg.equals(newImg) &&
+                   oldSenderImg.equals(newSenderImg) &&
                    oldMsg.isDeletedForEveryone() == newMsg.isDeletedForEveryone() &&
                    oldMsg.isEdited() == newMsg.isEdited();
         }
@@ -101,15 +124,32 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public void replaceMessage(int oldMessageId, ChatMessage newMessage) {
         if (newMessage == null) return;
+        int oldIndex = -1;
+        int existingNewIndex = -1;
         for (int i = 0; i < this.messages.size(); i++) {
             ChatMessage msg = this.messages.get(i);
-            if (msg != null && msg.getId() == oldMessageId) {
-                this.messages.set(i, newMessage);
-                notifyItemChanged(i);
-                return;
+            if (msg != null) {
+                if (msg.getId() == oldMessageId) {
+                    oldIndex = i;
+                } else if (msg.getId() == newMessage.getId()) {
+                    existingNewIndex = i;
+                }
             }
         }
-        addMessage(newMessage);
+        if (oldIndex != -1) {
+            if (existingNewIndex != -1) {
+                // Server confirmed message was already delivered via polling; remove temp placeholder
+                this.messages.remove(oldIndex);
+                notifyItemRemoved(oldIndex);
+            } else {
+                this.messages.set(oldIndex, newMessage);
+                notifyItemChanged(oldIndex);
+            }
+            return;
+        }
+        if (existingNewIndex == -1) {
+            addMessage(newMessage);
+        }
     }
 
     public void removeTemporaryMessage(int tempId) {
@@ -198,7 +238,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             boolean isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
-                binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
 
@@ -213,9 +253,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvEdited.setVisibility(android.view.View.GONE);
                 binding.getRoot().setOnLongClickListener(null);
             } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
-                binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
+                binding.layoutImageContainer.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
+                // Show in-bubble upload spinner if the message is in-flight (temp negative ID)
+                if (msg.getId() < 0) {
+                    binding.pbImageUpload.setVisibility(android.view.View.VISIBLE);
+                } else {
+                    binding.pbImageUpload.setVisibility(android.view.View.GONE);
+                }
+
                 binding.ivMessageImage.setOnClickListener(v -> {
                     android.content.Intent intent = new android.content.Intent(binding.getRoot().getContext(), com.findora.app.activities.FullScreenImageActivity.class);
                     intent.putExtra("image_url", msg.getImageUrl());
@@ -242,7 +289,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     return true;
                 });
             } else {
-                binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
 
@@ -266,7 +313,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
             
-            if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
+            if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().trim().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
                 com.findora.app.utils.GlideImageHelper.loadAvatar(binding.getRoot().getContext(), msg.getSenderProfileImage(), binding.ivAvatar);
             } else {
@@ -361,7 +408,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
             
-            if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
+            if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().trim().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
                 com.findora.app.utils.GlideImageHelper.loadAvatar(binding.getRoot().getContext(), msg.getSenderProfileImage(), binding.ivAvatar);
             } else {

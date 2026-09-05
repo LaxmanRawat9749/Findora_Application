@@ -63,7 +63,7 @@ public class ChatActivity extends BaseActivity {
     private ChatMessage messageToEdit;
     private boolean isUserAtBottom = true;
     private Call<List<ChatMessage>> pollCall;
-    private final ExecutorService imageUploadExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService imageUploadExecutor = Executors.newFixedThreadPool(3);
     
     private Uri currentPhotoUri;
     private ActivityResultLauncher<Uri> takePictureLauncher;
@@ -212,10 +212,11 @@ public class ChatActivity extends BaseActivity {
                     FindoraCache.getInstance(ChatActivity.this).saveMessages(conversationId, messages);
                     int previousCount = adapter.getItemCount();
                     adapter.setMessages(messages);
-                    binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
-                    if (!messages.isEmpty()) {
-                        if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
-                            binding.rvMessages.scrollToPosition(messages.size() - 1);
+                    int currentCount = adapter.getItemCount();
+                    binding.tvEmptyState.setVisibility(currentCount == 0 ? View.VISIBLE : View.GONE);
+                    if (currentCount > 0) {
+                        if (previousCount == 0 || (isUserAtBottom && currentCount > previousCount)) {
+                            binding.rvMessages.scrollToPosition(currentCount - 1);
                         }
                     }
                 }
@@ -264,6 +265,24 @@ public class ChatActivity extends BaseActivity {
             return;
         }
 
+        final int tempId = -(1000000 + tempMessageIdCounter.incrementAndGet());
+        final String timeStamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
+
+        ChatMessage localMsg = new ChatMessage();
+        localMsg.setId(tempId);
+        localMsg.setConversation(conversationId);
+        localMsg.setSender(baseSessionManager.getUserId());
+        localMsg.setSenderName(baseSessionManager.getFullName());
+        localMsg.setSenderProfileImage(baseSessionManager.getProfileImage());
+        localMsg.setMessageType("text");
+        localMsg.setMessage(text);
+        localMsg.setSentAt(timeStamp);
+
+        adapter.addMessage(localMsg);
+        binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+        isUserAtBottom = true;
+        binding.tvEmptyState.setVisibility(View.GONE);
+
         ChatMessage msg = new ChatMessage(conversationId, text);
         apiService.sendMessage(msg).enqueue(new Callback<ChatMessage>() {
             @Override
@@ -271,10 +290,12 @@ public class ChatActivity extends BaseActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     ChatMessage sent = response.body();
                     FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
-                    adapter.addMessage(sent);
-                    binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
-                    binding.tvEmptyState.setVisibility(View.GONE);
+                    adapter.replaceMessage(tempId, sent);
+                    if (isUserAtBottom) {
+                        binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+                    }
                 } else {
+                    adapter.removeTemporaryMessage(tempId);
                     Toast.makeText(ChatActivity.this,
                             "Failed to send message.", Toast.LENGTH_SHORT).show();
                 }
@@ -282,6 +303,7 @@ public class ChatActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<ChatMessage> call, Throwable t) {
+                adapter.removeTemporaryMessage(tempId);
                 Toast.makeText(ChatActivity.this,
                         "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
@@ -449,7 +471,6 @@ public class ChatActivity extends BaseActivity {
     private void updateImageMessage(Uri uri, String caption) {
         if (messageToEdit == null) return;
         final int editMsgId = messageToEdit.getId();
-        binding.progressBar.setVisibility(View.VISIBLE);
         binding.btnSend.setEnabled(false);
         binding.btnAttachment.setEnabled(false);
 
@@ -457,7 +478,6 @@ public class ChatActivity extends BaseActivity {
             File file = compressImage(uri);
             if (file == null) {
                 runOnUiThread(() -> {
-                    binding.progressBar.setVisibility(View.GONE);
                     binding.btnSend.setEnabled(true);
                     binding.btnAttachment.setEnabled(true);
                     Toast.makeText(ChatActivity.this, "Failed to process image.", Toast.LENGTH_SHORT).show();
@@ -476,7 +496,6 @@ public class ChatActivity extends BaseActivity {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
                     }
-                    binding.progressBar.setVisibility(View.GONE);
                     binding.btnSend.setEnabled(true);
                     binding.btnAttachment.setEnabled(true);
                     if (response.isSuccessful() && response.body() != null) {
@@ -495,7 +514,6 @@ public class ChatActivity extends BaseActivity {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
                     }
-                    binding.progressBar.setVisibility(View.GONE);
                     binding.btnSend.setEnabled(true);
                     binding.btnAttachment.setEnabled(true);
                     Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
@@ -522,6 +540,8 @@ public class ChatActivity extends BaseActivity {
             localMsg.setId(tempId);
             localMsg.setConversation(conversationId);
             localMsg.setSender(baseSessionManager.getUserId());
+            localMsg.setSenderName(baseSessionManager.getFullName());
+            localMsg.setSenderProfileImage(baseSessionManager.getProfileImage());
             localMsg.setMessageType("image");
             localMsg.setImageUrl(uri.toString());
             localMsg.setCaption(i == 0 ? caption : "");
@@ -531,13 +551,10 @@ public class ChatActivity extends BaseActivity {
         }
 
         binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+        isUserAtBottom = true;
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        // 2. Track pending upload count and show progress indicator
-        activeUploadsCount.addAndGet(totalCount);
-        binding.progressBar.setVisibility(View.VISIBLE);
-
-        // 3. Perform compression and multipart upload sequentially in background thread
+        // 2. Perform compression and multipart upload independently in background thread pool
         for (int i = 0; i < totalCount; i++) {
             final int index = i;
             final Uri uri = imagesToSend.get(index);
@@ -549,10 +566,6 @@ public class ChatActivity extends BaseActivity {
                 if (file == null) {
                     runOnUiThread(() -> {
                         adapter.removeTemporaryMessage(tempId);
-                        int remaining = activeUploadsCount.decrementAndGet();
-                        if (remaining <= 0) {
-                            binding.progressBar.setVisibility(View.GONE);
-                        }
                         String errMsg = totalCount > 1 ? "Failed to process image (" + (index + 1) + "/" + totalCount + ")" : "Failed to process image.";
                         Toast.makeText(ChatActivity.this, errMsg, Toast.LENGTH_SHORT).show();
                     });
@@ -574,11 +587,6 @@ public class ChatActivity extends BaseActivity {
                             file.delete();
                         }
 
-                        int remaining = activeUploadsCount.decrementAndGet();
-                        if (remaining <= 0) {
-                            binding.progressBar.setVisibility(View.GONE);
-                        }
-
                         if (response.isSuccessful() && response.body() != null) {
                             ChatMessage sent = response.body();
                             FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
@@ -598,11 +606,6 @@ public class ChatActivity extends BaseActivity {
                         if (file.exists()) {
                             //noinspection ResultOfMethodCallIgnored
                             file.delete();
-                        }
-
-                        int remaining = activeUploadsCount.decrementAndGet();
-                        if (remaining <= 0) {
-                            binding.progressBar.setVisibility(View.GONE);
                         }
 
                         adapter.removeTemporaryMessage(tempId);
@@ -699,7 +702,7 @@ public class ChatActivity extends BaseActivity {
             }
 
             // 5. Compress to temporary cache file as JPEG quality 80 with guaranteed unique filename
-            File tempFile = File.createTempFile("chat_upload_" + System.currentTimeMillis() + "_", ".jpg", getCacheDir());
+            File tempFile = File.createTempFile("chat_upload_" + System.currentTimeMillis() + "_" + java.util.UUID.randomUUID().toString().substring(0, 8) + "_", ".jpg", getCacheDir());
             try (FileOutputStream out = new FileOutputStream(tempFile)) {
                 finalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
                 out.flush();
