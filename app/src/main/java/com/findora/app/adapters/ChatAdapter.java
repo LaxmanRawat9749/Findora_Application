@@ -99,14 +99,26 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         notifyItemInserted(this.messages.size() - 1);
     }
 
-    public void removeMessage(int messageId) {
+    public void markMessageDeleted(int messageId) {
         for (int i = 0; i < this.messages.size(); i++) {
-            if (this.messages.get(i) != null && this.messages.get(i).getId() == messageId) {
-                this.messages.remove(i);
-                notifyItemRemoved(i);
+            ChatMessage msg = this.messages.get(i);
+            if (msg != null && msg.getId() == messageId) {
+                msg.setDeletedForEveryone(true);
+                if ("image".equals(msg.getMessageType())) {
+                    msg.setMessage("This image was deleted");
+                    msg.setImageUrl(null);
+                    msg.setCaption("");
+                } else {
+                    msg.setMessage("This message was deleted");
+                }
+                notifyItemChanged(i);
                 break;
             }
         }
+    }
+
+    public void removeMessage(int messageId) {
+        markMessageDeleted(messageId);
     }
 
     @Override
@@ -152,7 +164,24 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
-            if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
+            boolean isDeleted = msg.isDeletedForEveryone();
+
+            if (isDeleted) {
+                binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.ivMessageImage.setOnClickListener(null);
+                binding.ivMessageImage.setOnLongClickListener(null);
+
+                binding.tvMessage.setVisibility(android.view.View.VISIBLE);
+                String deletedText = "image".equals(msg.getMessageType()) ? "This image was deleted" : "This message was deleted";
+                if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
+                    deletedText = msg.getMessage();
+                }
+                binding.tvMessage.setText(deletedText);
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
+                binding.tvMessage.setTextColor(android.graphics.Color.parseColor("#CCCCCC"));
+                binding.tvEdited.setVisibility(android.view.View.GONE);
+                binding.getRoot().setOnLongClickListener(null);
+            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -168,10 +197,34 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 } else {
                     binding.tvMessage.setVisibility(android.view.View.GONE);
                 }
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
+                binding.tvMessage.setTextColor(android.graphics.Color.WHITE);
+                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                binding.getRoot().setOnLongClickListener(v -> {
+                    if (listener != null) listener.onMessageLongClick(msg);
+                    return true;
+                });
+
+                binding.ivMessageImage.setOnLongClickListener(v -> {
+                    if (listener != null) listener.onMessageLongClick(msg);
+                    return true;
+                });
             } else {
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.ivMessageImage.setOnClickListener(null);
+                binding.ivMessageImage.setOnLongClickListener(null);
+
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 binding.tvMessage.setText(msg.getMessage());
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
+                binding.tvMessage.setTextColor(android.graphics.Color.WHITE);
+                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                binding.getRoot().setOnLongClickListener(v -> {
+                    if (listener != null) listener.onMessageLongClick(msg);
+                    return true;
+                });
             }
 
             binding.tvTime.setText(formatTime(msg.getSentAt()));
@@ -181,28 +234,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     profileClickListener.onProfileClick(msg.getSender());
                 }
             });
-            
-            if (msg.isDeletedForEveryone()) {
-                binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
-                binding.tvMessage.setTextColor(android.graphics.Color.GRAY);
-                binding.tvEdited.setVisibility(android.view.View.GONE);
-                binding.getRoot().setOnLongClickListener(null);
-                binding.ivMessageImage.setVisibility(android.view.View.GONE);
-            } else {
-                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
-                binding.tvMessage.setTextColor(android.graphics.Color.WHITE);
-                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
-                
-                binding.getRoot().setOnLongClickListener(v -> {
-                    if (listener != null) listener.onMessageLongClick(msg);
-                    return true;
-                });
-                
-                binding.ivMessageImage.setOnLongClickListener(v -> {
-                    if (listener != null) listener.onMessageLongClick(msg);
-                    return true;
-                });
-            }
             
             if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);
@@ -228,7 +259,24 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener) {
-            if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
+            boolean isDeleted = msg.isDeletedForEveryone();
+
+            if (isDeleted) {
+                binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.ivMessageImage.setOnClickListener(null);
+                binding.ivMessageImage.setOnLongClickListener(null);
+
+                binding.tvMessage.setVisibility(android.view.View.VISIBLE);
+                String deletedText = "image".equals(msg.getMessageType()) ? "This image was deleted" : "This message was deleted";
+                if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
+                    deletedText = msg.getMessage();
+                }
+                binding.tvMessage.setText(deletedText);
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
+                binding.tvMessage.setTextColor(android.graphics.Color.GRAY);
+                binding.tvEdited.setVisibility(android.view.View.GONE);
+                binding.getRoot().setOnLongClickListener(null);
+            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -244,10 +292,34 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 } else {
                     binding.tvMessage.setVisibility(android.view.View.GONE);
                 }
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
+                binding.tvMessage.setTextColor(binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.text_dark, null));
+                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                binding.getRoot().setOnLongClickListener(v -> {
+                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
+                    return true;
+                });
+
+                binding.ivMessageImage.setOnLongClickListener(v -> {
+                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
+                    return true;
+                });
             } else {
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
+                binding.ivMessageImage.setOnClickListener(null);
+                binding.ivMessageImage.setOnLongClickListener(null);
+
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 binding.tvMessage.setText(msg.getMessage());
+                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
+                binding.tvMessage.setTextColor(binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.text_dark, null));
+                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                binding.getRoot().setOnLongClickListener(v -> {
+                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
+                    return true;
+                });
             }
 
             binding.tvTime.setText(formatTime(msg.getSentAt()));
@@ -257,28 +329,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     profileClickListener.onProfileClick(msg.getSender());
                 }
             });
-            
-            if (msg.isDeletedForEveryone()) {
-                binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
-                binding.tvMessage.setTextColor(android.graphics.Color.GRAY);
-                binding.tvEdited.setVisibility(android.view.View.GONE);
-                binding.getRoot().setOnLongClickListener(null);
-                binding.ivMessageImage.setVisibility(android.view.View.GONE);
-            } else {
-                binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
-                // Keep the default text color for received messages (usually dark)
-                binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
-                
-                binding.getRoot().setOnLongClickListener(v -> {
-                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
-                    return true;
-                });
-                
-                binding.ivMessageImage.setOnLongClickListener(v -> {
-                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
-                    return true;
-                });
-            }
             
             if (msg.getSenderProfileImage() != null && !msg.getSenderProfileImage().isEmpty()) {
                 binding.ivAvatar.setImageTintList(null);

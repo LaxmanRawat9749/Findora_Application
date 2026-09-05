@@ -358,7 +358,14 @@ public class FindoraCache {
         for (int i = 0; i < existing.size(); i++) {
             ChatMessage msg = existing.get(i);
             if (msg != null && msg.getId() == messageId) {
-                existing.remove(i);
+                msg.setDeletedForEveryone(true);
+                if ("image".equals(msg.getMessageType())) {
+                    msg.setMessage("This image was deleted");
+                    msg.setImageUrl(null);
+                    msg.setCaption("");
+                } else {
+                    msg.setMessage("This message was deleted");
+                }
                 break;
             }
         }

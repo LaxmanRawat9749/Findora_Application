@@ -1176,8 +1176,7 @@ class ChatListView(APIView):
         ).exclude(sender=request.user).update(is_read=True)
 
         messages = ChatMessage.objects.filter(
-            conversation=conversation,
-            deleted_for_everyone=False
+            conversation=conversation
         ).select_related('sender').order_by('sent_at')
 
         after_id = request.query_params.get('after_id') or request.query_params.get('since_id')
@@ -1187,16 +1186,7 @@ class ChatListView(APIView):
             except (ValueError, TypeError):
                 pass
 
-        # Filter out deleted for me
-        filtered_messages = []
-        for msg in messages:
-            if msg.sender == request.user and msg.deleted_by_sender:
-                continue
-            if msg.sender != request.user and msg.deleted_by_receiver:
-                continue
-            filtered_messages.append(msg)
-
-        serializer = ChatMessageSerializer(filtered_messages, many=True, context={'request': request})
+        serializer = ChatMessageSerializer(messages, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):

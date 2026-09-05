@@ -625,10 +625,7 @@ public class ChatActivity extends BaseActivity {
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 if (response.isSuccessful()) {
                     FindoraCache.getInstance(ChatActivity.this).deleteMessage(conversationId, messageId, forEveryone);
-                    adapter.removeMessage(messageId);
-                    if (adapter.getItemCount() == 0) {
-                        binding.tvEmptyState.setVisibility(View.VISIBLE);
-                    }
+                    adapter.markMessageDeleted(messageId);
                     Toast.makeText(ChatActivity.this, "Message deleted", Toast.LENGTH_SHORT).show();
                 } else {
                     String errorMsg = "Failed to delete message.";

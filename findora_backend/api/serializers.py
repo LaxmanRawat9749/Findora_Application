@@ -615,10 +615,12 @@ class ConversationSerializer(serializers.ModelSerializer):
         last_msg = messages[0]
         request = self.context.get('request')
         is_deleted_for_me = False
-        if request:
+        if request and request.user and request.user.is_authenticated:
             is_deleted_for_me = (last_msg.deleted_by_sender and last_msg.sender_id == request.user.id) or (last_msg.deleted_by_receiver and last_msg.sender_id != request.user.id)
             
         if last_msg.deleted_for_everyone or is_deleted_for_me:
+            if last_msg.message_type == 'image':
+                return "This image was deleted"
             return "This message was deleted"
         return last_msg.message
 
@@ -637,18 +639,46 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
-    """Serializer for chat messages, including computed sender info."""
+    """Serializer for chat messages, including computed sender info and deleted placeholders."""
 
     sender_name = serializers.SerializerMethodField()
     sender_role = serializers.SerializerMethodField()
     sender_profile_image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
-    message = serializers.CharField(required=False, allow_blank=True)
+    message = serializers.SerializerMethodField()
+    caption = serializers.SerializerMethodField()
+    deleted_for_everyone = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
         fields = '__all__'
         read_only_fields = ['sender', 'is_read', 'sent_at']
+
+    def _is_deleted(self, obj):
+        request = self.context.get('request')
+        if obj.deleted_for_everyone:
+            return True
+        if request and request.user and request.user.is_authenticated:
+            if obj.sender == request.user and obj.deleted_by_sender:
+                return True
+            if obj.sender != request.user and obj.deleted_by_receiver:
+                return True
+        return False
+
+    def get_deleted_for_everyone(self, obj):
+        return self._is_deleted(obj)
+
+    def get_message(self, obj):
+        if self._is_deleted(obj):
+            if obj.message_type == 'image':
+                return "This image was deleted"
+            return "This message was deleted"
+        return obj.message
+
+    def get_caption(self, obj):
+        if self._is_deleted(obj):
+            return ""
+        return obj.caption
 
     def get_sender_name(self, obj):
         return obj.sender.get_full_name() or obj.sender.username
@@ -669,6 +699,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return None
 
     def get_image_url(self, obj):
+        if self._is_deleted(obj):
+            return None
         request = self.context.get('request')
         if obj.image:
             try:
