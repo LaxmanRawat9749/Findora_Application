@@ -67,8 +67,10 @@ public class ChatActivity extends BaseActivity {
     
     private Uri currentPhotoUri;
     private ActivityResultLauncher<Uri> takePictureLauncher;
-    private ActivityResultLauncher<String> pickMediaLauncher;
+    private ActivityResultLauncher<String> pickMultipleMediaLauncher;
     private ActivityResultLauncher<String[]> requestPermissionsLauncher;
+    private static final java.util.concurrent.atomic.AtomicInteger tempMessageIdCounter = new java.util.concurrent.atomic.AtomicInteger(1000);
+    private final java.util.concurrent.atomic.AtomicInteger activeUploadsCount = new java.util.concurrent.atomic.AtomicInteger(0);
 
     private boolean isInitialLoad = true;
 
@@ -322,16 +324,16 @@ public class ChatActivity extends BaseActivity {
             new ActivityResultContracts.TakePicture(),
             success -> {
                 if (success && currentPhotoUri != null) {
-                    showImagePreviewDialog(currentPhotoUri);
+                    showImagesPreviewDialog(java.util.Collections.singletonList(currentPhotoUri));
                 }
             }
         );
 
-        pickMediaLauncher = registerForActivityResult(
-            new ActivityResultContracts.GetContent(),
-            uri -> {
-                if (uri != null) {
-                    showImagePreviewDialog(uri);
+        pickMultipleMediaLauncher = registerForActivityResult(
+            new ActivityResultContracts.GetMultipleContents(),
+            uris -> {
+                if (uris != null && !uris.isEmpty()) {
+                    showImagesPreviewDialog(new java.util.ArrayList<>(uris));
                 }
             }
         );
@@ -386,36 +388,92 @@ public class ChatActivity extends BaseActivity {
     }
 
     private void launchGallery() {
-        pickMediaLauncher.launch("image/*");
+        pickMultipleMediaLauncher.launch("image/*");
     }
 
-    private void showImagePreviewDialog(Uri uri) {
+    private void showImagesPreviewDialog(List<Uri> initialUris) {
+        if (initialUris == null || initialUris.isEmpty()) return;
+        final List<Uri> uris = new java.util.ArrayList<>(initialUris);
+
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         View view = getLayoutInflater().inflate(R.layout.dialog_image_preview, null);
         dialog.setContentView(view);
-        
+
+        android.widget.TextView tvTitle = view.findViewById(R.id.tvPreviewTitle);
         ImageView ivPreview = view.findViewById(R.id.ivPreview);
+        androidx.recyclerview.widget.RecyclerView rvThumbnails = view.findViewById(R.id.rvThumbnails);
         EditText etCaption = view.findViewById(R.id.etCaption);
-        
-        Glide.with(this).load(uri).into(ivPreview);
-        
+        com.google.android.material.button.MaterialButton btnCancel = view.findViewById(R.id.btnCancel);
+        com.google.android.material.button.MaterialButton btnSend = view.findViewById(R.id.btnSend);
+
+        final com.findora.app.adapters.ChatImagePreviewAdapter[] adapterRef = new com.findora.app.adapters.ChatImagePreviewAdapter[1];
+
+        Runnable updateUiState = () -> {
+            if (uris.isEmpty()) {
+                dialog.dismiss();
+                messageToEdit = null;
+                return;
+            }
+            if (uris.size() == 1) {
+                if (tvTitle != null) {
+                    tvTitle.setText(messageToEdit != null ? "Edit Image" : "Preview Image");
+                }
+                rvThumbnails.setVisibility(View.GONE);
+            } else {
+                if (tvTitle != null) {
+                    tvTitle.setText("Preview Images (" + uris.size() + ")");
+                }
+                rvThumbnails.setVisibility(View.VISIBLE);
+            }
+        };
+
+        Glide.with(this).load(uris.get(0)).into(ivPreview);
+
         if (messageToEdit != null && "image".equals(messageToEdit.getMessageType())) {
             etCaption.setText(messageToEdit.getCaption() != null ? messageToEdit.getCaption() : "");
         }
-        
-        view.findViewById(R.id.btnCancel).setOnClickListener(v -> {
+
+        rvThumbnails.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        adapterRef[0] = new com.findora.app.adapters.ChatImagePreviewAdapter(uris,
+            (uri, position) -> Glide.with(this).load(uri).into(ivPreview),
+            position -> {
+                if (position >= 0 && position < uris.size()) {
+                    uris.remove(position);
+                    adapterRef[0].notifyItemRemoved(position);
+                    int currentSel = adapterRef[0].getSelectedPosition();
+                    if (currentSel >= uris.size()) {
+                        currentSel = Math.max(0, uris.size() - 1);
+                        adapterRef[0].setSelectedPosition(currentSel);
+                    }
+                    if (!uris.isEmpty()) {
+                        Glide.with(this).load(uris.get(currentSel)).into(ivPreview);
+                    }
+                    updateUiState.run();
+                }
+            }
+        );
+        rvThumbnails.setAdapter(adapterRef[0]);
+        updateUiState.run();
+
+        btnCancel.setOnClickListener(v -> {
             dialog.dismiss();
             messageToEdit = null;
         });
-        view.findViewById(R.id.btnSend).setOnClickListener(v -> {
+
+        btnSend.setOnClickListener(v -> {
+            btnSend.setEnabled(false);
+            btnCancel.setEnabled(false);
             dialog.dismiss();
+            String caption = etCaption.getText().toString().trim();
             if (messageToEdit != null) {
-                updateImageMessage(uri, etCaption.getText().toString().trim());
+                if (!uris.isEmpty()) {
+                    updateImageMessage(uris.get(0), caption);
+                }
             } else {
-                sendImageMessage(uri, etCaption.getText().toString().trim());
+                sendImageMessages(uris, caption);
             }
         });
-        
+
         dialog.show();
     }
 
@@ -477,72 +535,114 @@ public class ChatActivity extends BaseActivity {
         });
     }
 
-    private void sendImageMessage(Uri uri, String caption) {
-        if (uri == null) return;
+    private void sendImageMessages(List<Uri> uris, String caption) {
+        if (uris == null || uris.isEmpty()) return;
 
-        // 1. Instantly display optimistic preview message in chat list
-        final int tempId = -(int) (System.currentTimeMillis() % 10000000);
-        ChatMessage localMsg = new ChatMessage();
-        localMsg.setId(tempId);
-        localMsg.setConversation(conversationId);
-        localMsg.setSender(baseSessionManager.getUserId());
-        localMsg.setMessageType("image");
-        localMsg.setImageUrl(uri.toString());
-        localMsg.setCaption(caption);
-        localMsg.setSentAt(new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).format(new java.util.Date()));
+        final List<Uri> imagesToSend = new java.util.ArrayList<>(uris);
+        final int totalCount = imagesToSend.size();
+        final String timeStamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).format(new java.util.Date());
 
-        adapter.addMessage(localMsg);
+        // 1. Instantly display optimistic preview message in chat list for each image
+        final List<Integer> tempIds = new java.util.ArrayList<>();
+        for (int i = 0; i < totalCount; i++) {
+            Uri uri = imagesToSend.get(i);
+            int tempId = -(1000000 + tempMessageIdCounter.incrementAndGet());
+            tempIds.add(tempId);
+
+            ChatMessage localMsg = new ChatMessage();
+            localMsg.setId(tempId);
+            localMsg.setConversation(conversationId);
+            localMsg.setSender(baseSessionManager.getUserId());
+            localMsg.setMessageType("image");
+            localMsg.setImageUrl(uri.toString());
+            localMsg.setCaption(i == 0 ? caption : "");
+            localMsg.setSentAt(timeStamp);
+
+            adapter.addMessage(localMsg);
+        }
+
         binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        // 2. Perform compression and multipart upload asynchronously in background
-        imageUploadExecutor.execute(() -> {
-            File file = compressImage(uri);
-            if (file == null) {
-                runOnUiThread(() -> {
-                    adapter.removeTemporaryMessage(tempId);
-                    Toast.makeText(ChatActivity.this, "Failed to process image.", Toast.LENGTH_SHORT).show();
-                });
-                return;
-            }
+        // 2. Track pending upload count and show progress indicator
+        activeUploadsCount.addAndGet(totalCount);
+        binding.progressBar.setVisibility(View.VISIBLE);
 
-            RequestBody convBody = RequestBody.create(MediaType.parse("text/plain"), String.valueOf(conversationId));
-            RequestBody typeBody = RequestBody.create(MediaType.parse("text/plain"), "image");
-            RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption != null ? caption : "");
+        // 3. Perform compression and multipart upload sequentially in background thread
+        for (int i = 0; i < totalCount; i++) {
+            final int index = i;
+            final Uri uri = imagesToSend.get(index);
+            final int tempId = tempIds.get(index);
+            final String itemCaption = (index == 0) ? caption : "";
 
-            RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
-            MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
-
-            apiService.sendImageMessage(convBody, typeBody, captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
-                @Override
-                public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
-                    if (file.exists()) {
-                        //noinspection ResultOfMethodCallIgnored
-                        file.delete();
-                    }
-
-                    if (response.isSuccessful() && response.body() != null) {
-                        ChatMessage sent = response.body();
-                        FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
-                        adapter.replaceMessage(tempId, sent);
-                        binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
-                    } else {
+            imageUploadExecutor.execute(() -> {
+                File file = compressImage(uri);
+                if (file == null) {
+                    runOnUiThread(() -> {
                         adapter.removeTemporaryMessage(tempId);
-                        Toast.makeText(ChatActivity.this, "Failed to send image.", Toast.LENGTH_SHORT).show();
-                    }
+                        int remaining = activeUploadsCount.decrementAndGet();
+                        if (remaining <= 0) {
+                            binding.progressBar.setVisibility(View.GONE);
+                        }
+                        String errMsg = totalCount > 1 ? "Failed to process image (" + (index + 1) + "/" + totalCount + ")" : "Failed to process image.";
+                        Toast.makeText(ChatActivity.this, errMsg, Toast.LENGTH_SHORT).show();
+                    });
+                    return;
                 }
 
-                @Override
-                public void onFailure(Call<ChatMessage> call, Throwable t) {
-                    if (file.exists()) {
-                        //noinspection ResultOfMethodCallIgnored
-                        file.delete();
+                RequestBody convBody = RequestBody.create(MediaType.parse("text/plain"), String.valueOf(conversationId));
+                RequestBody typeBody = RequestBody.create(MediaType.parse("text/plain"), "image");
+                RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), itemCaption != null ? itemCaption : "");
+
+                RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
+                MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+
+                apiService.sendImageMessage(convBody, typeBody, captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
+                    @Override
+                    public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
+                        if (file.exists()) {
+                            //noinspection ResultOfMethodCallIgnored
+                            file.delete();
+                        }
+
+                        int remaining = activeUploadsCount.decrementAndGet();
+                        if (remaining <= 0) {
+                            binding.progressBar.setVisibility(View.GONE);
+                        }
+
+                        if (response.isSuccessful() && response.body() != null) {
+                            ChatMessage sent = response.body();
+                            FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
+                            adapter.replaceMessage(tempId, sent);
+                            if (isUserAtBottom) {
+                                binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+                            }
+                        } else {
+                            adapter.removeTemporaryMessage(tempId);
+                            String errMsg = totalCount > 1 ? "Failed to send image (" + (index + 1) + "/" + totalCount + ")" : "Failed to send image.";
+                            Toast.makeText(ChatActivity.this, errMsg, Toast.LENGTH_SHORT).show();
+                        }
                     }
-                    adapter.removeTemporaryMessage(tempId);
-                    Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                }
+
+                    @Override
+                    public void onFailure(Call<ChatMessage> call, Throwable t) {
+                        if (file.exists()) {
+                            //noinspection ResultOfMethodCallIgnored
+                            file.delete();
+                        }
+
+                        int remaining = activeUploadsCount.decrementAndGet();
+                        if (remaining <= 0) {
+                            binding.progressBar.setVisibility(View.GONE);
+                        }
+
+                        adapter.removeTemporaryMessage(tempId);
+                        String errMsg = totalCount > 1 ? "Failed to send image (" + (index + 1) + "/" + totalCount + "): Network error" : "Network error: " + t.getMessage();
+                        Toast.makeText(ChatActivity.this, errMsg, Toast.LENGTH_SHORT).show();
+                    }
+                });
             });
-        });
+        }
     }
 
     private File compressImage(Uri uri) {
@@ -629,8 +729,8 @@ public class ChatActivity extends BaseActivity {
                 finalBitmap = sampledBitmap;
             }
 
-            // 5. Compress to temporary cache file as JPEG quality 80
-            File tempFile = new File(getCacheDir(), "chat_upload_" + System.currentTimeMillis() + ".jpg");
+            // 5. Compress to temporary cache file as JPEG quality 80 with guaranteed unique filename
+            File tempFile = File.createTempFile("chat_upload_" + System.currentTimeMillis() + "_", ".jpg", getCacheDir());
             try (FileOutputStream out = new FileOutputStream(tempFile)) {
                 finalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
                 out.flush();

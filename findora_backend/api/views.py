@@ -1240,10 +1240,15 @@ class ChatListView(APIView):
 
         # Notify the recipient
         recipient = conversation.finder if conversation.owner == request.user else conversation.owner
+        preview_text = message_text
+        if message_type == 'image':
+            caption_val = request.data.get('caption', '').strip()
+            preview_text = caption_val if caption_val else '[Photo]'
+
         Notification.objects.create(
             user=recipient,
             type='message',
-            message=f'New message from {request.user.username}: {message_text[:40]}',
+            message=f'New message from {request.user.username}: {preview_text[:40]}',
             related_item=conversation.item
         )
 

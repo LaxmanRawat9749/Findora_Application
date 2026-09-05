@@ -2360,6 +2360,91 @@ class DuplicateFinderReportPreventionTests(TestCase):
             )
 
 
+class ChatMultiImageUploadTests(TestCase):
+    """
+    Tests for multi-photo chat messaging:
+    1. Single photo upload with and without caption.
+    2. Multiple consecutive photo uploads (simulating multi-select gallery upload).
+    3. Proper conversation association, ordering, notifications, and image URLs.
+    """
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client = APIClient()
+
+        self.owner = User.objects.create_user(
+            username='chat_owner', email='owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='chat_finder', email='finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Bag', category='bag', status='approved'
+        )
+        self.conversation = Conversation.objects.create(
+            item=self.item, owner=self.owner, finder=self.finder
+        )
+
+    def test_single_chat_image_upload_with_caption(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.owner)
+
+        img_file = SimpleUploadedFile("test_photo_1.jpg", b"fake_jpeg_data_1", content_type="image/jpeg")
+        response = self.client.post('/api/chat/', {
+            'conversation': self.conversation.id,
+            'message_type': 'image',
+            'caption': 'Here is my lost bag',
+            'image': img_file
+        }, format='multipart')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['message_type'], 'image')
+        self.assertEqual(response.data['caption'], 'Here is my lost bag')
+        self.assertTrue(response.data['image_url'])
+        self.assertEqual(response.data['sender'], self.owner.id)
+
+        # Check notification
+        notif = Notification.objects.filter(user=self.finder, type='message').latest('created_at')
+        self.assertIn('Here is my lost bag', notif.message)
+
+    def test_multi_chat_image_consecutive_uploads(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.finder)
+
+        uploaded_msg_ids = []
+        for i in range(1, 6):
+            img_file = SimpleUploadedFile(f"batch_photo_{i}.jpg", f"fake_image_bytes_{i * 100}".encode(), content_type="image/jpeg")
+            caption = f"Photo {i} of 5" if i == 1 else ""
+            res = self.client.post('/api/chat/', {
+                'conversation': self.conversation.id,
+                'message_type': 'image',
+                'caption': caption,
+                'image': img_file
+            }, format='multipart')
+
+            self.assertEqual(res.status_code, 201)
+            self.assertEqual(res.data['message_type'], 'image')
+            uploaded_msg_ids.append(res.data['id'])
+
+        # Verify all 5 messages are distinct and persisted in order
+        self.assertEqual(len(uploaded_msg_ids), 5)
+        self.assertEqual(len(set(uploaded_msg_ids)), 5)
+
+        messages = ChatMessage.objects.filter(conversation=self.conversation).order_by('sent_at', 'id')
+        self.assertEqual(messages.count(), 5)
+        self.assertEqual(messages.first().caption, 'Photo 1 of 5')
+
+        # Verify GET /api/chat/ returns all 5 images
+        res_get = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_get.status_code, 200)
+        self.assertEqual(len(res_get.data), 5)
+        for msg_data in res_get.data:
+            self.assertEqual(msg_data['message_type'], 'image')
+            self.assertTrue(msg_data['image_url'])
+
+
+
 
 
 

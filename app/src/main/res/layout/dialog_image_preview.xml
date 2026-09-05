@@ -8,6 +8,7 @@
     android:padding="16dp">
 
     <TextView
+        android:id="@+id/tvPreviewTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Preview Image"
@@ -20,11 +21,19 @@
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/ivPreview"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
+        android:layout_height="220dp"
         android:scaleType="fitCenter"
         android:adjustViewBounds="true"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="12dp"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvThumbnails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone" />
 
     <EditText
         android:id="@+id/etCaption"
