@@ -42,7 +42,6 @@ public class ZoomableImageView extends AppCompatImageView {
     private int touchMode = NONE;
 
     private ValueAnimator zoomAnimator;
-    private Runnable swipeDownCallback;
 
     public ZoomableImageView(Context context) {
         super(context);
@@ -57,10 +56,6 @@ public class ZoomableImageView extends AppCompatImageView {
     public ZoomableImageView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init(context);
-    }
-
-    public void setSwipeDownCallback(Runnable callback) {
-        this.swipeDownCallback = callback;
     }
 
     private void init(Context context) {
@@ -347,19 +342,6 @@ public class ZoomableImageView extends AppCompatImageView {
                 animateZoom(2.5f, e.getX(), e.getY());
             }
             return true;
-        }
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            if (currentZoom <= 1.05f && e1 != null && e2 != null) {
-                float dy = e2.getY() - e1.getY();
-                float dx = e2.getX() - e1.getX();
-                if (dy > 150 && Math.abs(velocityY) > Math.abs(velocityX) && swipeDownCallback != null) {
-                    swipeDownCallback.run();
-                    return true;
-                }
-            }
-            return super.onFling(e1, e2, velocityX, velocityY);
         }
     }
 

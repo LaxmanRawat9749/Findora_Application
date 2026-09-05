@@ -19,7 +19,6 @@ public class FullScreenImageActivity extends AppCompatActivity {
         ImageView ivClose = findViewById(R.id.ivClose);
 
         ivClose.setOnClickListener(v -> finish());
-        ivFullScreen.setSwipeDownCallback(this::finish);
 
         String imageUrl = getIntent().getStringExtra(EXTRA_IMAGE_URL);
         if (imageUrl != null) {
