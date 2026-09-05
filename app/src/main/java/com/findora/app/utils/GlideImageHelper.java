@@ -155,7 +155,7 @@ public final class GlideImageHelper {
     }
 
     /**
-     * Loads a chat message image attachment.
+     * Loads a chat message image attachment preserving aspect ratio without cropping.
      */
     public static void loadChatImage(Context context, String url, ImageView target) {
         if (context == null || target == null) return;
@@ -166,6 +166,26 @@ public final class GlideImageHelper {
                 .load(model)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontAnimate()
+                .fitCenter()
+                .into(target);
+    }
+
+    /**
+     * Loads a full-screen image for ZoomableImageView without cropping or distortion.
+     */
+    public static void loadFullScreenImage(Context context, String url, ImageView target) {
+        if (context == null || target == null) return;
+        Object model = getGlideModel(url);
+        if (model == null) {
+            target.setImageResource(R.drawable.ic_image);
+            return;
+        }
+
+        Glide.with(context)
+                .load(model)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .dontAnimate()
+                .error(R.drawable.ic_image)
                 .into(target);
     }
 }

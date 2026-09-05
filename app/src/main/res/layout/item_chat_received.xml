@@ -37,12 +37,15 @@
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/ivMessageImage"
-            android:layout_width="220dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxHeight="260dp"
+            android:maxWidth="240dp"
+            android:maxHeight="280dp"
+            android:minWidth="100dp"
+            android:minHeight="80dp"
             android:layout_marginBottom="4dp"
             android:adjustViewBounds="true"
-            android:scaleType="centerCrop"
+            android:scaleType="fitCenter"
             android:visibility="gone"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium" />
 

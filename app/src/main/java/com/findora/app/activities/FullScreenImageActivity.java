@@ -19,10 +19,11 @@ public class FullScreenImageActivity extends AppCompatActivity {
         ImageView ivClose = findViewById(R.id.ivClose);
 
         ivClose.setOnClickListener(v -> finish());
+        ivFullScreen.setSwipeDownCallback(this::finish);
 
         String imageUrl = getIntent().getStringExtra(EXTRA_IMAGE_URL);
         if (imageUrl != null) {
-            com.findora.app.utils.GlideImageHelper.loadItemDetail(this, imageUrl, ivFullScreen);
+            com.findora.app.utils.GlideImageHelper.loadFullScreenImage(this, imageUrl, ivFullScreen);
         }
 
     }
