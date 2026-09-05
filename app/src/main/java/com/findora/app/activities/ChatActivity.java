@@ -590,7 +590,7 @@ public class ChatActivity extends BaseActivity {
 
         bottomSheetView.findViewById(R.id.btnDeleteMe).setOnClickListener(v -> {
             dialog.dismiss();
-            deleteMessage(message.getId(), false);
+            showDeleteConfirmationDialog(message.getId(), false);
         });
         
         View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
@@ -598,7 +598,7 @@ public class ChatActivity extends BaseActivity {
             btnDeleteEveryone.setVisibility(View.VISIBLE);
             btnDeleteEveryone.setOnClickListener(v -> {
                 dialog.dismiss();
-                deleteMessage(message.getId(), true);
+                showDeleteConfirmationDialog(message.getId(), true);
             });
         } else {
             btnDeleteEveryone.setVisibility(View.GONE);
@@ -607,20 +607,48 @@ public class ChatActivity extends BaseActivity {
         dialog.show();
     }
 
+    private void showDeleteConfirmationDialog(int messageId, boolean forEveryone) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Message")
+                .setMessage("Are you sure you want to delete this message?")
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    dialog.dismiss();
+                    deleteMessage(messageId, forEveryone);
+                })
+                .show();
+    }
+
     private void deleteMessage(int messageId, boolean forEveryone) {
         apiService.deleteMessage(messageId, forEveryone).enqueue(new Callback<MessageResponse>() {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 if (response.isSuccessful()) {
                     FindoraCache.getInstance(ChatActivity.this).deleteMessage(conversationId, messageId, forEveryone);
-                    loadMessages(); // Refresh UI
+                    adapter.removeMessage(messageId);
+                    if (adapter.getItemCount() == 0) {
+                        binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    }
+                    Toast.makeText(ChatActivity.this, "Message deleted", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(ChatActivity.this, "Failed to delete message", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Failed to delete message.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errStr = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errStr);
+                            if (obj.has("error")) {
+                                errorMsg = obj.getString("error");
+                            } else if (obj.has("message")) {
+                                errorMsg = obj.getString("message");
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    Toast.makeText(ChatActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
             @Override
             public void onFailure(Call<MessageResponse> call, Throwable t) {
-                Toast.makeText(ChatActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }

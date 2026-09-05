@@ -358,11 +358,7 @@ public class FindoraCache {
         for (int i = 0; i < existing.size(); i++) {
             ChatMessage msg = existing.get(i);
             if (msg != null && msg.getId() == messageId) {
-                if (forEveryone) {
-                    msg.setDeletedForEveryone(true);
-                } else {
-                    existing.remove(i);
-                }
+                existing.remove(i);
                 break;
             }
         }

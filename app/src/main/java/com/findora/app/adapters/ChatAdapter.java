@@ -99,6 +99,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         notifyItemInserted(this.messages.size() - 1);
     }
 
+    public void removeMessage(int messageId) {
+        for (int i = 0; i < this.messages.size(); i++) {
+            if (this.messages.get(i) != null && this.messages.get(i).getId() == messageId) {
+                this.messages.remove(i);
+                notifyItemRemoved(i);
+                break;
+            }
+        }
+    }
+
     @Override
     public int getItemViewType(int position) {
         ChatMessage msg = messages.get(position);

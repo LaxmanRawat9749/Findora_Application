@@ -1321,9 +1321,11 @@ class ChatMessageDetailView(APIView):
         except ChatMessage.DoesNotExist:
             return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        delete_type = request.query_params.get('type', 'for_me')
+        delete_type = request.query_params.get('type', '')
+        for_everyone_str = request.query_params.get('for_everyone', '')
+        is_for_everyone = (delete_type == 'for_everyone') or (for_everyone_str.lower() in ('true', '1'))
 
-        if delete_type == 'for_everyone':
+        if is_for_everyone:
             if msg.sender != request.user:
                 return Response({'error': 'Only sender can delete for everyone'}, status=status.HTTP_403_FORBIDDEN)
             msg.deleted_for_everyone = True
