@@ -196,71 +196,40 @@ public class ChatActivity extends BaseActivity {
             return; // Skip if a request is already in-flight
         }
 
-        final int latestId = FindoraCache.getInstance(this).getLatestMessageId(conversationId);
-
-        if (latestId > 0 && !isInitialLoad) {
-            // Incremental sync: request only messages newer than the latest cached message
-            pollCall = apiService.getMessagesSince(conversationId, latestId);
-            pollCall.enqueue(new Callback<List<ChatMessage>>() {
-                @Override
-                public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        List<ChatMessage> newMessages = response.body();
-                        if (!newMessages.isEmpty()) {
-                            List<ChatMessage> merged = FindoraCache.getInstance(ChatActivity.this)
-                                    .appendMessages(conversationId, newMessages);
-                            int previousCount = adapter.getItemCount();
-                            adapter.setMessages(merged);
-                            binding.tvEmptyState.setVisibility(View.GONE);
-                            if (previousCount == 0 || isUserAtBottom) {
-                                binding.rvMessages.scrollToPosition(merged.size() - 1);
-                            }
-                        }
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
-                    // Silently ignore background incremental polling errors
-                }
-            });
-        } else {
-            // Full sync (on initial load or when cache is empty)
-            if (isInitialLoad && adapter.getItemCount() == 0) {
-                binding.progressBar.setVisibility(View.VISIBLE);
-            }
-            pollCall = apiService.getMessages(conversationId);
-            pollCall.enqueue(new Callback<List<ChatMessage>>() {
-                @Override
-                public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
-                    if (isInitialLoad) {
-                        isInitialLoad = false;
-                        binding.progressBar.setVisibility(View.GONE);
-                    }
-                    if (response.isSuccessful() && response.body() != null) {
-                        List<ChatMessage> messages = response.body();
-                        FindoraCache.getInstance(ChatActivity.this).saveMessages(conversationId, messages);
-                        int previousCount = adapter.getItemCount();
-                        adapter.setMessages(messages);
-                        binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
-                        if (!messages.isEmpty()) {
-                            if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
-                                binding.rvMessages.scrollToPosition(messages.size() - 1);
-                            }
-                        }
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
-                    if (isInitialLoad) {
-                        isInitialLoad = false;
-                        binding.progressBar.setVisibility(View.GONE);
-                    }
-                    // Silently ignore background polling errors
-                }
-            });
+        if (isInitialLoad && adapter.getItemCount() == 0) {
+            binding.progressBar.setVisibility(View.VISIBLE);
         }
+        pollCall = apiService.getMessages(conversationId);
+        pollCall.enqueue(new Callback<List<ChatMessage>>() {
+            @Override
+            public void onResponse(Call<List<ChatMessage>> call, Response<List<ChatMessage>> response) {
+                if (isInitialLoad) {
+                    isInitialLoad = false;
+                    binding.progressBar.setVisibility(View.GONE);
+                }
+                if (response.isSuccessful() && response.body() != null) {
+                    List<ChatMessage> messages = response.body();
+                    FindoraCache.getInstance(ChatActivity.this).saveMessages(conversationId, messages);
+                    int previousCount = adapter.getItemCount();
+                    adapter.setMessages(messages);
+                    binding.tvEmptyState.setVisibility(messages.isEmpty() ? View.VISIBLE : View.GONE);
+                    if (!messages.isEmpty()) {
+                        if (previousCount == 0 || (isUserAtBottom && messages.size() > previousCount)) {
+                            binding.rvMessages.scrollToPosition(messages.size() - 1);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<ChatMessage>> call, Throwable t) {
+                if (isInitialLoad) {
+                    isInitialLoad = false;
+                    binding.progressBar.setVisibility(View.GONE);
+                }
+                // Silently ignore background polling errors
+            }
+        });
     }
 
     private void sendMessage() {
@@ -791,37 +760,45 @@ public class ChatActivity extends BaseActivity {
     }
 
     private void showMessageOptions(ChatMessage message) {
+        if (message == null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         View bottomSheetView = getLayoutInflater().inflate(R.layout.layout_chat_bottom_sheet, null);
         dialog.setContentView(bottomSheetView);
 
+        View btnCopy = bottomSheetView.findViewById(R.id.btnCopy);
+        View btnDeleteMe = bottomSheetView.findViewById(R.id.btnDeleteMe);
+        View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
 
+        if (message.isDeletedForEveryone()) {
+            btnCopy.setVisibility(View.GONE);
+            btnDeleteEveryone.setVisibility(View.GONE);
+        } else {
+            btnCopy.setVisibility(View.VISIBLE);
+            btnCopy.setOnClickListener(v -> {
+                dialog.dismiss();
+                String textToCopy = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
+                if (textToCopy == null) textToCopy = "";
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("Message", textToCopy);
+                if (clipboard != null) clipboard.setPrimaryClip(clip);
+                Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+            });
 
-        bottomSheetView.findViewById(R.id.btnCopy).setOnClickListener(v -> {
-            dialog.dismiss();
-            String textToCopy = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
-            if (textToCopy == null) textToCopy = "";
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Message", textToCopy);
-            if (clipboard != null) clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
-        });
+            if (message.getSender() == baseSessionManager.getUserId()) {
+                btnDeleteEveryone.setVisibility(View.VISIBLE);
+                btnDeleteEveryone.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showDeleteConfirmationDialog(message.getId(), true);
+                });
+            } else {
+                btnDeleteEveryone.setVisibility(View.GONE);
+            }
+        }
 
-        bottomSheetView.findViewById(R.id.btnDeleteMe).setOnClickListener(v -> {
+        btnDeleteMe.setOnClickListener(v -> {
             dialog.dismiss();
             showDeleteConfirmationDialog(message.getId(), false);
         });
-        
-        View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
-        if (message.getSender() == baseSessionManager.getUserId()) {
-            btnDeleteEveryone.setVisibility(View.VISIBLE);
-            btnDeleteEveryone.setOnClickListener(v -> {
-                dialog.dismiss();
-                showDeleteConfirmationDialog(message.getId(), true);
-            });
-        } else {
-            btnDeleteEveryone.setVisibility(View.GONE);
-        }
 
         dialog.show();
     }
@@ -844,7 +821,11 @@ public class ChatActivity extends BaseActivity {
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 if (response.isSuccessful()) {
                     FindoraCache.getInstance(ChatActivity.this).deleteMessage(conversationId, messageId, forEveryone);
-                    adapter.markMessageDeleted(messageId);
+                    if (forEveryone) {
+                        adapter.markMessageDeleted(messageId);
+                    } else {
+                        adapter.removeMessage(messageId);
+                    }
                     Toast.makeText(ChatActivity.this, "Message deleted", Toast.LENGTH_SHORT).show();
                 } else {
                     String errorMsg = "Failed to delete message.";

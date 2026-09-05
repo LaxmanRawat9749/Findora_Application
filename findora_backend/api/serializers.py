@@ -608,34 +608,46 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_item_type(self, obj):
         return obj.item.type if obj.item else ""
 
-    def get_last_message(self, obj):
+    def _get_visible_messages_for_user(self, obj, user):
         messages = self._get_sorted_messages(obj)
-        if not messages:
-            return ""
-        last_msg = messages[0]
+        if not user or not user.is_authenticated:
+            return messages
+        return [
+            m for m in messages
+            if not ((m.deleted_by_sender and m.sender_id == user.id) or
+                    (m.deleted_by_receiver and m.sender_id != user.id))
+        ]
+
+    def get_last_message(self, obj):
         request = self.context.get('request')
-        is_deleted_for_me = False
-        if request and request.user and request.user.is_authenticated:
-            is_deleted_for_me = (last_msg.deleted_by_sender and last_msg.sender_id == request.user.id) or (last_msg.deleted_by_receiver and last_msg.sender_id != request.user.id)
-            
-        if last_msg.deleted_for_everyone or is_deleted_for_me:
+        user = request.user if request else None
+        visible_messages = self._get_visible_messages_for_user(obj, user)
+        if not visible_messages:
+            return ""
+        last_msg = visible_messages[0]
+        if last_msg.deleted_for_everyone:
             if last_msg.message_type == 'image':
                 return "This image was deleted"
             return "This message was deleted"
+        if last_msg.message_type == 'image':
+            return last_msg.caption if last_msg.caption else "[Photo]"
         return last_msg.message
 
     def get_last_message_time(self, obj):
-        messages = self._get_sorted_messages(obj)
-        if not messages:
+        request = self.context.get('request')
+        user = request.user if request else None
+        visible_messages = self._get_visible_messages_for_user(obj, user)
+        if not visible_messages:
             return obj.created_at
-        return messages[0].sent_at
+        return visible_messages[0].sent_at
 
     def get_unread_count(self, obj):
         request = self.context.get('request')
         if not request:
             return 0
-        messages = self._get_sorted_messages(obj)
-        return sum(1 for m in messages if m.sender_id != request.user.id and not m.is_read)
+        user = request.user if request else None
+        visible_messages = self._get_visible_messages_for_user(obj, user)
+        return sum(1 for m in visible_messages if m.sender_id != request.user.id and not m.is_read)
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -655,28 +667,20 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         read_only_fields = ['sender', 'is_read', 'sent_at']
 
     def _is_deleted(self, obj):
-        request = self.context.get('request')
-        if obj.deleted_for_everyone:
-            return True
-        if request and request.user and request.user.is_authenticated:
-            if obj.sender == request.user and obj.deleted_by_sender:
-                return True
-            if obj.sender != request.user and obj.deleted_by_receiver:
-                return True
-        return False
+        return bool(obj.deleted_for_everyone)
 
     def get_deleted_for_everyone(self, obj):
-        return self._is_deleted(obj)
+        return bool(obj.deleted_for_everyone)
 
     def get_message(self, obj):
-        if self._is_deleted(obj):
+        if obj.deleted_for_everyone:
             if obj.message_type == 'image':
                 return "This image was deleted"
             return "This message was deleted"
         return obj.message
 
     def get_caption(self, obj):
-        if self._is_deleted(obj):
+        if obj.deleted_for_everyone:
             return ""
         return obj.caption
 
@@ -699,7 +703,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return None
 
     def get_image_url(self, obj):
-        if self._is_deleted(obj):
+        if obj.deleted_for_everyone:
             return None
         request = self.context.get('request')
         if obj.image:

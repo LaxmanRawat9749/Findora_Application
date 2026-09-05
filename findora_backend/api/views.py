@@ -1179,6 +1179,12 @@ class ChatListView(APIView):
             conversation=conversation
         ).select_related('sender').order_by('sent_at')
 
+        # Exclude messages deleted by the requesting user ("Delete for Me")
+        messages = messages.exclude(
+            Q(sender=request.user, deleted_by_sender=True) |
+            Q(~Q(sender=request.user), deleted_by_receiver=True)
+        )
+
         after_id = request.query_params.get('after_id') or request.query_params.get('since_id')
         if after_id:
             try:
@@ -1316,6 +1322,9 @@ class ChatMessageDetailView(APIView):
         except ChatMessage.DoesNotExist:
             return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        if msg.conversation.owner != request.user and msg.conversation.finder != request.user:
+            return Response({'error': 'You are not a participant in this conversation'}, status=status.HTTP_403_FORBIDDEN)
+
         delete_type = request.query_params.get('type', '')
         for_everyone_str = request.query_params.get('for_everyone', '')
         is_for_everyone = (delete_type == 'for_everyone') or (for_everyone_str.lower() in ('true', '1'))
@@ -1334,7 +1343,7 @@ class ChatMessageDetailView(APIView):
                 msg.deleted_by_receiver = True
                 msg.save(update_fields=['deleted_by_receiver'])
 
-        return Response({'message': 'Message deleted successfully'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Message deleted successfully', 'id': msg.id, 'deleted_for_everyone': msg.deleted_for_everyone}, status=status.HTTP_200_OK)
 
 
 class ConversationDetailView(APIView):

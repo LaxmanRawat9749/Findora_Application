@@ -2444,6 +2444,173 @@ class ChatMultiImageUploadTests(TestCase):
             self.assertTrue(msg_data['image_url'])
 
 
+class ChatMessageDeletionTests(TestCase):
+    """
+    Comprehensive tests for Chat message and image deletion:
+    - Case A: User A sends text -> A chooses Delete for Me -> A no longer sees it, B still sees it.
+    - Case B: User A sends text -> A chooses Delete for Everyone -> A and B both see "This message was deleted".
+    - Case C: User B chooses Delete for Me on received message -> B no longer sees it, A still sees it.
+    - Case D: User B sends text -> B chooses Delete for Everyone -> A and B both see "This message was deleted".
+    - Case E: Image message deletion for me and for everyone.
+    - Case F: Authorization checks (non-sender cannot delete for everyone, non-participant cannot delete).
+    """
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.client = APIClient()
+
+        self.owner = User.objects.create_user(
+            username='user_a', email='a@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='user_b', email='b@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.unrelated_user = User.objects.create_user(
+            username='user_c', email='c@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Keys', category='keys', status='approved'
+        )
+        self.conversation = Conversation.objects.create(
+            item=self.item, owner=self.owner, finder=self.finder
+        )
+
+    def test_case_a_sender_delete_for_me(self):
+        # User A sends message
+        msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message="Hello from A"
+        )
+
+        # User A deletes for me
+        self.client.force_authenticate(user=self.owner)
+        res_del = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=false')
+        self.assertEqual(res_del.status_code, 200)
+
+        # User A fetches chat -> message excluded
+        res_a = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_a.status_code, 200)
+        self.assertEqual(len(res_a.data), 0)
+
+        # User B fetches chat -> message still visible normally
+        self.client.force_authenticate(user=self.finder)
+        res_b = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_b.status_code, 200)
+        self.assertEqual(len(res_b.data), 1)
+        self.assertEqual(res_b.data[0]['message'], "Hello from A")
+        self.assertFalse(res_b.data[0]['deleted_for_everyone'])
+
+    def test_case_b_sender_delete_for_everyone(self):
+        msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message="Secret from A"
+        )
+
+        # User A deletes for everyone
+        self.client.force_authenticate(user=self.owner)
+        res_del = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=true')
+        self.assertEqual(res_del.status_code, 200)
+
+        # User A fetches chat -> sees placeholder
+        res_a = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_a.status_code, 200)
+        self.assertEqual(len(res_a.data), 1)
+        self.assertEqual(res_a.data[0]['message'], "This message was deleted")
+        self.assertTrue(res_a.data[0]['deleted_for_everyone'])
+
+        # User B fetches chat -> sees placeholder in real time
+        self.client.force_authenticate(user=self.finder)
+        res_b = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_b.status_code, 200)
+        self.assertEqual(len(res_b.data), 1)
+        self.assertEqual(res_b.data[0]['message'], "This message was deleted")
+        self.assertTrue(res_b.data[0]['deleted_for_everyone'])
+
+    def test_case_c_receiver_delete_for_me(self):
+        msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message="Message for B"
+        )
+
+        # User B (receiver) deletes for me
+        self.client.force_authenticate(user=self.finder)
+        res_del = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=false')
+        self.assertEqual(res_del.status_code, 200)
+
+        # User B fetches chat -> message excluded
+        res_b = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_b.status_code, 200)
+        self.assertEqual(len(res_b.data), 0)
+
+        # User A fetches chat -> still visible
+        self.client.force_authenticate(user=self.owner)
+        res_a = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        self.assertEqual(res_a.status_code, 200)
+        self.assertEqual(len(res_a.data), 1)
+        self.assertEqual(res_a.data[0]['message'], "Message for B")
+        self.assertFalse(res_a.data[0]['deleted_for_everyone'])
+
+    def test_case_d_receiver_sent_message_delete_for_everyone(self):
+        msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.finder, message="Finder reply"
+        )
+
+        # User B deletes their sent message for everyone
+        self.client.force_authenticate(user=self.finder)
+        res_del = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=true')
+        self.assertEqual(res_del.status_code, 200)
+
+        # Both users see placeholder
+        for user in [self.owner, self.finder]:
+            self.client.force_authenticate(user=user)
+            res = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(len(res.data), 1)
+            self.assertEqual(res.data[0]['message'], "This message was deleted")
+            self.assertTrue(res.data[0]['deleted_for_everyone'])
+
+    def test_case_e_image_message_deletions(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.owner)
+
+        img_file = SimpleUploadedFile("test_img.jpg", b"image_data_bytes", content_type="image/jpeg")
+        res_post = self.client.post('/api/chat/', {
+            'conversation': self.conversation.id,
+            'message_type': 'image',
+            'caption': 'Photo caption',
+            'image': img_file
+        }, format='multipart')
+        self.assertEqual(res_post.status_code, 201)
+        img_msg_id = res_post.data['id']
+
+        # Delete for Everyone on Image
+        res_del = self.client.delete(f'/api/chat/message/{img_msg_id}/?for_everyone=true')
+        self.assertEqual(res_del.status_code, 200)
+
+        # Both users see "This image was deleted" and image_url is None
+        for user in [self.owner, self.finder]:
+            self.client.force_authenticate(user=user)
+            res = self.client.get(f'/api/chat/?conversation_id={self.conversation.id}')
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(len(res.data), 1)
+            self.assertEqual(res.data[0]['message'], "This image was deleted")
+            self.assertIsNone(res.data[0]['image_url'])
+            self.assertTrue(res.data[0]['deleted_for_everyone'])
+
+    def test_case_f_authorization_restrictions(self):
+        msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message="Owner only"
+        )
+
+        # Non-sender (User B) cannot delete for everyone
+        self.client.force_authenticate(user=self.finder)
+        res_for_everyone = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=true')
+        self.assertEqual(res_for_everyone.status_code, 403)
+
+        # Unrelated User C cannot delete message at all
+        self.client.force_authenticate(user=self.unrelated_user)
+        res_unrelated = self.client.delete(f'/api/chat/message/{msg.id}/?for_everyone=false')
+        self.assertEqual(res_unrelated.status_code, 403)
+
+
+
 
 
 

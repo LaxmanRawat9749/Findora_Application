@@ -142,7 +142,14 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     public void removeMessage(int messageId) {
-        markMessageDeleted(messageId);
+        for (int i = 0; i < this.messages.size(); i++) {
+            ChatMessage msg = this.messages.get(i);
+            if (msg != null && msg.getId() == messageId) {
+                this.messages.remove(i);
+                notifyItemRemoved(i);
+                break;
+            }
+        }
     }
 
     @Override
