@@ -41,7 +41,11 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import androidx.exifinterface.media.ExifInterface;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -59,6 +63,7 @@ public class ChatActivity extends BaseActivity {
     private ChatMessage messageToEdit;
     private boolean isUserAtBottom = true;
     private Call<List<ChatMessage>> pollCall;
+    private final ExecutorService imageUploadExecutor = Executors.newSingleThreadExecutor();
     
     private Uri currentPhotoUri;
     private ActivityResultLauncher<Uri> takePictureLauncher;
@@ -415,105 +420,223 @@ public class ChatActivity extends BaseActivity {
     }
 
     private void updateImageMessage(Uri uri, String caption) {
-        File file = compressImage(uri);
-        if (file == null) {
-            Toast.makeText(this, "Failed to process image.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+        if (messageToEdit == null) return;
+        final int editMsgId = messageToEdit.getId();
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.btnSend.setEnabled(false);
         binding.btnAttachment.setEnabled(false);
 
-        RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption);
-        RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
-        MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+        imageUploadExecutor.execute(() -> {
+            File file = compressImage(uri);
+            if (file == null) {
+                runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.btnSend.setEnabled(true);
+                    binding.btnAttachment.setEnabled(true);
+                    Toast.makeText(ChatActivity.this, "Failed to process image.", Toast.LENGTH_SHORT).show();
+                });
+                return;
+            }
 
-        apiService.editImageMessage(messageToEdit.getId(), captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
-            @Override
-            public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.btnSend.setEnabled(true);
-                binding.btnAttachment.setEnabled(true);
-                if (response.isSuccessful()) {
-                    messageToEdit = null;
-                    loadMessages(); // Refresh UI
-                } else {
-                    Toast.makeText(ChatActivity.this, "Failed to update image.", Toast.LENGTH_SHORT).show();
+            RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption != null ? caption : "");
+            RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
+            MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+
+            apiService.editImageMessage(editMsgId, captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
+                @Override
+                public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
+                    if (file.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.btnSend.setEnabled(true);
+                    binding.btnAttachment.setEnabled(true);
+                    if (response.isSuccessful() && response.body() != null) {
+                        messageToEdit = null;
+                        ChatMessage updated = response.body();
+                        FindoraCache.getInstance(ChatActivity.this).updateMessage(conversationId, updated);
+                        adapter.replaceMessage(editMsgId, updated);
+                    } else {
+                        Toast.makeText(ChatActivity.this, "Failed to update image.", Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
-            @Override
-            public void onFailure(Call<ChatMessage> call, Throwable t) {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.btnSend.setEnabled(true);
-                binding.btnAttachment.setEnabled(true);
-                Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+
+                @Override
+                public void onFailure(Call<ChatMessage> call, Throwable t) {
+                    if (file.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.btnSend.setEnabled(true);
+                    binding.btnAttachment.setEnabled(true);
+                    Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
         });
     }
 
     private void sendImageMessage(Uri uri, String caption) {
-        File file = compressImage(uri);
-        if (file == null) {
-            Toast.makeText(this, "Failed to process image.", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (uri == null) return;
 
-        binding.progressBar.setVisibility(View.VISIBLE);
-        binding.btnSend.setEnabled(false);
-        binding.btnAttachment.setEnabled(false);
+        // 1. Instantly display optimistic preview message in chat list
+        final int tempId = -(int) (System.currentTimeMillis() % 10000000);
+        ChatMessage localMsg = new ChatMessage();
+        localMsg.setId(tempId);
+        localMsg.setConversation(conversationId);
+        localMsg.setSender(baseSessionManager.getUserId());
+        localMsg.setMessageType("image");
+        localMsg.setImageUrl(uri.toString());
+        localMsg.setCaption(caption);
+        localMsg.setSentAt(new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).format(new java.util.Date()));
 
-        RequestBody convBody = RequestBody.create(MediaType.parse("text/plain"), String.valueOf(conversationId));
-        RequestBody typeBody = RequestBody.create(MediaType.parse("text/plain"), "image");
-        RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption);
-        
-        RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
-        MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+        adapter.addMessage(localMsg);
+        binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+        binding.tvEmptyState.setVisibility(View.GONE);
 
-        apiService.sendImageMessage(convBody, typeBody, captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
-            @Override
-            public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.btnSend.setEnabled(true);
-                binding.btnAttachment.setEnabled(true);
-                if (response.isSuccessful() && response.body() != null) {
-                    ChatMessage sent = response.body();
-                    FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
-                    adapter.addMessage(sent);
-                    binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
-                    binding.tvEmptyState.setVisibility(View.GONE);
-                } else {
-                    Toast.makeText(ChatActivity.this, "Failed to send image.", Toast.LENGTH_SHORT).show();
+        // 2. Perform compression and multipart upload asynchronously in background
+        imageUploadExecutor.execute(() -> {
+            File file = compressImage(uri);
+            if (file == null) {
+                runOnUiThread(() -> {
+                    adapter.removeTemporaryMessage(tempId);
+                    Toast.makeText(ChatActivity.this, "Failed to process image.", Toast.LENGTH_SHORT).show();
+                });
+                return;
+            }
+
+            RequestBody convBody = RequestBody.create(MediaType.parse("text/plain"), String.valueOf(conversationId));
+            RequestBody typeBody = RequestBody.create(MediaType.parse("text/plain"), "image");
+            RequestBody captionBody = RequestBody.create(MediaType.parse("text/plain"), caption != null ? caption : "");
+
+            RequestBody requestFile = RequestBody.create(MediaType.parse("image/jpeg"), file);
+            MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestFile);
+
+            apiService.sendImageMessage(convBody, typeBody, captionBody, imagePart).enqueue(new Callback<ChatMessage>() {
+                @Override
+                public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
+                    if (file.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+
+                    if (response.isSuccessful() && response.body() != null) {
+                        ChatMessage sent = response.body();
+                        FindoraCache.getInstance(ChatActivity.this).addSentMessage(conversationId, sent);
+                        adapter.replaceMessage(tempId, sent);
+                        binding.rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+                    } else {
+                        adapter.removeTemporaryMessage(tempId);
+                        Toast.makeText(ChatActivity.this, "Failed to send image.", Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
-            @Override
-            public void onFailure(Call<ChatMessage> call, Throwable t) {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.btnSend.setEnabled(true);
-                binding.btnAttachment.setEnabled(true);
-                Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+
+                @Override
+                public void onFailure(Call<ChatMessage> call, Throwable t) {
+                    if (file.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                    adapter.removeTemporaryMessage(tempId);
+                    Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
         });
     }
 
     private File compressImage(Uri uri) {
+        if (uri == null) return null;
         try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            if (inputStream != null) inputStream.close();
-            
-            if (bitmap == null) return null;
+            // 1. Read EXIF orientation first
+            int orientation = androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL;
+            try (InputStream exifStream = getContentResolver().openInputStream(uri)) {
+                if (exifStream != null) {
+                    androidx.exifinterface.media.ExifInterface exif = new androidx.exifinterface.media.ExifInterface(exifStream);
+                    orientation = exif.getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION, androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL);
+                }
+            } catch (Exception ignored) {}
 
-            int maxWidth = 1080;
-            int maxHeight = (int) ((float) bitmap.getHeight() / bitmap.getWidth() * maxWidth);
-            Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, maxWidth, maxHeight, true);
+            // 2. Decode bounds only to compute optimal sampleSize (prevent OOM)
+            BitmapFactory.Options boundsOptions = new BitmapFactory.Options();
+            boundsOptions.inJustDecodeBounds = true;
+            try (InputStream boundsStream = getContentResolver().openInputStream(uri)) {
+                if (boundsStream == null) return null;
+                BitmapFactory.decodeStream(boundsStream, null, boundsOptions);
+            }
 
+            int origWidth = boundsOptions.outWidth;
+            int origHeight = boundsOptions.outHeight;
+            if (origWidth <= 0 || origHeight <= 0) return null;
+
+            int maxDimension = 1280;
+            int sampleSize = 1;
+            while (origWidth / (sampleSize * 2) >= maxDimension || origHeight / (sampleSize * 2) >= maxDimension) {
+                sampleSize *= 2;
+            }
+
+            // 3. Decode bitmap with calculated sampleSize
+            BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
+            decodeOptions.inSampleSize = sampleSize;
+            decodeOptions.inJustDecodeBounds = false;
+            decodeOptions.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+            Bitmap sampledBitmap = null;
+            try (InputStream decodeStream = getContentResolver().openInputStream(uri)) {
+                if (decodeStream == null) return null;
+                sampledBitmap = BitmapFactory.decodeStream(decodeStream, null, decodeOptions);
+            }
+
+            if (sampledBitmap == null) return null;
+
+            // 4. Calculate scaling & rotation matrix
+            int curWidth = sampledBitmap.getWidth();
+            int curHeight = sampledBitmap.getHeight();
+
+            float scale = Math.min(1.0f, Math.min((float) maxDimension / curWidth, (float) maxDimension / curHeight));
+            Matrix matrix = new Matrix();
+            if (scale < 1.0f) {
+                matrix.postScale(scale, scale);
+            }
+
+            switch (orientation) {
+                case androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90:
+                    matrix.postRotate(90);
+                    break;
+                case androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180:
+                    matrix.postRotate(180);
+                    break;
+                case androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270:
+                    matrix.postRotate(270);
+                    break;
+                case androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+                    matrix.postScale(-1, 1);
+                    break;
+                case androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_VERTICAL:
+                    matrix.postScale(1, -1);
+                    break;
+                default:
+                    break;
+            }
+
+            Bitmap finalBitmap;
+            if (!matrix.isIdentity()) {
+                finalBitmap = Bitmap.createBitmap(sampledBitmap, 0, 0, curWidth, curHeight, matrix, true);
+                if (finalBitmap != sampledBitmap) {
+                    sampledBitmap.recycle();
+                }
+            } else {
+                finalBitmap = sampledBitmap;
+            }
+
+            // 5. Compress to temporary cache file as JPEG quality 80
             File tempFile = new File(getCacheDir(), "chat_upload_" + System.currentTimeMillis() + ".jpg");
-            FileOutputStream out = new FileOutputStream(tempFile);
-            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
-            out.flush();
-            out.close();
-            
+            try (FileOutputStream out = new FileOutputStream(tempFile)) {
+                finalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
+                out.flush();
+            }
+            finalBitmap.recycle();
+
             return tempFile;
         } catch (Exception e) {
             e.printStackTrace();
@@ -659,5 +782,6 @@ public class ChatActivity extends BaseActivity {
             pollCall.cancel();
             pollCall = null;
         }
+        imageUploadExecutor.shutdown();
     }
 }

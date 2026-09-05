@@ -99,6 +99,30 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         notifyItemInserted(this.messages.size() - 1);
     }
 
+    public void replaceMessage(int oldMessageId, ChatMessage newMessage) {
+        if (newMessage == null) return;
+        for (int i = 0; i < this.messages.size(); i++) {
+            ChatMessage msg = this.messages.get(i);
+            if (msg != null && msg.getId() == oldMessageId) {
+                this.messages.set(i, newMessage);
+                notifyItemChanged(i);
+                return;
+            }
+        }
+        addMessage(newMessage);
+    }
+
+    public void removeTemporaryMessage(int tempId) {
+        for (int i = 0; i < this.messages.size(); i++) {
+            ChatMessage msg = this.messages.get(i);
+            if (msg != null && msg.getId() == tempId) {
+                this.messages.remove(i);
+                notifyItemRemoved(i);
+                break;
+            }
+        }
+    }
+
     public void markMessageDeleted(int messageId) {
         for (int i = 0; i < this.messages.size(); i++) {
             ChatMessage msg = this.messages.get(i);
