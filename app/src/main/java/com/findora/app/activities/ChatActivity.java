@@ -99,11 +99,7 @@ public class ChatActivity extends BaseActivity {
         binding.toolbar.inflateMenu(R.menu.menu_chat);
         binding.toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_view_profile) {
-                if (otherUserId != -1) {
-                    openUserProfile(otherUserId);
-                } else {
-                    Toast.makeText(this, "Profile not loaded yet.", Toast.LENGTH_SHORT).show();
-                }
+                openUserProfile(baseSessionManager.getUserId());
                 return true;
             }
             return false;
