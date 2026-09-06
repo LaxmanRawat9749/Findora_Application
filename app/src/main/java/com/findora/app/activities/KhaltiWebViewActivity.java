@@ -1,14 +1,20 @@
 package com.findora.app.activities;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import androidx.activity.OnBackPressedCallback;
 
 import com.findora.app.databinding.ActivityKhaltiWebviewBinding;
 
@@ -20,6 +26,8 @@ public class KhaltiWebViewActivity extends BaseActivity {
     public static final String EXTRA_TITLE = "extra_title";
 
     private ActivityKhaltiWebviewBinding binding;
+    private String originalUrl;
+    private String pidx;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,21 +41,35 @@ public class KhaltiWebViewActivity extends BaseActivity {
         }
         binding.toolbar.setTitle(title);
 
-        binding.toolbar.setNavigationOnClickListener(v -> finishWithResult("User canceled", null));
+        pidx = getIntent().getStringExtra(EXTRA_PIDX);
+        originalUrl = getIntent().getStringExtra(EXTRA_URL);
 
-        String url = getIntent().getStringExtra(EXTRA_URL);
-        if (url == null || url.isEmpty()) {
-            finishWithResult("Error: Invalid URL", null);
+        binding.toolbar.setNavigationOnClickListener(v -> showCancelConfirmationDialog());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showCancelConfirmationDialog();
+            }
+        });
+
+        if (originalUrl == null || originalUrl.isEmpty()) {
+            finishWithResult("Error: Invalid URL", pidx);
             return;
         }
 
         setupWebView();
-        binding.webview.loadUrl(url);
+        binding.webview.loadUrl(originalUrl);
     }
 
     private void setupWebView() {
-        binding.webview.getSettings().setJavaScriptEnabled(true);
-        binding.webview.getSettings().setDomStorageEnabled(true);
+        WebSettings settings = binding.webview.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(false);
 
         binding.webview.setWebViewClient(new WebViewClient() {
             @Override
@@ -66,25 +88,90 @@ public class KhaltiWebViewActivity extends BaseActivity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String url = uri.toString();
-                
-                // Intercept the return_url we configured on the backend
+
+                // 1. Intercept Findora payment callback
                 if (url.contains("/api/payments/callback/")) {
-                    String pidx = uri.getQueryParameter("pidx");
-                    String status = uri.getQueryParameter("status");
+                    String callbackPidx = uri.getQueryParameter("pidx");
+                    String callbackStatus = uri.getQueryParameter("status");
                     
-                    finishWithResult(status, pidx);
+                    if (callbackPidx == null || callbackPidx.isEmpty()) {
+                        callbackPidx = pidx;
+                    }
+                    
+                    finishWithResult(callbackStatus != null ? callbackStatus : "Completed", callbackPidx);
                     return true;
                 }
-                
+
+                // 2. Handle eSewa custom scheme (esewa://)
+                if (url.startsWith("esewa://")) {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        startActivity(intent);
+                        return true;
+                    } catch (ActivityNotFoundException e) {
+                        // eSewa app not installed; continue with web flow if available
+                        return false;
+                    }
+                }
+
+                // 3. Handle Android Intent scheme (intent://)
+                if (url.startsWith("intent://")) {
+                    try {
+                        Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                        if (intent != null) {
+                            if (getPackageManager().resolveActivity(intent, 0) != null) {
+                                startActivity(intent);
+                                return true;
+                            }
+                            String fallbackUrl = intent.getStringExtra("browser_fallback_url");
+                            if (fallbackUrl != null) {
+                                view.loadUrl(fallbackUrl);
+                                return true;
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    return true;
+                }
+
+                // 4. Handle Market / Play Store links
+                if (url.startsWith("market://")) {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        startActivity(intent);
+                        return true;
+                    } catch (Exception ignored) {}
+                }
+
                 return false;
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame()) {
+                    binding.progressBar.setVisibility(View.GONE);
+                }
             }
         });
     }
-    
-    private void finishWithResult(String status, String pidx) {
+
+    private void showCancelConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Cancel Payment?")
+                .setMessage("Are you sure you want to cancel the payment? Your item will not be promoted.")
+                .setPositiveButton("Yes, Cancel", (dialog, which) -> finishWithResult("Canceled", pidx))
+                .setNegativeButton("Continue Payment", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    private void finishWithResult(String status, String callbackPidx) {
         Intent resultIntent = new Intent();
-        resultIntent.putExtra(EXTRA_STATUS, status != null ? status : "User canceled");
-        if (pidx != null) {
+        resultIntent.putExtra(EXTRA_STATUS, status != null ? status : "Canceled");
+        if (callbackPidx != null) {
+            resultIntent.putExtra(EXTRA_PIDX, callbackPidx);
+        } else if (pidx != null) {
             resultIntent.putExtra(EXTRA_PIDX, pidx);
         }
         setResult(Activity.RESULT_OK, resultIntent);

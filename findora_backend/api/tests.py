@@ -2610,6 +2610,320 @@ class ChatMessageDeletionTests(TestCase):
         self.assertEqual(res_unrelated.status_code, 403)
 
 
+class EsewaPromoteItemFlowTests(TestCase):
+    """
+    Comprehensive test suite for Promote Item -> eSewa Payment flow.
+    Covers initiation, signature generation, callback decoding, status verification,
+    tampering rejection, promotion activation, and featured listing ordering.
+    """
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='promo_test_owner', email='pto@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.other_user = User.objects.create_user(
+            username='promo_other_user', email='pou@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Wallet in Thamel', category='wallet', status='approved'
+        )
+
+    def test_initiate_esewa_payment_success(self):
+        """Owner initiates eSewa payment for a 24h package (Rs. 50)."""
+        from api.payment_views import InitiatePaymentView
+        from api.models import Payment
+
+        view = InitiatePaymentView.as_view()
+        req = self.factory.post('/api/payments/initiate/', {
+            'item_id': self.lost_item.id,
+            'package': '24h',
+            'provider': 'esewa'
+        })
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('payment_url', res.data)
+        self.assertIn('pidx', res.data)
+
+        # Check Payment record in DB
+        payment = Payment.objects.get(transaction_id=res.data['pidx'])
+        self.assertEqual(payment.user, self.owner)
+        self.assertEqual(payment.item, self.lost_item)
+        self.assertEqual(payment.amount, 50)
+        self.assertEqual(payment.status, 'PENDING')
+        self.assertEqual(payment.provider, 'esewa')
+        self.assertEqual(payment.promotion_duration, '24h')
+
+    def test_initiate_payment_unauthorized_user_forbidden(self):
+        """Non-owner user cannot promote an item they do not own."""
+        from api.payment_views import InitiatePaymentView
+
+        view = InitiatePaymentView.as_view()
+        req = self.factory.post('/api/payments/initiate/', {
+            'item_id': self.lost_item.id,
+            'package': '24h',
+            'provider': 'esewa'
+        })
+        force_authenticate(req, user=self.other_user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 403)
+        self.assertIn('error', res.data)
+
+    def test_initiate_payment_duplicate_active_promotion_rejected(self):
+        """Cannot initiate payment if item is already actively featured."""
+        from api.payment_views import InitiatePaymentView
+        from django.utils import timezone
+        import datetime
+
+        self.lost_item.is_featured = True
+        self.lost_item.featured_until = timezone.now() + datetime.timedelta(hours=12)
+        self.lost_item.save()
+
+        view = InitiatePaymentView.as_view()
+        req = self.factory.post('/api/payments/initiate/', {
+            'item_id': self.lost_item.id,
+            'package': '24h',
+            'provider': 'esewa'
+        })
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('already', res.data['error'].lower())
+
+    def test_esewa_verify_callback_successful_promotion_activation(self):
+        """eSewa callback with valid HMAC signature activates featured status for 24 hours."""
+        import base64
+        import hmac
+        import hashlib
+        import json
+        from django.conf import settings
+        from api.payment_views import EsewaVerifyCallbackView
+        from api.models import Payment
+
+        # Create pending payment
+        payment = Payment.objects.create(
+            user=self.owner,
+            item=self.lost_item,
+            amount=50,
+            currency='NPR',
+            provider='esewa',
+            status='PENDING',
+            promotion_duration='24h',
+            transaction_id='txn-test-12345'
+        )
+
+        secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+        
+        # Build signature for callback
+        # message: total_amount=50,transaction_uuid=txn-test-12345,product_code=EPAYTEST
+        msg = f"total_amount=50,transaction_uuid=txn-test-12345,product_code={merchant_code}"
+        sig = base64.b64encode(hmac.new(secret_key.encode('utf-8'), msg.encode('utf-8'), hashlib.sha256).digest()).decode('utf-8')
+
+        payload = {
+            "transaction_code": "000TEST",
+            "status": "COMPLETE",
+            "total_amount": 50,
+            "transaction_uuid": "txn-test-12345",
+            "product_code": merchant_code,
+            "signed_field_names": "total_amount,transaction_uuid,product_code",
+            "signature": sig
+        }
+
+        encoded_data = base64.b64encode(json.dumps(payload).encode('utf-8')).decode('utf-8')
+
+        view = EsewaVerifyCallbackView.as_view()
+        req = self.factory.get(f'/api/payments/esewa/verify-callback/?data={encoded_data}')
+        res = view(req)
+
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('status=Completed', res.url)
+        self.assertIn('pidx=txn-test-12345', res.url)
+
+        # Check payment updated to COMPLETED
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'COMPLETED')
+        self.assertIsNotNone(payment.verified_at)
+
+        # Check item promoted
+        self.lost_item.refresh_from_db()
+        self.assertTrue(self.lost_item.is_featured)
+        self.assertIsNotNone(self.lost_item.featured_until)
+
+    def test_esewa_verify_callback_invalid_signature_fails(self):
+        """Tampered signature must be rejected, payment marked FAILED, item remains non-featured."""
+        import base64
+        import json
+        from django.conf import settings
+        from api.payment_views import EsewaVerifyCallbackView
+        from api.models import Payment
+
+        payment = Payment.objects.create(
+            user=self.owner,
+            item=self.lost_item,
+            amount=50,
+            currency='NPR',
+            provider='esewa',
+            status='PENDING',
+            promotion_duration='24h',
+            transaction_id='txn-tamper-001'
+        )
+
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+        payload = {
+            "status": "COMPLETE",
+            "total_amount": 50,
+            "transaction_uuid": "txn-tamper-001",
+            "product_code": merchant_code,
+            "signed_field_names": "total_amount,transaction_uuid,product_code",
+            "signature": "FAKESIGNATURE12345="
+        }
+        encoded_data = base64.b64encode(json.dumps(payload).encode('utf-8')).decode('utf-8')
+
+        view = EsewaVerifyCallbackView.as_view()
+        req = self.factory.get(f'/api/payments/esewa/verify-callback/?data={encoded_data}')
+        res = view(req)
+
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('status=Failed', res.url)
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'FAILED')
+
+        self.lost_item.refresh_from_db()
+        self.assertFalse(self.lost_item.is_featured)
+
+    def test_esewa_verify_callback_amount_mismatch_fails(self):
+        """Amount mismatch in callback must be rejected."""
+        import base64
+        import hmac
+        import hashlib
+        import json
+        from django.conf import settings
+        from api.payment_views import EsewaVerifyCallbackView
+        from api.models import Payment
+
+        payment = Payment.objects.create(
+            user=self.owner,
+            item=self.lost_item,
+            amount=50,
+            currency='NPR',
+            provider='esewa',
+            status='PENDING',
+            promotion_duration='24h',
+            transaction_id='txn-amount-mismatch'
+        )
+
+        secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+        
+        # Sign with tampered amount of 10 instead of 50
+        msg = f"total_amount=10,transaction_uuid=txn-amount-mismatch,product_code={merchant_code}"
+        sig = base64.b64encode(hmac.new(secret_key.encode('utf-8'), msg.encode('utf-8'), hashlib.sha256).digest()).decode('utf-8')
+
+        payload = {
+            "status": "COMPLETE",
+            "total_amount": 10,
+            "transaction_uuid": "txn-amount-mismatch",
+            "product_code": merchant_code,
+            "signed_field_names": "total_amount,transaction_uuid,product_code",
+            "signature": sig
+        }
+        encoded_data = base64.b64encode(json.dumps(payload).encode('utf-8')).decode('utf-8')
+
+        view = EsewaVerifyCallbackView.as_view()
+        req = self.factory.get(f'/api/payments/esewa/verify-callback/?data={encoded_data}')
+        res = view(req)
+
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('status=Failed', res.url)
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'FAILED')
+
+        self.lost_item.refresh_from_db()
+        self.assertFalse(self.lost_item.is_featured)
+
+    def test_verify_payment_view_idempotent_success(self):
+        """VerifyPaymentView returns success idempotently when payment is already completed."""
+        from api.payment_views import VerifyPaymentView
+        from api.models import Payment
+        from django.utils import timezone
+        import datetime
+
+        payment = Payment.objects.create(
+            user=self.owner,
+            item=self.lost_item,
+            amount=50,
+            currency='NPR',
+            provider='esewa',
+            status='COMPLETED',
+            promotion_duration='24h',
+            transaction_id='txn-completed-123',
+            verified_at=timezone.now()
+        )
+        self.lost_item.is_featured = True
+        self.lost_item.featured_until = timezone.now() + datetime.timedelta(hours=24)
+        self.lost_item.save()
+
+        view = VerifyPaymentView.as_view()
+        req = self.factory.post('/api/payments/verify/', {'pidx': 'txn-completed-123'})
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+
+    def test_featured_items_appear_first_and_expired_items_drop_down(self):
+        """Featured lost items appear above non-featured items. Expired featured items drop below newer items."""
+        from api.views import ItemListCreateView
+        from django.utils import timezone
+        import datetime
+
+        # Item 1 (Older): created first with active featured promotion
+        featured_item = Item.objects.create(
+            user=self.owner, type='lost', title='Older Featured Item', category='bag',
+            status='approved', is_featured=True, featured_until=timezone.now() + datetime.timedelta(hours=20)
+        )
+
+        # Item 2 (Newer): created second, standard non-featured
+        standard_item = Item.objects.create(
+            user=self.owner, type='lost', title='Newer Standard Non-Featured Item', category='bag',
+            status='approved', is_featured=False
+        )
+
+        view = ItemListCreateView.as_view()
+        req = self.factory.get('/api/items/?type=lost')
+        force_authenticate(req, user=self.owner)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        item_ids = [it['id'] for it in res.data]
+        self.assertIn(featured_item.id, item_ids)
+        self.assertIn(standard_item.id, item_ids)
+
+        # Active featured item MUST appear before non-featured item (even though featured item is older)
+        featured_idx = item_ids.index(featured_item.id)
+        standard_idx = item_ids.index(standard_item.id)
+        self.assertLess(featured_idx, standard_idx, "Active featured items must appear above non-featured items")
+
+        # Now expire the featured item
+        featured_item.featured_until = timezone.now() - datetime.timedelta(hours=1)
+        featured_item.save()
+
+        res_expired = view(req)
+        expired_ids = [it['id'] for it in res_expired.data]
+        
+        # When expired, the newer standard item should appear before the older item
+        featured_idx_after = expired_ids.index(featured_item.id)
+        standard_idx_after = expired_ids.index(standard_item.id)
+        self.assertLess(standard_idx_after, featured_idx_after, "Expired featured items must not rank above newer standard items")
+
+
+
 
 
 

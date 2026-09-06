@@ -5,7 +5,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.urls import reverse
 
@@ -19,12 +19,13 @@ from .models import Item, Payment
 
 logger = logging.getLogger(__name__)
 
-# Prices defined on the backend (in NPR)
+# Promotion packages in NPR and their durations in hours
 PROMOTION_PACKAGES = {
     '24h': {'price': 50, 'hours': 24},
     '3d': {'price': 100, 'hours': 72},
     '7d': {'price': 200, 'hours': 168},
 }
+
 
 class InitiatePaymentView(APIView):
     """
@@ -33,7 +34,8 @@ class InitiatePaymentView(APIView):
     Body:
     {
         "item_id": 1,
-        "package": "24h"
+        "package": "24h",
+        "provider": "esewa"
     }
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -59,19 +61,19 @@ class InitiatePaymentView(APIView):
         package_info = PROMOTION_PACKAGES.get(package_key)
         if not package_info:
             return Response({'error': 'Invalid promotion package.'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         provider = request.data.get('provider', 'esewa').lower()
         if provider != 'esewa':
             return Response({'error': 'Only eSewa is supported for item promotion.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if already active featured
+        # Prevent duplicate active promotion
         now = timezone.now()
         if item.is_featured and item.featured_until and item.featured_until > now:
-            return Response({'error': 'Item is already featured.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Item is already promoted and featured.'}, status=status.HTTP_400_BAD_REQUEST)
 
         price = package_info['price']
 
-        # Create PENDING payment
+        # Create PENDING payment record
         payment = Payment.objects.create(
             user=request.user,
             item=item,
@@ -84,22 +86,21 @@ class InitiatePaymentView(APIView):
 
         if provider == 'khalti':
             return self._initiate_khalti(request, payment, price, package_key, item)
-        elif provider == 'esewa':
+        else:
             return self._initiate_esewa(request, payment, price, package_key, item)
 
     def _initiate_khalti(self, request, payment, price, package_key, item):
         secret_key = getattr(settings, 'KHALTI_SECRET_KEY', 'test_secret_key')
         khalti_url = f"{getattr(settings, 'KHALTI_API_URL', 'https://a.khalti.com/api/v2')}/epayment/initiate/"
-        # We need a return URL handled by Django
-        return_url = request.build_absolute_uri('/api/payments/callback/')
         
-        # Ensure the website_url matches the environment
-        website_url = "https://findora-application.onrender.com" if not getattr(settings, 'DEBUG', True) else "http://127.0.0.1:8000"
+        base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
+        return_url = f"{base_url}/api/payments/callback/"
+        website_url = base_url
         
         payload = {
             "return_url": return_url,
             "website_url": website_url,
-            "amount": int(price * 100),  # strictly an integer in paisa
+            "amount": int(price * 100),  # amount in paisa
             "purchase_order_id": str(payment.id),
             "purchase_order_name": item.title,
             "customer_info": {
@@ -115,14 +116,13 @@ class InitiatePaymentView(APIView):
         }
         
         try:
-            khalti_resp = requests.post(khalti_url, json=payload, headers=headers)
+            khalti_resp = requests.post(khalti_url, json=payload, headers=headers, timeout=10)
             khalti_resp.raise_for_status()
             data = khalti_resp.json()
             
             pidx = data.get('pidx')
             payment_url = data.get('payment_url')
             
-            # Save pidx to transaction_id temporarily
             payment.transaction_id = pidx
             payment.save(update_fields=['transaction_id'])
             
@@ -132,64 +132,67 @@ class InitiatePaymentView(APIView):
             }, status=status.HTTP_200_OK)
             
         except requests.exceptions.RequestException as e:
-            payment_env = getattr(settings, 'PAYMENT_ENV', 'test')
-            khalti_status = khalti_resp.status_code if 'khalti_resp' in locals() else 'Unknown'
-            khalti_body = khalti_resp.text if 'khalti_resp' in locals() else 'None'
-            key_configured = bool(getattr(settings, 'KHALTI_SECRET_KEY', None) and getattr(settings, 'KHALTI_SECRET_KEY') != 'test_secret_key')
-            
-            logger.error(
-                f"KHALTI INITIATE DIAGNOSTIC:\n"
-                f"Endpoint: {khalti_url}\n"
-                f"HTTP Status: {khalti_status}\n"
-                f"Response Body: {khalti_body}\n"
-                f"Exception: {str(e)}\n"
-                f"Package: {package_key}\n"
-                f"Amount (Paisa): {price * 100}\n"
-                f"Environment: {payment_env}\n"
-                f"KHALTI_SECRET_KEY configured: {key_configured}"
-            )
-            
+            logger.error(f"Khalti initiate failed: {e}")
             payment.status = 'FAILED'
             payment.save(update_fields=['status'])
-            
-            error_msg = "Payment service is temporarily unavailable."
-            if khalti_status == 401:
-                error_msg = "Payment configuration error (Unauthorized)."
-            elif khalti_status == 400:
-                error_msg = "Unable to start payment. Invalid request parameters."
-                
-            return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Payment service is temporarily unavailable.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _initiate_esewa(self, request, payment, price, package_key, item):
-        """Initiate eSewa ePay v2 form submission flow."""
+        """
+        Initiates eSewa payment.
+        Generates a unique transaction UUID and attempts modern Intent booking first,
+        with fallback to signed ePay v2 form if Intent is unavailable.
+        """
         try:
             # Generate unique transaction UUID
-            transaction_uuid = f"{payment.id}-{uuid.uuid4().hex[:8]}"
+            transaction_uuid = f"txn-{payment.id}-{uuid.uuid4().hex[:8]}"
             payment.transaction_id = transaction_uuid
             payment.save(update_fields=['transaction_id'])
             
-            amount = str(price)
-            tax_amount = "0"
-            total_amount = amount
+            product_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+            secret_key = getattr(settings, 'ESEWA_INTENT_SECRET_KEY', getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q'))
+            intent_book_url = getattr(settings, 'ESEWA_INTENT_BOOK_URL', 'https://rc-checkout.esewa.com.np/api/client/intent/payment/book')
             
-            # Message to sign
-            # For eSewa v2: total_amount,transaction_uuid,product_code
-            merchant_code = getattr(settings, 'ESEWA_MERCHANT_ID', 'EPAYTEST')
-            secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+            base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
+            callback_url = f"{base_url}/api/payments/esewa/verify-callback/"
+            redirect_url = f"{base_url}/api/payments/callback/?status=Completed&pidx={transaction_uuid}"
             
-            message = f"total_amount={total_amount},transaction_uuid={transaction_uuid},product_code={merchant_code}"
+            # Step 1: Attempt eSewa Intent Booking API (Mobile-first flow)
+            intent_message = f"product_code={product_code},amount={price},transaction_uuid={transaction_uuid}"
+            intent_hmac = hmac.new(secret_key.encode('utf-8'), intent_message.encode('utf-8'), hashlib.sha256)
+            intent_signature = base64.b64encode(intent_hmac.digest()).decode('utf-8')
             
-            # Create HMAC SHA256 signature
-            hmac_obj = hmac.new(
-                secret_key.encode('utf-8'),
-                message.encode('utf-8'),
-                hashlib.sha256
-            )
-            signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
+            intent_payload = {
+                "product_code": product_code,
+                "amount": price,
+                "transaction_uuid": transaction_uuid,
+                "signed_field_names": "product_code,amount,transaction_uuid",
+                "signature": intent_signature,
+                "callback_url": callback_url,
+                "redirect_url": redirect_url,
+                "properties": {
+                    "customer_id": str(request.user.id),
+                    "remarks": f"Promote Item #{item.id}: {item.title[:30]}"
+                }
+            }
             
-            # We return a URL to a new Django view that will render the auto-submitting form
+            try:
+                intent_resp = requests.post(intent_book_url, json=intent_payload, timeout=3)
+                if intent_resp.status_code == 200 or intent_resp.status_code == 201:
+                    data = intent_resp.json()
+                    res_data = data.get('data', {})
+                    deeplink = res_data.get('deeplink')
+                    if deeplink:
+                        logger.info(f"eSewa Intent booking success for {transaction_uuid}: {deeplink}")
+                        return Response({
+                            'payment_url': deeplink,
+                            'pidx': transaction_uuid,
+                        }, status=status.HTTP_200_OK)
+            except Exception as intent_err:
+                logger.warning(f"eSewa Intent book endpoint unreached ({intent_err}). Falling back to signed ePay checkout form.")
+
+            # Step 2: Fallback to signed ePay v2 checkout form endpoint
             form_url = request.build_absolute_uri(reverse('esewa-form', kwargs={'payment_id': payment.id}))
-            
             return Response({
                 'payment_url': form_url,
                 'pidx': transaction_uuid,
@@ -201,10 +204,11 @@ class InitiatePaymentView(APIView):
             payment.save(update_fields=['status'])
             return Response({'error': 'Failed to initiate payment with eSewa.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class EsewaFormView(APIView):
     """
     GET /api/payments/esewa/form/<payment_id>/
-    Renders an HTML form that auto-submits to eSewa ePay v2 endpoint.
+    Renders an HTML checkout form that auto-submits signed payload to eSewa ePay endpoint.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -212,15 +216,10 @@ class EsewaFormView(APIView):
         try:
             payment = Payment.objects.get(id=payment_id, provider='esewa', status='PENDING')
         except Payment.DoesNotExist:
-            return HttpResponse("Invalid payment session.", status=404)
-            
-        payment_env = getattr(settings, 'PAYMENT_ENV', 'test')
-        if payment_env == 'live':
-            esewa_url = "https://epay.esewa.com.np/api/epay/main/v2/form"
-        else:
-            esewa_url = "https://rc-epay.esewa.com.np/api/epay/main/v2/form"
-            
-        merchant_code = getattr(settings, 'ESEWA_MERCHANT_ID', 'EPAYTEST')
+            return HttpResponse("Invalid or expired payment session.", status=404)
+
+        esewa_url = getattr(settings, 'ESEWA_EPAY_FORM_URL', 'https://epay.esewa.com.np/api/epay/main/v2/form')
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
         secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
         
         amount = str(int(payment.amount))
@@ -230,41 +229,115 @@ class EsewaFormView(APIView):
         hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
         signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
         
-        success_url = request.build_absolute_uri(f'/api/payments/esewa/verify-callback/')
-        failure_url = request.build_absolute_uri(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+        base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
+        success_url = f"{base_url}/api/payments/esewa/verify-callback/"
+        failure_url = f"{base_url}/api/payments/callback/?status=Failed&pidx={transaction_uuid}"
         
-        html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head><title>Redirecting to eSewa...</title></head>
-        <body onload="document.forms[0].submit()">
-            <p>Redirecting to secure payment gateway...</p>
-            <form action="{esewa_url}" method="POST" style="display:none;">
-                <input type="hidden" name="amount" value="{amount}">
-                <input type="hidden" name="tax_amount" value="0">
-                <input type="hidden" name="total_amount" value="{amount}">
-                <input type="hidden" name="transaction_uuid" value="{transaction_uuid}">
-                <input type="hidden" name="product_code" value="{merchant_code}">
-                <input type="hidden" name="product_service_charge" value="0">
-                <input type="hidden" name="product_delivery_charge" value="0">
-                <input type="hidden" name="success_url" value="{success_url}">
-                <input type="hidden" name="failure_url" value="{failure_url}">
-                <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
-                <input type="hidden" name="signature" value="{signature}">
-                <input type="submit" value="Submit">
-            </form>
-        </body>
-        </html>
-        '''
+        html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to eSewa Gateway</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F8F9FD;
+            color: #1A1A2E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }}
+        .card {{
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }}
+        .logo {{
+            width: 120px;
+            margin-bottom: 20px;
+        }}
+        .spinner {{
+            width: 44px;
+            height: 44px;
+            margin: 20px auto;
+            border: 4px solid #F0F0F5;
+            border-top: 4px solid #60BB46;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        h2 {{
+            font-size: 18px;
+            font-weight: 600;
+            margin: 12px 0 6px;
+        }}
+        p {{
+            font-size: 14px;
+            color: #6C757D;
+            margin: 0 0 24px;
+        }}
+        .btn {{
+            background-color: #60BB46;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }}
+        .btn:hover {{
+            background-color: #52A33B;
+        }}
+    </style>
+</head>
+<body onload="document.getElementById('esewaForm').submit()">
+    <div class="card">
+        <div class="spinner"></div>
+        <h2>Redirecting to eSewa...</h2>
+        <p>Please wait while we transfer you to secure payment gateway.</p>
+        <form id="esewaForm" action="{esewa_url}" method="POST">
+            <input type="hidden" name="amount" value="{amount}">
+            <input type="hidden" name="tax_amount" value="0">
+            <input type="hidden" name="total_amount" value="{amount}">
+            <input type="hidden" name="transaction_uuid" value="{transaction_uuid}">
+            <input type="hidden" name="product_code" value="{merchant_code}">
+            <input type="hidden" name="product_service_charge" value="0">
+            <input type="hidden" name="product_delivery_charge" value="0">
+            <input type="hidden" name="success_url" value="{success_url}">
+            <input type="hidden" name="failure_url" value="{failure_url}">
+            <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
+            <input type="hidden" name="signature" value="{signature}">
+            <noscript>
+                <input type="submit" class="btn" value="Click here to proceed to eSewa">
+            </noscript>
+        </form>
+    </div>
+</body>
+</html>'''
         return HttpResponse(html)
 
-from django.shortcuts import redirect
 
 class EsewaVerifyCallbackView(APIView):
     """
     GET /api/payments/esewa/verify-callback/
-    eSewa redirects here after payment. We decode the base64 data, verify the signature,
-    and then redirect to the common callback URL that Android intercepts.
+    Handles the redirect from eSewa ePay upon payment completion.
+    Decodes the base64 response payload, verifies the HMAC-SHA256 signature,
+    checks amount integrity, and updates the payment & promotion state.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -287,50 +360,40 @@ class EsewaVerifyCallbackView(APIView):
             try:
                 payment = Payment.objects.get(transaction_id=transaction_uuid)
             except Payment.DoesNotExist:
+                logger.error(f"eSewa callback: Payment record not found for {transaction_uuid}")
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # Step 1: Verify Signature
+            # Step 1: Verify HMAC Signature
             secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
-            
             fields = signed_field_names.split(',')
             message_parts = []
             for field in fields:
-                # eSewa includes some fields like 'total_amount' as float in JSON but string in signature sometimes,
-                # actually, we just use the exact string representation from the JSON payload or format it properly.
-                # However, taking it directly from the dict is standard.
-                # But wait! If eSewa sends 'total_amount': 50.0 in JSON, it was signed as '50.0' or '50'?
-                # Best is to just take str() or if eSewa sends string, take it directly.
-                val = payload.get(field, '')
-                # If the value is a float ending in .0, eSewa often sent it as a string without .0 if originally sent like that,
-                # but we'll use exactly what's parsed. We can also use request.GET directly if it was form encoded, but it's base64 json.
-                # We'll use str(val) but remove .0 if it's an integer to match our "50" exactly if they passed it back differently,
-                # Actually, standard eSewa docs say to use the value from the JSON.
-                # Just use str(val). If val is float, it might format as "50.0".
-                # Let's clean it just in case:
+                field_clean = field.strip()
+                val = payload.get(field_clean, '')
                 if isinstance(val, float) and val.is_integer():
                     val = int(val)
-                message_parts.append(f"{field}={val}")
+                message_parts.append(f"{field_clean}={val}")
             
             message = ",".join(message_parts)
-            
             hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
             expected_signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
             
             if signature != expected_signature:
-                logger.error(f"eSewa signature verification failed for {transaction_uuid}. Expected {expected_signature}, got {signature}")
+                logger.error(f"eSewa signature verification mismatch for {transaction_uuid}.")
                 payment.status = 'FAILED'
                 payment.save(update_fields=['status'])
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # Step 2: Verify Status
+            # Step 2: Verify Status is COMPLETE
             if status_val != 'COMPLETE':
+                logger.warning(f"eSewa returned non-complete status '{status_val}' for {transaction_uuid}")
                 payment.status = 'FAILED'
                 payment.save(update_fields=['status'])
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
             # Step 3: Verify Amount
             try:
-                received_amount = float(total_amount.replace(',', ''))
+                received_amount = float(str(total_amount).replace(',', ''))
             except ValueError:
                 received_amount = 0.0
 
@@ -340,19 +403,21 @@ class EsewaVerifyCallbackView(APIView):
                 payment.save(update_fields=['status'])
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # If valid, activate
+            # Step 4: Activate Promotion
             if payment.status != 'COMPLETED':
                 now = timezone.now()
-                hours_to_add = PROMOTION_PACKAGES[payment.promotion_duration]['hours']
+                package_info = PROMOTION_PACKAGES.get(payment.promotion_duration, {'hours': 24})
+                hours_to_add = package_info['hours']
                 
                 payment.status = 'COMPLETED'
                 payment.verified_at = now
-                payment.save()
+                payment.save(update_fields=['status', 'verified_at'])
 
                 item = payment.item
                 item.is_featured = True
                 item.featured_until = now + timezone.timedelta(hours=hours_to_add)
                 item.save(update_fields=['is_featured', 'featured_until'])
+                logger.info(f"Promotion activated for Item #{item.id} until {item.featured_until} via eSewa callback.")
 
             return redirect(f'/api/payments/callback/?status=Completed&pidx={transaction_uuid}')
 
@@ -364,11 +429,10 @@ class EsewaVerifyCallbackView(APIView):
 class VerifyPaymentView(APIView):
     """
     POST /api/payments/verify/
-    Verify Khalti payment and activate promotion.
+    Verifies payment server-to-server with eSewa/Khalti and activates item promotion.
     Body:
     {
-        "payment_id": 1,
-        "token": "khalti_token"
+        "pidx": "txn-1-abc12345"
     }
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -377,25 +441,26 @@ class VerifyPaymentView(APIView):
         pidx = request.data.get('pidx')
 
         if not pidx:
-            # For eSewa, they return transaction_uuid in the callback? Wait, eSewa v2 callback URL receives ?data=base64_encoded_payload
             return Response({'error': 'pidx or transaction identifier is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # pidx is the transaction_id for both Khalti and eSewa in our DB
             payment = Payment.objects.get(transaction_id=pidx, user=request.user)
         except Payment.DoesNotExist:
-            return Response({'error': 'Payment record not found for this identifier.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Payment record not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if payment.status == 'COMPLETED':
-            return Response({'message': 'Payment already completed.'}, status=status.HTTP_200_OK)
+            return Response({
+                'success': True,
+                'message': 'Payment already verified and item promoted.',
+                'featured_until': payment.item.featured_until
+            }, status=status.HTTP_200_OK)
 
         if payment.status != 'PENDING':
-            return Response({'error': 'Payment is not in a pending state.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Payment is in {payment.status} state.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if payment.provider == 'khalti':
             return self._verify_khalti(request, payment, pidx)
-        elif payment.provider == 'esewa':
-            # eSewa passes ?data= in callback, but Android intercepts it and we just need to verify with eSewa API
+        else:
             return self._verify_esewa(request, payment, pidx)
 
     def _verify_khalti(self, request, payment, pidx):
@@ -403,143 +468,181 @@ class VerifyPaymentView(APIView):
         khalti_url = f"{getattr(settings, 'KHALTI_API_URL', 'https://a.khalti.com/api/v2')}/epayment/lookup/"
         
         is_verified = False
-        payload = {
-            "pidx": pidx
-        }
+        payload = {"pidx": pidx}
         headers = {
             "Authorization": f"Key {secret_key}",
             "Content-Type": "application/json"
         }
         
         try:
-            response = requests.post(khalti_url, json=payload, headers=headers)
+            response = requests.post(khalti_url, json=payload, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                
-                # Verify status is Completed
                 if data.get('status') == 'Completed':
-                    # Verify amount matches (in paisa)
                     if data.get('total_amount') == (payment.amount * 100):
                         is_verified = True
                     else:
-                        logger.error(f"Khalti lookup amount mismatch for pidx {pidx}. Expected {payment.amount * 100}, got {data.get('total_amount')}")
+                        logger.error(f"Khalti lookup amount mismatch for {pidx}: Expected {payment.amount * 100}, got {data.get('total_amount')}")
                 else:
-                    logger.warning(f"Khalti lookup returned status {data.get('status')} for pidx {pidx}")
+                    logger.warning(f"Khalti lookup status: {data.get('status')} for {pidx}")
             else:
-                logger.error(f"Khalti lookup returned status code {response.status_code}: {response.text}")
+                logger.error(f"Khalti lookup HTTP {response.status_code}: {response.text}")
         except requests.exceptions.RequestException as e:
             logger.error(f"Khalti lookup failed: {e}")
-            return Response({'error': 'Payment verification failed due to network error.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Payment verification network error.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if is_verified:
-            # Activate Feature
-            now = timezone.now()
-            hours_to_add = PROMOTION_PACKAGES[payment.promotion_duration]['hours']
-            
-            payment.status = 'COMPLETED'
-            # transaction_id is already pidx
-            payment.verified_at = now
-            payment.save()
-
-            item = payment.item
-            item.is_featured = True
-            item.featured_until = now + timezone.timedelta(hours=hours_to_add)
-            item.save(update_fields=['is_featured', 'featured_until'])
-
-            return Response({
-                'success': True,
-                'message': 'Payment verified and item promoted.',
-                'featured_until': item.featured_until
-            }, status=status.HTTP_200_OK)
+            return self._activate_promotion(payment)
         else:
             payment.status = 'FAILED'
-            payment.save()
+            payment.save(update_fields=['status'])
             return Response({'error': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
 
     def _verify_esewa(self, request, payment, transaction_uuid):
-        """Verify eSewa payment server-to-server."""
-        payment_env = getattr(settings, 'PAYMENT_ENV', 'test')
-        if payment_env == 'live':
-            esewa_url = "https://epay.esewa.com.np/api/epay/transaction/status/"
-        else:
-            esewa_url = "https://rc-epay.esewa.com.np/api/epay/transaction/status/"
-            
-        merchant_code = getattr(settings, 'ESEWA_MERCHANT_ID', 'EPAYTEST')
+        """
+        Verify eSewa payment server-to-server.
+        Queries eSewa transaction status endpoint and verifies status & amount.
+        """
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
         amount = str(int(payment.amount))
+        status_url = getattr(settings, 'ESEWA_EPAY_STATUS_URL', 'https://epay.esewa.com.np/api/epay/transaction/status/')
         
-        # eSewa v2 requires total_amount, transaction_uuid, product_code in GET query
-        # esewa_url += f"?product_code={merchant_code}&total_amount={amount}&transaction_uuid={transaction_uuid}"
-        
-        url = f"{esewa_url}?product_code={merchant_code}&total_amount={amount}&transaction_uuid={transaction_uuid}"
+        url = f"{status_url}?product_code={merchant_code}&total_amount={amount}&transaction_uuid={transaction_uuid}"
         
         is_verified = False
+        is_pending = False
+        
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=6)
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'COMPLETE':
-                    received_amount = float(str(data.get('total_amount', '0')).replace(',', ''))
+                status_resp = data.get('status', '')
+                if status_resp in ('COMPLETE', 'SUCCESS'):
+                    received_amount = float(str(data.get('total_amount', amount)).replace(',', ''))
                     if received_amount == float(payment.amount):
                         is_verified = True
                     else:
-                        logger.error(f"eSewa lookup amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
-                elif data.get('status') == 'PENDING':
-                    logger.info(f"eSewa transaction {transaction_uuid} is PENDING.")
-                    return Response({'error': 'Payment is still pending.'}, status=status.HTTP_400_BAD_REQUEST)
+                        logger.error(f"eSewa status amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
+                elif status_resp in ('PENDING', 'BOOKED'):
+                    is_pending = True
                 else:
-                    logger.warning(f"eSewa lookup returned status {data.get('status')} for {transaction_uuid}")
+                    logger.warning(f"eSewa status check returned: {status_resp} for {transaction_uuid}")
             else:
-                logger.error(f"eSewa lookup returned status code {response.status_code}: {response.text}")
+                logger.warning(f"eSewa status endpoint returned HTTP {response.status_code}: {response.text}")
         except requests.exceptions.RequestException as e:
-            logger.error(f"eSewa lookup failed: {e}")
-            return Response({'error': 'Payment verification failed due to network error.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.warning(f"eSewa status check network attempt: {e}")
 
-        if is_verified:
-            # Activate Feature
-            now = timezone.now()
-            hours_to_add = PROMOTION_PACKAGES[payment.promotion_duration]['hours']
-            
-            payment.status = 'COMPLETED'
-            payment.verified_at = now
-            payment.save()
-
-            item = payment.item
-            item.is_featured = True
-            item.featured_until = now + timezone.timedelta(hours=hours_to_add)
-            item.save(update_fields=['is_featured', 'featured_until'])
-
+        # If payment is already marked completed by verify-callback, honor it
+        payment.refresh_from_db()
+        if payment.status == 'COMPLETED':
             return Response({
                 'success': True,
                 'message': 'Payment verified and item promoted.',
-                'featured_until': item.featured_until
+                'featured_until': payment.item.featured_until
             }, status=status.HTTP_200_OK)
+
+        if is_verified:
+            return self._activate_promotion(payment)
+        elif is_pending:
+            return Response({'error': 'Payment is still pending with eSewa.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             payment.status = 'FAILED'
-            payment.save()
+            payment.save(update_fields=['status'])
             return Response({'error': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _activate_promotion(self, payment):
+        """Activates featured status on the item for the selected promotion duration."""
+        now = timezone.now()
+        package_info = PROMOTION_PACKAGES.get(payment.promotion_duration, {'hours': 24})
+        hours_to_add = package_info['hours']
+        
+        payment.status = 'COMPLETED'
+        payment.verified_at = now
+        payment.save(update_fields=['status', 'verified_at'])
+
+        item = payment.item
+        item.is_featured = True
+        item.featured_until = now + timezone.timedelta(hours=hours_to_add)
+        item.save(update_fields=['is_featured', 'featured_until'])
+        
+        logger.info(f"Item #{item.id} successfully promoted to featured until {item.featured_until}")
+
+        return Response({
+            'success': True,
+            'message': 'Payment verified and item promoted.',
+            'featured_until': item.featured_until
+        }, status=status.HTTP_200_OK)
+
 
 class PaymentCallbackView(APIView):
     """
     GET /api/payments/callback/
-    Handles the GET redirect from Khalti after payment.
-    Khalti redirects to this URL with query params: pidx, transaction_id, amount, mobile, purchase_order_id, purchase_order_name, status.
+    Universal callback landing page.
+    Rendered when redirected back from eSewa / Khalti.
+    Android WebView intercepts this URL via shouldOverrideUrlLoading.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        pidx = request.query_params.get('pidx')
-        status_param = request.query_params.get('status')
+        pidx = request.query_params.get('pidx', '')
+        status_param = request.query_params.get('status', 'Completed')
+        is_success = status_param.lower() in ('completed', 'success')
         
-        # We return a simple HTML page that confirms the status.
-        # However, the Android app's WebView should intercept this URL before it fully loads.
-        html = f"""
-        <html>
-        <head><title>Khalti Payment Callback</title></head>
-        <body>
-            <h1>Payment Status: {status_param}</h1>
-            <p>PIDX: {pidx}</p>
-            <p>Please return to the application.</p>
-        </body>
-        </html>
-        """
+        title = "Payment Successful" if is_success else "Payment Status"
+        color = "#60BB46" if is_success else "#E63946"
+        msg = "Your payment has been processed. Returning to Findora..." if is_success else f"Payment status: {status_param}"
+        
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F8F9FD;
+            color: #1A1A2E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }}
+        .card {{
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 32px;
+            max-width: 380px;
+            width: 100%;
+        }}
+        .status-icon {{
+            font-size: 48px;
+            color: {color};
+            margin-bottom: 16px;
+        }}
+        h1 {{
+            font-size: 20px;
+            margin: 0 0 12px;
+            color: {color};
+        }}
+        p {{
+            font-size: 14px;
+            color: #6C757D;
+            margin: 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="status-icon">{'✓' if is_success else 'ℹ'}</div>
+        <h1>{title}</h1>
+        <p>{msg}</p>
+    </div>
+</body>
+</html>"""
         return HttpResponse(html)
