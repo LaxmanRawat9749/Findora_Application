@@ -370,34 +370,53 @@ public class ProfileActivity extends BaseActivity {
             return;
         }
 
+        binding.tvChangeUsernameError.setVisibility(View.GONE);
+        binding.btnUpdateUsername.setEnabled(false);
+        binding.btnUpdateUsername.setText("Updating...");
+
         ChangeUsernameRequest request = new ChangeUsernameRequest(newUsername, confirmUsername);
         apiService.changeUsername(request).enqueue(new Callback<ChangeUsernameResponse>() {
             @Override
             public void onResponse(Call<ChangeUsernameResponse> call, Response<ChangeUsernameResponse> response) {
+                binding.btnUpdateUsername.setEnabled(true);
+                binding.btnUpdateUsername.setText("Update Username");
+
                 if (response.isSuccessful() && response.body() != null) {
                     Toast.makeText(ProfileActivity.this, "Username updated successfully!", Toast.LENGTH_LONG).show();
                     String updatedUsername = response.body().getUsername();
-                    if (updatedUsername != null) {
+                    if (updatedUsername != null && !updatedUsername.isEmpty()) {
                         baseSessionManager.saveUsername(updatedUsername);
                         binding.etCurrentUsername.setText(updatedUsername);
                     }
+                    if (response.body().getAccess() != null && !response.body().getAccess().isEmpty()) {
+                        baseSessionManager.saveToken(response.body().getAccess());
+                    }
+                    if (response.body().getRefresh() != null && !response.body().getRefresh().isEmpty()) {
+                        baseSessionManager.saveRefreshToken(response.body().getRefresh());
+                    }
+
                     binding.etNewUsername.setText("");
                     binding.etConfirmUsername.setText("");
                     binding.tvChangeUsernameError.setVisibility(View.GONE);
+
                     // Hide form
                     isUsernameFormVisible = false;
                     binding.layoutChangeUsernameForm.setVisibility(View.GONE);
                     binding.btnToggleChangeUsername.setText("Show");
+
                     // Refresh profile
                     loadProfile();
                 } else {
-                    showUsernameError("Failed to update username. It may already exist.");
+                    String err = extractErrorMessage(response.errorBody(), "Failed to update username. It may already exist.");
+                    showUsernameError(err);
                 }
             }
 
             @Override
             public void onFailure(Call<ChangeUsernameResponse> call, Throwable t) {
-                showUsernameError("Network error: " + t.getMessage());
+                binding.btnUpdateUsername.setEnabled(true);
+                binding.btnUpdateUsername.setText("Update Username");
+                showUsernameError("Network error: " + (t.getMessage() != null ? t.getMessage() : "Unable to reach server."));
             }
         });
     }
@@ -427,27 +446,93 @@ public class ProfileActivity extends BaseActivity {
             return;
         }
 
-        ChangePasswordRequest request = new ChangePasswordRequest(currentPass, newPass);
+        binding.tvChangePasswordError.setVisibility(View.GONE);
+        binding.btnUpdatePassword.setEnabled(false);
+        binding.btnUpdatePassword.setText("Updating...");
+
+        ChangePasswordRequest request = new ChangePasswordRequest(currentPass, newPass, confirmPass);
         apiService.changePassword(request).enqueue(new Callback<MessageResponse>() {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
+                binding.btnUpdatePassword.setEnabled(true);
+                binding.btnUpdatePassword.setText("Update Password");
+
                 if (response.isSuccessful()) {
                     Toast.makeText(ProfileActivity.this,
                             "Password updated successfully!", Toast.LENGTH_LONG).show();
+                    if (response.body() != null && response.body().access != null && !response.body().access.isEmpty()) {
+                        baseSessionManager.saveToken(response.body().access);
+                    }
+                    if (response.body() != null && response.body().refresh != null && !response.body().refresh.isEmpty()) {
+                        baseSessionManager.saveRefreshToken(response.body().refresh);
+                    }
+
                     binding.etCurrentPassword.setText("");
                     binding.etNewPassword.setText("");
                     binding.etConfirmPassword.setText("");
                     binding.tvChangePasswordError.setVisibility(View.GONE);
+
+                    // Hide form
+                    isPasswordFormVisible = false;
+                    binding.layoutChangePasswordForm.setVisibility(View.GONE);
+                    binding.btnToggleChangePassword.setText("Show");
                 } else {
-                    showPasswordError("Failed. Current password may be incorrect.");
+                    String err = extractErrorMessage(response.errorBody(), "Failed to update password. Current password may be incorrect.");
+                    showPasswordError(err);
                 }
             }
 
             @Override
             public void onFailure(Call<MessageResponse> call, Throwable t) {
-                showPasswordError("Network error: " + t.getMessage());
+                binding.btnUpdatePassword.setEnabled(true);
+                binding.btnUpdatePassword.setText("Update Password");
+                showPasswordError("Network error: " + (t.getMessage() != null ? t.getMessage() : "Unable to reach server."));
             }
         });
+    }
+
+    private String extractErrorMessage(okhttp3.ResponseBody errorBody, String fallback) {
+        if (errorBody == null) return fallback;
+        try {
+            String errorJson = errorBody.string();
+            if (errorJson == null || errorJson.trim().isEmpty()) return fallback;
+            org.json.JSONObject json = new org.json.JSONObject(errorJson);
+            if (json.has("error")) {
+                return json.getString("error");
+            }
+            if (json.has("message")) {
+                return json.getString("message");
+            }
+            if (json.has("detail")) {
+                return json.getString("detail");
+            }
+            String[] fieldKeys = {"username", "new_username", "current_password", "old_password", "new_password", "confirm_password", "non_field_errors"};
+            for (String key : fieldKeys) {
+                if (json.has(key)) {
+                    Object val = json.get(key);
+                    if (val instanceof org.json.JSONArray) {
+                        org.json.JSONArray arr = (org.json.JSONArray) val;
+                        if (arr.length() > 0) return arr.getString(0);
+                    } else if (val instanceof String) {
+                        return (String) val;
+                    }
+                }
+            }
+            java.util.Iterator<String> keys = json.keys();
+            if (keys.hasNext()) {
+                String key = keys.next();
+                Object val = json.get(key);
+                if (val instanceof org.json.JSONArray) {
+                    org.json.JSONArray arr = (org.json.JSONArray) val;
+                    if (arr.length() > 0) return arr.getString(0);
+                } else if (val instanceof String) {
+                    return (String) val;
+                }
+            }
+        } catch (Exception e) {
+            // Fallback
+        }
+        return fallback;
     }
 
     private void logout() {

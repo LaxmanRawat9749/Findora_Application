@@ -407,19 +407,63 @@ class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        old_password = request.data.get('old_password', '')
-        new_password = request.data.get('new_password', '')
-        confirm_password = request.data.get('confirm_password', '')
+        old_password = (request.data.get('current_password') or request.data.get('old_password') or '').strip()
+        new_password = (request.data.get('new_password') or '').strip()
+        confirm_password = (request.data.get('confirm_password') or '').strip()
+
+        if not old_password:
+            return Response(
+                {
+                    'error': 'Current password is required.',
+                    'current_password': ['Current password is required.'],
+                    'old_password': ['Current password is required.'],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not request.user.check_password(old_password):
             return Response(
-                {'old_password': ['Current password is incorrect.']},
+                {
+                    'error': 'Current password is incorrect.',
+                    'current_password': ['Current password is incorrect.'],
+                    'old_password': ['Current password is incorrect.'],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not new_password:
+            return Response(
+                {
+                    'error': 'New password is required.',
+                    'new_password': ['New password is required.'],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not confirm_password:
+            return Response(
+                {
+                    'error': 'Please confirm your new password.',
+                    'confirm_password': ['Please confirm your new password.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if new_password != confirm_password:
             return Response(
-                {'confirm_password': ['New passwords do not match.']},
+                {
+                    'error': 'New passwords do not match.',
+                    'confirm_password': ['New passwords do not match.'],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if request.user.check_password(new_password):
+            return Response(
+                {
+                    'error': 'New password cannot be the same as your current password.',
+                    'new_password': ['New password cannot be the same as your current password.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -427,16 +471,26 @@ class ChangePasswordView(APIView):
             from django.contrib.auth.password_validation import validate_password
             validate_password(new_password, user=request.user)
         except Exception as e:
+            msg = ' '.join(e.messages) if hasattr(e, 'messages') else str(e)
             return Response(
-                {'new_password': list(e.messages)},
+                {
+                    'error': msg,
+                    'new_password': list(e.messages) if hasattr(e, 'messages') else [str(e)],
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         request.user.set_password(new_password)
-        request.user.save()
+        request.user.save(update_fields=['password'])
+
+        refresh = RefreshToken.for_user(request.user)
 
         return Response(
-            {'message': 'Password changed successfully.'},
+            {
+                'message': 'Password changed successfully.',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -449,42 +503,65 @@ class ChangeUsernameView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        new_username = request.data.get('username', '').strip()
-        current_password = request.data.get('password', '')
+        new_username = (request.data.get('new_username') or request.data.get('username') or '').strip()
+        confirm_username = (request.data.get('confirm_username') or '').strip()
+        current_password = request.data.get('password') or request.data.get('current_password')
 
         if not new_username:
             return Response(
-                {'username': ['New username is required.']},
+                {
+                    'error': 'New username is required.',
+                    'username': ['New username is required.'],
+                    'new_username': ['New username is required.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not re.match(r'^[a-zA-Z0-9_]{3,30}$', new_username):
+        if confirm_username and new_username != confirm_username:
             return Response(
-                {'username': ['Username must be 3–30 characters and contain only letters, digits, and underscores.']},
+                {
+                    'error': 'Usernames do not match.',
+                    'confirm_username': ['Usernames do not match.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not current_password:
+        if not re.match(r'^[a-zA-Z0-9_.]{3,30}$', new_username):
             return Response(
-                {'password': ['Current password is required to change username.']},
+                {
+                    'error': 'Username must be 3–30 characters and contain only letters, digits, underscores, and periods.',
+                    'username': ['Username must be 3–30 characters and contain only letters, digits, underscores, and periods.'],
+                    'new_username': ['Username must be 3–30 characters and contain only letters, digits, underscores, and periods.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not request.user.check_password(current_password):
+        if current_password and not request.user.check_password(current_password):
             return Response(
-                {'password': ['Current password is incorrect.']},
+                {
+                    'error': 'Current password is incorrect.',
+                    'password': ['Current password is incorrect.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if new_username.lower() == request.user.username.lower():
             return Response(
-                {'username': ['New username cannot be the same as your current username.']},
+                {
+                    'error': 'New username cannot be the same as your current username.',
+                    'username': ['New username cannot be the same as your current username.'],
+                    'new_username': ['New username cannot be the same as your current username.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if User.objects.filter(username__iexact=new_username).exists():
+        if User.objects.filter(username__iexact=new_username).exclude(pk=request.user.pk).exists():
             return Response(
-                {'username': ['Username already exists.']},
+                {
+                    'error': 'Username already exists. Please choose a different one.',
+                    'username': ['Username already exists.'],
+                    'new_username': ['Username already exists.'],
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -496,6 +573,7 @@ class ChangeUsernameView(APIView):
         return Response(
             {
                 'message': 'Username changed successfully.',
+                'username': request.user.username,
                 'user': UserSerializer(request.user, context={'request': request}).data,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),

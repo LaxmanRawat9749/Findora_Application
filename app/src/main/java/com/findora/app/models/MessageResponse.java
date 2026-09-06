@@ -11,6 +11,8 @@ public class MessageResponse {
     @SerializedName("retry_after")
     public Integer retryAfter;
     public String action;
+    public String access;
+    public String refresh;
 
     public MessageResponse() {}
 }

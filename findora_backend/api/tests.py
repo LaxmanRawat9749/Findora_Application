@@ -16,7 +16,8 @@ from api.views import (
     ConfirmItemReturnView, ReputationProfileView, PointHistoryView,
     RateFinderView, RatingStatusView, MyReportsView, RegisterView,
     ConversationInitView, ChatListView, NotificationListView,
-    AdminItemListView, AdminVerifyItemView
+    AdminItemListView, AdminVerifyItemView,
+    ChangeUsernameView, ChangePasswordView, LoginView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -2979,6 +2980,234 @@ class FinderRecoveredItemsCountTests(TestCase):
         user_serializer2 = UserSerializer(self.finder)
         self.assertEqual(user_serializer2.data['successful_returns'], 2)
         self.assertEqual(user_serializer2.data['items_recovered'], 2)
+
+
+class ChangeUsernameAndPasswordTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.user = User.objects.create_user(
+            username='original_user',
+            email='user@example.com',
+            password='OldPassword123!',
+            role='finder',
+            is_verified=True
+        )
+        self.other_user = User.objects.create_user(
+            username='existing_user',
+            email='other@example.com',
+            password='OtherPassword123!',
+            role='owner',
+            is_verified=True
+        )
+
+    # ─── Change Username Tests ───────────────────────────────────────────────
+
+    def test_change_username_success(self):
+        """Authenticated user can successfully change username with valid input."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'new_username': 'updated_username',
+            'confirm_username': 'updated_username'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+        self.assertEqual(res.data['username'], 'updated_username')
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, 'updated_username')
+        self.assertEqual(self.user.email, 'user@example.com')
+        self.assertEqual(self.user.role, 'finder')
+
+    def test_change_username_with_username_field(self):
+        """Supports payload with 'username' field matching backend flexibility."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'username': 'flexible_username'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['username'], 'flexible_username')
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, 'flexible_username')
+
+    def test_change_username_duplicate_rejected(self):
+        """Attempting to change username to an existing user's username is rejected."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'new_username': 'existing_user',
+            'confirm_username': 'existing_user'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('already exists', res.data['error'])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, 'original_user')
+
+    def test_change_username_same_as_current_rejected(self):
+        """Attempting to change username to the current username is rejected."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'new_username': 'original_user',
+            'confirm_username': 'original_user'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('cannot be the same', res.data['error'])
+
+    def test_change_username_invalid_format_rejected(self):
+        """Invalid username characters or length are rejected."""
+        view = ChangeUsernameView.as_view()
+
+        # Too short (< 3 chars)
+        req_short = self.factory.post('/api/change-username/', {'new_username': 'ab'})
+        force_authenticate(req_short, user=self.user)
+        res_short = view(req_short)
+        self.assertEqual(res_short.status_code, 400)
+
+        # Invalid characters (e.g. spaces, symbols)
+        req_invalid = self.factory.post('/api/change-username/', {'new_username': 'bad username!'})
+        force_authenticate(req_invalid, user=self.user)
+        res_invalid = view(req_invalid)
+        self.assertEqual(res_invalid.status_code, 400)
+
+    def test_change_username_mismatch_confirmation_rejected(self):
+        """When confirm_username does not match new_username, request is rejected."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'new_username': 'new_valid_name',
+            'confirm_username': 'different_name'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('match', res.data['error'])
+
+    def test_change_username_unauthenticated_rejected(self):
+        """Unauthenticated request to change-username is rejected (401)."""
+        view = ChangeUsernameView.as_view()
+        req = self.factory.post('/api/change-username/', {
+            'new_username': 'unauth_user'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 401)
+
+    # ─── Change Password Tests ───────────────────────────────────────────────
+
+    def test_change_password_success(self):
+        """Authenticated user can change password with correct current password."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'OldPassword123!',
+            'new_password': 'NewSecurePassword456!',
+            'confirm_password': 'NewSecurePassword456!'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+        self.assertEqual(res.data['message'], 'Password changed successfully.')
+
+        # Verify new password works with check_password and login
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewSecurePassword456!'))
+        self.assertFalse(self.user.check_password('OldPassword123!'))
+
+        # Test login with new password
+        login_view = LoginView.as_view()
+        req_login_new = self.factory.post('/api/login/', {
+            'username': 'original_user',
+            'password': 'NewSecurePassword456!'
+        })
+        res_login_new = login_view(req_login_new)
+        self.assertEqual(res_login_new.status_code, 200)
+
+        # Test login with old password fails
+        req_login_old = self.factory.post('/api/login/', {
+            'username': 'original_user',
+            'password': 'OldPassword123!'
+        })
+        res_login_old = login_view(req_login_old)
+        self.assertEqual(res_login_old.status_code, 401)
+
+    def test_change_password_incorrect_current_password_rejected(self):
+        """Attempting to change password with incorrect current password is rejected."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'WrongPassword999!',
+            'new_password': 'NewSecurePassword456!',
+            'confirm_password': 'NewSecurePassword456!'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('Current password is incorrect', res.data['error'])
+
+    def test_change_password_mismatch_rejected(self):
+        """Mismatched new password and confirmation is rejected."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'OldPassword123!',
+            'new_password': 'NewSecurePassword456!',
+            'confirm_password': 'DifferentPassword456!'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('do not match', res.data['error'])
+
+    def test_change_password_same_as_old_rejected(self):
+        """New password identical to current password is rejected."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'OldPassword123!',
+            'new_password': 'OldPassword123!',
+            'confirm_password': 'OldPassword123!'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('cannot be the same', res.data['error'])
+
+    def test_change_password_weak_password_rejected(self):
+        """Weak password (e.g. too short) is rejected by Django validator."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'OldPassword123!',
+            'new_password': '123',
+            'confirm_password': '123'
+        })
+        force_authenticate(req, user=self.user)
+        res = view(req)
+
+        self.assertEqual(res.status_code, 400)
+
+    def test_change_password_unauthenticated_rejected(self):
+        """Unauthenticated request to change-password is rejected (401)."""
+        view = ChangePasswordView.as_view()
+        req = self.factory.post('/api/change-password/', {
+            'current_password': 'OldPassword123!',
+            'new_password': 'NewSecurePassword456!',
+            'confirm_password': 'NewSecurePassword456!'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 401)
+
 
 
 
