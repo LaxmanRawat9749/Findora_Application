@@ -1066,19 +1066,17 @@ class MyReportsView(APIView):
                     Q(user=request.user) | Q(type='found', parent_item__user=request.user, status='approved')
                 )
         elif request.user.role == 'finder':
-            if filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns'] or status_param == 'resolved':
-                queryset = Item.objects.filter(
-                    Q(user=request.user, type='found', status='resolved') |
-                    Q(point_transactions__user=request.user, point_transactions__transaction_type='SUCCESSFUL_RETURN', status='resolved')
-                )
-            elif filter_param == 'found':
-                queryset = Item.objects.filter(user=request.user, type='found')
+            queryset = Item.objects.filter(user=request.user)
+            if filter_param == 'found':
+                queryset = queryset.filter(type='found')
+            elif filter_param in ['recovered', 'resolved', 'items_recovered', 'successful_returns', 'successful-returns']:
+                queryset = queryset.filter(type='found', status='resolved')
             elif filter_param == 'lost':
-                queryset = Item.objects.filter(user=request.user, type='lost')
+                queryset = queryset.filter(type='lost')
+            elif status_param == 'resolved':
+                queryset = queryset.filter(type='found', status='resolved')
             elif status_param == 'active':
-                queryset = Item.objects.filter(user=request.user, type='found').exclude(status='resolved')
-            else:
-                queryset = Item.objects.filter(user=request.user)
+                queryset = queryset.filter(type='found').exclude(status='resolved')
         else:
             queryset = Item.objects.filter(user=request.user)
             if filter_param == 'found':

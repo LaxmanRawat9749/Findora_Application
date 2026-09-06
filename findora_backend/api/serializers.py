@@ -9,7 +9,6 @@ read-only / write-only fields appropriately.
 import re
 
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Q
 from rest_framework import serializers
 
 from .models import (
@@ -25,23 +24,6 @@ from .models import (
     User,
     UserBadge,
 )
-
-
-def get_finder_recovered_items_count(user):
-    """
-    Returns the count of unique items successfully recovered and returned by the finder.
-    Counts items with status='resolved' where:
-      - The item was reported by the user as 'found' and resolved, OR
-      - A successful return point transaction exists for this user and the item is resolved.
-    Excludes pending, active, cancelled, or rejected items.
-    Prevents duplicate counting if multiple confirmations or notifications exist.
-    """
-    if not user or getattr(user, 'role', '') != 'finder':
-        return 0
-    return Item.objects.filter(
-        Q(user=user, type='found', status='resolved') |
-        Q(point_transactions__user=user, point_transactions__transaction_type='SUCCESSFUL_RETURN', status='resolved')
-    ).distinct().count()
 
 
 # ─── User Serializers ─────────────────────────────────────────────────────────
@@ -97,7 +79,9 @@ class UserSerializer(serializers.ModelSerializer):
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
-        return get_finder_recovered_items_count(obj)
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
@@ -127,7 +111,7 @@ class UserSerializer(serializers.ModelSerializer):
         return self.get_found_reports(obj)
 
     def get_items_recovered(self, obj):
-        return get_finder_recovered_items_count(obj)
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_recovered_items_count(self, obj):
         return self.get_items_recovered(obj)
@@ -199,7 +183,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return self.get_found_reports(obj)
         
     def get_recovered_items(self, obj):
-        return get_finder_recovered_items_count(obj)
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_items_recovered(self, obj):
         return self.get_recovered_items(obj)
@@ -214,7 +198,9 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
-        return get_finder_recovered_items_count(obj)
+        if getattr(obj, 'role', '') != 'finder':
+            return 0
+        return Item.objects.filter(user=obj, type='found', status='resolved').distinct().count()
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
@@ -850,7 +836,7 @@ class FinderReputationSerializer(serializers.ModelSerializer):
         return obj.is_trusted_finder
 
     def get_successful_returns(self, obj):
-        return get_finder_recovered_items_count(obj.user)
+        return obj.successful_returns
 
     def get_successful_returns_count(self, obj):
         return self.get_successful_returns(obj)
@@ -868,7 +854,7 @@ class FinderReputationSerializer(serializers.ModelSerializer):
         return self.get_found_reports(obj)
 
     def get_items_recovered(self, obj):
-        return get_finder_recovered_items_count(obj.user)
+        return Item.objects.filter(user=obj.user, type='found', status='resolved').distinct().count()
 
     def get_recovered_items_count(self, obj):
         return self.get_items_recovered(obj)

@@ -178,13 +178,7 @@ def check_and_award_badges(user, rep=None):
     if rep is None:
         rep = get_or_create_reputation(user)
 
-    returns_count = max(
-        rep.successful_returns if rep else 0,
-        Item.objects.filter(
-            Q(user=user, type='found', status='resolved') |
-            Q(point_transactions__user=user, point_transactions__transaction_type=TX_SUCCESSFUL_RETURN, status='resolved')
-        ).distinct().count()
-    )
+    returns_count = rep.successful_returns
     newly_awarded = []
 
     for badge in BADGES:
@@ -331,13 +325,7 @@ def get_badge_progress_list(user):
     earned_badge_keys = set(
         UserBadge.objects.filter(user=user).values_list('badge_key', flat=True)
     )
-    resolved_returns = max(
-        rep.successful_returns,
-        Item.objects.filter(
-            Q(user=user, type='found', status='resolved') |
-            Q(point_transactions__user=user, point_transactions__transaction_type=TX_SUCCESSFUL_RETURN, status='resolved')
-        ).distinct().count()
-    )
+    resolved_returns = Item.objects.filter(user=user, type='found', status='resolved').distinct().count()
 
     badges_data = []
     for b in BADGES:
