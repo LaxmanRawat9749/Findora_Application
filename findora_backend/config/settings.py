@@ -240,8 +240,8 @@ if ESEWA_ENV == 'live':
     ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', ''))
     ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '')
     ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', os.environ.get('ESEWA_SECRET_KEY', ''))
-    ESEWA_EPAY_FORM_URL = "https://epay.esewa.com.np/api/epay/main/v2/form"
-    ESEWA_EPAY_STATUS_URL = "https://epay.esewa.com.np/api/epay/transaction/status/"
+    ESEWA_EPAY_FORM_URL = os.environ.get('ESEWA_EPAY_FORM_URL', 'https://epay.esewa.com.np/api/epay/main/v2/form')
+    ESEWA_EPAY_STATUS_URL = os.environ.get('ESEWA_EPAY_STATUS_URL', 'https://epay.esewa.com.np/api/epay/transaction/status/')
     ESEWA_INTENT_BOOK_URL = "https://checkout.esewa.com.np/api/client/intent/payment/book"
     ESEWA_INTENT_STATUS_URL = "https://checkout.esewa.com.np/api/client/intent/payment/status"
 else:
@@ -249,8 +249,8 @@ else:
     ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', 'EPAYTEST'))
     ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
     ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', '8gBm/:&EnhH.1/q')
-    ESEWA_EPAY_FORM_URL = "https://epay.esewa.com.np/api/epay/main/v2/form"
-    ESEWA_EPAY_STATUS_URL = "https://rc.esewa.com.np/api/epay/transaction/status/"
+    ESEWA_EPAY_FORM_URL = os.environ.get('ESEWA_EPAY_FORM_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
+    ESEWA_EPAY_STATUS_URL = os.environ.get('ESEWA_EPAY_STATUS_URL', 'https://rc.esewa.com.np/api/epay/transaction/status/')
     ESEWA_INTENT_BOOK_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/book"
     ESEWA_INTENT_STATUS_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/status"
 

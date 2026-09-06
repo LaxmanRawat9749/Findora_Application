@@ -66,16 +66,26 @@ public class KhaltiWebViewActivity extends BaseActivity {
         WebSettings settings = binding.webview.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccess(true);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
 
         binding.webview.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 binding.progressBar.setVisibility(View.VISIBLE);
+
+                // Check in onPageStarted as well to intercept redirects immediately
+                if (url != null && url.contains("/api/payments/callback/")) {
+                    handleCallbackUrl(url);
+                }
             }
 
             @Override
@@ -91,14 +101,7 @@ public class KhaltiWebViewActivity extends BaseActivity {
 
                 // 1. Intercept Findora payment callback
                 if (url.contains("/api/payments/callback/")) {
-                    String callbackPidx = uri.getQueryParameter("pidx");
-                    String callbackStatus = uri.getQueryParameter("status");
-                    
-                    if (callbackPidx == null || callbackPidx.isEmpty()) {
-                        callbackPidx = pidx;
-                    }
-                    
-                    finishWithResult(callbackStatus != null ? callbackStatus : "Completed", callbackPidx);
+                    handleCallbackUrl(url);
                     return true;
                 }
 
@@ -109,7 +112,6 @@ public class KhaltiWebViewActivity extends BaseActivity {
                         startActivity(intent);
                         return true;
                     } catch (ActivityNotFoundException e) {
-                        // eSewa app not installed; continue with web flow if available
                         return false;
                     }
                 }
@@ -155,6 +157,23 @@ public class KhaltiWebViewActivity extends BaseActivity {
                 }
             }
         });
+    }
+
+    private void handleCallbackUrl(String url) {
+        try {
+            Uri uri = Uri.parse(url);
+            String callbackPidx = uri.getQueryParameter("pidx");
+            String callbackStatus = uri.getQueryParameter("status");
+
+            if (callbackPidx == null || callbackPidx.isEmpty()) {
+                callbackPidx = pidx;
+            }
+
+            String finalStatus = (callbackStatus != null && !callbackStatus.isEmpty()) ? callbackStatus : "Completed";
+            finishWithResult(finalStatus, callbackPidx);
+        } catch (Exception e) {
+            finishWithResult("Completed", pidx);
+        }
     }
 
     private void showCancelConfirmationDialog() {

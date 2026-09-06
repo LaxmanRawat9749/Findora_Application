@@ -139,9 +139,9 @@ class InitiatePaymentView(APIView):
 
     def _initiate_esewa(self, request, payment, price, package_key, item):
         """
-        Initiates official eSewa Intent payment flow.
-        Generates unique transaction UUID, HMAC-SHA256 signature, and books the
-        payment with eSewa Intent Book API to obtain a mobile deeplink.
+        Initiates eSewa ePay v2 form payment flow.
+        Generates unique transaction UUID, HMAC-SHA256 signature, and returns
+        the form URL to be loaded in the in-app payment WebView.
         """
         try:
             # Generate unique transaction UUID
@@ -149,71 +149,25 @@ class InitiatePaymentView(APIView):
             payment.transaction_id = transaction_uuid
             payment.save(update_fields=['transaction_id'])
             
-            product_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
-            secret_key = getattr(settings, 'ESEWA_INTENT_SECRET_KEY', getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q'))
-            intent_book_url = getattr(settings, 'ESEWA_INTENT_BOOK_URL', 'https://rc-checkout.esewa.com.np/api/client/intent/payment/book')
+            amount = str(int(price))
+            merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+            secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
             
+            # eSewa v2 signature string: total_amount,transaction_uuid,product_code
+            message = f"total_amount={amount},transaction_uuid={transaction_uuid},product_code={merchant_code}"
+            hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
+            signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
+            
+            # Form URL rendered by Django for the in-app WebView
             base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
-            callback_url = f"{base_url}/api/payments/esewa/callback/"
-            redirect_url = f"{base_url}/api/payments/callback/?status=Completed&pidx={transaction_uuid}"
-            
-            # Generate HMAC-SHA256 signature for eSewa Intent
-            # Signed format: product_code={product_code},amount={amount},transaction_uuid={transaction_uuid}
-            intent_message = f"product_code={product_code},amount={price},transaction_uuid={transaction_uuid}"
-            intent_hmac = hmac.new(secret_key.encode('utf-8'), intent_message.encode('utf-8'), hashlib.sha256)
-            intent_signature = base64.b64encode(intent_hmac.digest()).decode('utf-8')
-            
-            intent_payload = {
-                "product_code": product_code,
-                "amount": float(price),
-                "transaction_uuid": transaction_uuid,
-                "signed_field_names": "product_code,amount,transaction_uuid",
-                "signature": intent_signature,
-                "callback_url": callback_url,
-                "redirect_url": redirect_url,
-                "properties": {
-                    "customer_id": str(request.user.id),
-                    "remarks": f"Promote Item #{item.id}: {item.title[:30]}"
-                }
-            }
-            
-            deeplink = None
-            booking_id = None
-            correlation_id = None
-            
             try:
-                intent_resp = requests.post(
-                    intent_book_url,
-                    json=intent_payload,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=5
-                )
-                if intent_resp.status_code in (200, 201):
-                    data = intent_resp.json()
-                    res_data = data.get('data', {})
-                    deeplink = res_data.get('deeplink')
-                    booking_id = res_data.get('booking_id')
-                    correlation_id = res_data.get('correlation_id')
-                    if deeplink:
-                        logger.info(f"eSewa Intent booked successfully for {transaction_uuid}: {deeplink}")
-                else:
-                    logger.warning(f"eSewa Intent book returned HTTP {intent_resp.status_code}: {intent_resp.text}")
-            except Exception as intent_err:
-                logger.warning(f"eSewa Intent book endpoint unreached ({intent_err}). Using direct mobile intent checkout link.")
+                form_url = request.build_absolute_uri(reverse('esewa-form', kwargs={'payment_id': payment.id}))
+            except Exception:
+                form_url = f"{base_url}/api/payments/esewa/form/{payment.id}/"
             
-            # If deeplink was not returned by API (e.g. sandbox endpoint unavailable / offline test),
-            # construct the standard mobile Intent checkout link
-            if not deeplink:
-                if getattr(settings, 'ESEWA_ENV', 'test') == 'live':
-                    deeplink = f"https://checkout.esewa.com.np/pay/{transaction_uuid}"
-                else:
-                    deeplink = f"https://rc-links.esewa.com.np/pay/{transaction_uuid}"
-
             return Response({
-                'payment_url': deeplink,
+                'payment_url': form_url,
                 'pidx': transaction_uuid,
-                'booking_id': booking_id,
-                'correlation_id': correlation_id,
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -226,7 +180,8 @@ class InitiatePaymentView(APIView):
 class EsewaFormView(APIView):
     """
     GET /api/payments/esewa/form/<payment_id>/
-    Legacy helper kept for backward compatibility.
+    Renders an HTML form that auto-submits to the configured eSewa ePay v2 endpoint.
+    Loaded inside Findora's in-app payment WebView (KhaltiWebViewActivity).
     """
     permission_classes = [permissions.AllowAny]
 
@@ -236,9 +191,114 @@ class EsewaFormView(APIView):
         except Payment.DoesNotExist:
             return HttpResponse("Invalid or expired payment session.", status=404)
 
+        esewa_form_url = getattr(settings, 'ESEWA_EPAY_FORM_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
+        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
+        secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+        
+        amount = str(int(payment.amount))
+        transaction_uuid = payment.transaction_id
+        
+        message = f"total_amount={amount},transaction_uuid={transaction_uuid},product_code={merchant_code}"
+        hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
+        signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
+        
         base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
-        redirect_url = f"{base_url}/api/payments/callback/?status=Completed&pidx={payment.transaction_id}"
-        return redirect(redirect_url)
+        try:
+            success_url = request.build_absolute_uri(reverse('esewa-verify-callback'))
+        except Exception:
+            success_url = f"{base_url}/api/payments/esewa/verify-callback/"
+            
+        failure_url = f"{base_url}/api/payments/callback/?status=Failed&pidx={transaction_uuid}"
+        
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to eSewa...</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F8F9FD;
+            color: #1A1A2E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }}
+        .card {{
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 32px;
+            max-width: 380px;
+            width: 100%;
+        }}
+        .spinner {{
+            border: 4px solid #E9ECEF;
+            border-top: 4px solid #60BB46;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        h2 {{
+            font-size: 18px;
+            margin: 0 0 8px;
+            color: #1A1A2E;
+        }}
+        p {{
+            font-size: 14px;
+            color: #6C757D;
+            margin: 0 0 20px;
+        }}
+        .btn {{
+            background-color: #60BB46;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            cursor: pointer;
+        }}
+    </style>
+</head>
+<body onload="document.getElementById('esewaForm').submit();">
+    <div class="card">
+        <div class="spinner"></div>
+        <h2>Redirecting to eSewa</h2>
+        <p>Connecting securely to eSewa payment gateway...</p>
+        <form id="esewaForm" action="{esewa_form_url}" method="POST">
+            <input type="hidden" name="amount" value="{amount}">
+            <input type="hidden" name="tax_amount" value="0">
+            <input type="hidden" name="total_amount" value="{amount}">
+            <input type="hidden" name="transaction_uuid" value="{transaction_uuid}">
+            <input type="hidden" name="product_code" value="{merchant_code}">
+            <input type="hidden" name="product_service_charge" value="0">
+            <input type="hidden" name="product_delivery_charge" value="0">
+            <input type="hidden" name="success_url" value="{success_url}">
+            <input type="hidden" name="failure_url" value="{failure_url}">
+            <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
+            <input type="hidden" name="signature" value="{signature}">
+            <noscript>
+                <input type="submit" value="Continue to eSewa" class="btn">
+            </noscript>
+        </form>
+    </div>
+</body>
+</html>"""
+        return HttpResponse(html)
 
 
 class EsewaVerifyCallbackView(APIView):

@@ -121,6 +121,8 @@ public class PromoteItemActivity extends BaseActivity {
         }
     }
 
+    private static final int REQUEST_CODE_PAYMENT = 1001;
+
     private void initiatePayment() {
         isPaymentInProgress = true;
         showLoading("Preparing payment...");
@@ -137,8 +139,8 @@ public class PromoteItemActivity extends BaseActivity {
 
                     if (paymentUrl != null && !paymentUrl.isEmpty()) {
                         activeTransactionUuid = pidx;
-                        setLoadingText("Redirecting to eSewa...");
-                        openEsewaPayment(paymentUrl);
+                        setLoadingText("Opening eSewa payment...");
+                        launchPaymentWebView(paymentUrl, pidx);
                     } else {
                         isPaymentInProgress = false;
                         hideLoading();
@@ -167,41 +169,44 @@ public class PromoteItemActivity extends BaseActivity {
         });
     }
 
-    private void openEsewaPayment(String paymentUrl) {
-        try {
-            Uri uri = Uri.parse(paymentUrl);
-            isWaitingForPaymentReturn = true;
+    private void launchPaymentWebView(String paymentUrl, String pidx) {
+        hideLoading();
+        Intent intent = new Intent(this, KhaltiWebViewActivity.class);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_URL, paymentUrl);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_PIDX, pidx);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_TITLE, "eSewa Checkout");
+        startActivityForResult(intent, REQUEST_CODE_PAYMENT);
+    }
 
-            // Prefer opening native eSewa application if installed
-            Intent esewaAppIntent = new Intent(Intent.ACTION_VIEW, uri);
-            esewaAppIntent.setPackage("com.f1soft.esewa");
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-            if (esewaAppIntent.resolveActivity(getPackageManager()) != null) {
-                startActivity(esewaAppIntent);
+        if (requestCode == REQUEST_CODE_PAYMENT) {
+            isPaymentInProgress = false;
+            if (resultCode == RESULT_OK && data != null) {
+                String status = data.getStringExtra(KhaltiWebViewActivity.EXTRA_STATUS);
+                String pidx = data.getStringExtra(KhaltiWebViewActivity.EXTRA_PIDX);
+
+                if ("Completed".equalsIgnoreCase(status) && pidx != null && !pidx.isEmpty()) {
+                    showLoading("Payment processing... Checking payment status...");
+                    verifyPayment(pidx);
+                } else if ("Canceled".equalsIgnoreCase(status) || "User canceled".equalsIgnoreCase(status)) {
+                    hideLoading();
+                    binding.btnPay.setEnabled(true);
+                    showStatusMessage("Payment canceled.", false);
+                } else {
+                    hideLoading();
+                    binding.btnPay.setEnabled(true);
+                    String msg = (status != null && !status.isEmpty()) ? "Payment " + status : "Payment failed. Please try again.";
+                    showStatusMessage(msg, true);
+                    Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                }
             } else {
-                // Fallback to default browser / system intent handler
-                Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
-                startActivity(browserIntent);
-            }
-        } catch (ActivityNotFoundException e) {
-            // If neither eSewa nor browser handled the scheme directly, open browser with standard scheme
-            try {
-                Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl));
-                startActivity(fallback);
-            } catch (Exception ex) {
-                isWaitingForPaymentReturn = false;
-                isPaymentInProgress = false;
                 hideLoading();
                 binding.btnPay.setEnabled(true);
-                showStatusMessage("No browser or eSewa app found to complete payment.", true);
-                Toast.makeText(this, "No browser or eSewa app found.", Toast.LENGTH_SHORT).show();
+                showStatusMessage("Payment canceled.", false);
             }
-        } catch (Exception e) {
-            isWaitingForPaymentReturn = false;
-            isPaymentInProgress = false;
-            hideLoading();
-            binding.btnPay.setEnabled(true);
-            showStatusMessage("Failed to open payment gateway: " + e.getMessage(), true);
         }
     }
 
