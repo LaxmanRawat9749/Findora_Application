@@ -46,8 +46,13 @@ logger = logging.getLogger(__name__)
 def get_or_create_reputation(user):
     """
     Get or create FinderReputation for a user with accurate default fields.
+    Synchronizes successful_returns with the canonical unique recovered-items count.
     """
     rep, _ = FinderReputation.objects.get_or_create(user=user)
+    actual_returns = get_unique_recovered_items_count(user)
+    if rep.successful_returns != actual_returns:
+        rep.successful_returns = actual_returns
+        rep.save(update_fields=['successful_returns', 'updated_at'])
     return rep
 
 
@@ -234,7 +239,8 @@ def check_and_award_badges(user, rep=None):
     if rep is None:
         rep = get_or_create_reputation(user)
 
-    returns_count = max(rep.successful_returns, get_unique_recovered_items_count(user))
+    actual = get_unique_recovered_items_count(user)
+    returns_count = actual if actual > 0 else (rep.successful_returns if rep else 0)
     newly_awarded = []
 
     for badge in BADGES:

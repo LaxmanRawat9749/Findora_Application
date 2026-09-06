@@ -220,6 +220,11 @@ public class ProfileActivity extends BaseActivity {
 
             binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
             binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
+            binding.tvReturnsScore.setText(String.valueOf(user.getSuccessfulReturns()));
+            binding.tvPointsScore.setText(user.getTotalPoints() + " Pts");
+            if (user.getReputationDisplay() != null && !user.getReputationDisplay().isEmpty()) {
+                binding.tvReputationScore.setText(user.getReputationDisplay());
+            }
 
             if (user.isTrustedFinder()) {
                 binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
