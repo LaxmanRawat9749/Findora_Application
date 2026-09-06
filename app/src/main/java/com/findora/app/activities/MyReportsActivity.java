@@ -44,7 +44,7 @@ public class MyReportsActivity extends BaseActivity {
             binding.toolbar.setTitle("My Found Reports");
         } else if ("resolved".equalsIgnoreCase(filterType) || "recovered".equalsIgnoreCase(filterType)
                 || "successful_returns".equalsIgnoreCase(filterType) || "items_recovered".equalsIgnoreCase(filterType)) {
-            binding.toolbar.setTitle("Recovered Items");
+            binding.toolbar.setTitle("Successful Returns");
         } else {
             binding.toolbar.setTitle("My Reports");
         }
