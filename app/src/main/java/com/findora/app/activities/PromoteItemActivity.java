@@ -1,14 +1,11 @@
 package com.findora.app.activities;
 
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import android.widget.Toast;
-
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 
 import com.findora.app.R;
 import com.findora.app.databinding.ActivityPromoteItemBinding;
@@ -31,7 +28,9 @@ public class PromoteItemActivity extends BaseActivity {
     private String selectedPackage = "24h";
     private String selectedProvider = "esewa";
 
-    private ActivityResultLauncher<Intent> paymentLauncher;
+    private boolean isPaymentInProgress = false;
+    private boolean isWaitingForPaymentReturn = false;
+    private String activeTransactionUuid = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,36 +70,10 @@ public class PromoteItemActivity extends BaseActivity {
             }
         });
 
-        // Register modern ActivityResultLauncher
-        paymentLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    hideLoading();
-                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                        String status = result.getData().getStringExtra(KhaltiWebViewActivity.EXTRA_STATUS);
-                        String pidx = result.getData().getStringExtra(KhaltiWebViewActivity.EXTRA_PIDX);
-
-                        if (status != null && (status.equalsIgnoreCase("Completed") || status.equalsIgnoreCase("Success") || status.equalsIgnoreCase("SUCCESS"))) {
-                            if (pidx != null && !pidx.isEmpty()) {
-                                showLoading("Payment processing... Checking payment status...");
-                                verifyPayment(pidx);
-                            } else {
-                                showStatusMessage("Payment completed, missing transaction reference.", true);
-                            }
-                        } else if (status != null && (status.equalsIgnoreCase("Canceled") || status.equalsIgnoreCase("User canceled"))) {
-                            showStatusMessage("Payment canceled.", false);
-                            Toast.makeText(this, "Payment canceled.", Toast.LENGTH_SHORT).show();
-                        } else {
-                            showStatusMessage("Payment failed: " + (status != null ? status : "Unknown error"), true);
-                            Toast.makeText(this, "Payment failed.", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        showStatusMessage("Payment canceled.", false);
-                    }
-                }
-        );
-
         binding.btnPay.setOnClickListener(v -> {
+            if (isPaymentInProgress) {
+                return;
+            }
             if (selectedPackage.isEmpty()) {
                 Toast.makeText(this, "Please select a promotion package", Toast.LENGTH_SHORT).show();
                 return;
@@ -110,9 +83,46 @@ public class PromoteItemActivity extends BaseActivity {
             }
             initiatePayment();
         });
+
+        // Handle deep link if activity started via intent
+        handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLinkIntent(intent);
+    }
+
+    private void handleDeepLinkIntent(Intent intent) {
+        if (intent != null && intent.getData() != null) {
+            Uri data = intent.getData();
+            String pidx = data.getQueryParameter("pidx");
+            String status = data.getQueryParameter("status");
+
+            if (pidx != null && !pidx.isEmpty()) {
+                activeTransactionUuid = pidx;
+                isWaitingForPaymentReturn = false;
+                showLoading("Payment processing... Checking payment status...");
+                verifyPayment(pidx);
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // If user returns from eSewa / browser, check payment status
+        if (isWaitingForPaymentReturn && activeTransactionUuid != null) {
+            isWaitingForPaymentReturn = false;
+            showLoading("Payment processing... Checking payment status...");
+            verifyPayment(activeTransactionUuid);
+        }
     }
 
     private void initiatePayment() {
+        isPaymentInProgress = true;
         showLoading("Preparing payment...");
         binding.btnPay.setEnabled(false);
         binding.tvStatusMessage.setVisibility(View.GONE);
@@ -126,16 +136,17 @@ public class PromoteItemActivity extends BaseActivity {
                     String pidx = response.body().getPidx();
 
                     if (paymentUrl != null && !paymentUrl.isEmpty()) {
+                        activeTransactionUuid = pidx;
                         setLoadingText("Redirecting to eSewa...");
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            launchPaymentGateway(paymentUrl, pidx);
-                        }, 300);
+                        openEsewaPayment(paymentUrl);
                     } else {
+                        isPaymentInProgress = false;
                         hideLoading();
                         binding.btnPay.setEnabled(true);
                         showStatusMessage("Failed to obtain secure payment link. Please try again.", true);
                     }
                 } else {
+                    isPaymentInProgress = false;
                     hideLoading();
                     binding.btnPay.setEnabled(true);
                     String errorMsg = extractErrorMessage(response, "Unable to start payment. Please try again.");
@@ -146,6 +157,7 @@ public class PromoteItemActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<PaymentResponse.Initiate> call, Throwable t) {
+                isPaymentInProgress = false;
                 hideLoading();
                 binding.btnPay.setEnabled(true);
                 String errorMsg = "Unable to connect to payment server. Please check your internet connection.";
@@ -155,12 +167,42 @@ public class PromoteItemActivity extends BaseActivity {
         });
     }
 
-    private void launchPaymentGateway(String paymentUrl, String pidx) {
-        Intent intent = new Intent(this, KhaltiWebViewActivity.class);
-        intent.putExtra(KhaltiWebViewActivity.EXTRA_URL, paymentUrl);
-        intent.putExtra(KhaltiWebViewActivity.EXTRA_PIDX, pidx);
-        intent.putExtra(KhaltiWebViewActivity.EXTRA_TITLE, "eSewa Checkout");
-        paymentLauncher.launch(intent);
+    private void openEsewaPayment(String paymentUrl) {
+        try {
+            Uri uri = Uri.parse(paymentUrl);
+            isWaitingForPaymentReturn = true;
+
+            // Prefer opening native eSewa application if installed
+            Intent esewaAppIntent = new Intent(Intent.ACTION_VIEW, uri);
+            esewaAppIntent.setPackage("com.f1soft.esewa");
+
+            if (esewaAppIntent.resolveActivity(getPackageManager()) != null) {
+                startActivity(esewaAppIntent);
+            } else {
+                // Fallback to default browser / system intent handler
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, uri);
+                startActivity(browserIntent);
+            }
+        } catch (ActivityNotFoundException e) {
+            // If neither eSewa nor browser handled the scheme directly, open browser with standard scheme
+            try {
+                Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl));
+                startActivity(fallback);
+            } catch (Exception ex) {
+                isWaitingForPaymentReturn = false;
+                isPaymentInProgress = false;
+                hideLoading();
+                binding.btnPay.setEnabled(true);
+                showStatusMessage("No browser or eSewa app found to complete payment.", true);
+                Toast.makeText(this, "No browser or eSewa app found.", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            isWaitingForPaymentReturn = false;
+            isPaymentInProgress = false;
+            hideLoading();
+            binding.btnPay.setEnabled(true);
+            showStatusMessage("Failed to open payment gateway: " + e.getMessage(), true);
+        }
     }
 
     private void verifyPayment(String pidx) {
@@ -170,6 +212,7 @@ public class PromoteItemActivity extends BaseActivity {
         apiService.verifyPayment(request).enqueue(new Callback<PaymentResponse.Verify>() {
             @Override
             public void onResponse(Call<PaymentResponse.Verify> call, Response<PaymentResponse.Verify> response) {
+                isPaymentInProgress = false;
                 hideLoading();
                 binding.btnPay.setEnabled(true);
 
@@ -193,6 +236,7 @@ public class PromoteItemActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<PaymentResponse.Verify> call, Throwable t) {
+                isPaymentInProgress = false;
                 hideLoading();
                 binding.btnPay.setEnabled(true);
                 String errorMsg = "Unable to verify payment — try again.";

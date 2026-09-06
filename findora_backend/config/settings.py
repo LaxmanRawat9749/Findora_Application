@@ -239,6 +239,7 @@ ESEWA_ENV = PAYMENT_ENV
 if ESEWA_ENV == 'live':
     ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', ''))
     ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '')
+    ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', os.environ.get('ESEWA_SECRET_KEY', ''))
     ESEWA_EPAY_FORM_URL = "https://epay.esewa.com.np/api/epay/main/v2/form"
     ESEWA_EPAY_STATUS_URL = "https://epay.esewa.com.np/api/epay/transaction/status/"
     ESEWA_INTENT_BOOK_URL = "https://checkout.esewa.com.np/api/client/intent/payment/book"
@@ -246,11 +247,10 @@ if ESEWA_ENV == 'live':
 else:
     # Official eSewa UAT / Sandbox test credentials
     ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', 'EPAYTEST'))
-    # Default test secret keys: '8gBm/:&EnhH.1/q' for ePay v2, or 'LB0REg8HUSw3MTYrI1s6JTE8Kyc6JyAqJiA3MQ==' for Intent
     ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
-    ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', 'LB0REg8HUSw3MTYrI1s6JTE8Kyc6JyAqJiA3MQ==')
-    ESEWA_EPAY_FORM_URL = "https://rc-epay.esewa.com.np/api/epay/main/v2/form"
-    ESEWA_EPAY_STATUS_URL = "https://rc-epay.esewa.com.np/api/epay/transaction/status/"
+    ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', '8gBm/:&EnhH.1/q')
+    ESEWA_EPAY_FORM_URL = "https://epay.esewa.com.np/api/epay/main/v2/form"
+    ESEWA_EPAY_STATUS_URL = "https://rc.esewa.com.np/api/epay/transaction/status/"
     ESEWA_INTENT_BOOK_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/book"
     ESEWA_INTENT_STATUS_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/status"
 

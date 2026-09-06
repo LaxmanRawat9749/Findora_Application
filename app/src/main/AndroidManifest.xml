@@ -74,7 +74,17 @@
         <activity android:name=".activities.FullScreenImageActivity" android:exported="false" />
         <activity android:name=".activities.UserProfileActivity" android:exported="false" />
         <activity android:name=".activities.MyReportsActivity" android:exported="false" />
-        <activity android:name=".activities.PromoteItemActivity" android:exported="false" />
+        <activity
+            android:name=".activities.PromoteItemActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="findora" android:host="payment" />
+            </intent-filter>
+        </activity>
         <activity android:name=".activities.KhaltiWebViewActivity" android:exported="false" />
         <activity android:name=".activities.PointHistoryActivity" android:exported="false" />
 

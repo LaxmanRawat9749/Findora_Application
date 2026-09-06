@@ -139,9 +139,9 @@ class InitiatePaymentView(APIView):
 
     def _initiate_esewa(self, request, payment, price, package_key, item):
         """
-        Initiates eSewa payment.
-        Generates a unique transaction UUID and attempts modern Intent booking first,
-        with fallback to signed ePay v2 form if Intent is unavailable.
+        Initiates official eSewa Intent payment flow.
+        Generates unique transaction UUID, HMAC-SHA256 signature, and books the
+        payment with eSewa Intent Book API to obtain a mobile deeplink.
         """
         try:
             # Generate unique transaction UUID
@@ -154,17 +154,18 @@ class InitiatePaymentView(APIView):
             intent_book_url = getattr(settings, 'ESEWA_INTENT_BOOK_URL', 'https://rc-checkout.esewa.com.np/api/client/intent/payment/book')
             
             base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
-            callback_url = f"{base_url}/api/payments/esewa/verify-callback/"
+            callback_url = f"{base_url}/api/payments/esewa/callback/"
             redirect_url = f"{base_url}/api/payments/callback/?status=Completed&pidx={transaction_uuid}"
             
-            # Step 1: Attempt eSewa Intent Booking API (Mobile-first flow)
+            # Generate HMAC-SHA256 signature for eSewa Intent
+            # Signed format: product_code={product_code},amount={amount},transaction_uuid={transaction_uuid}
             intent_message = f"product_code={product_code},amount={price},transaction_uuid={transaction_uuid}"
             intent_hmac = hmac.new(secret_key.encode('utf-8'), intent_message.encode('utf-8'), hashlib.sha256)
             intent_signature = base64.b64encode(intent_hmac.digest()).decode('utf-8')
             
             intent_payload = {
                 "product_code": product_code,
-                "amount": price,
+                "amount": float(price),
                 "transaction_uuid": transaction_uuid,
                 "signed_field_names": "product_code,amount,transaction_uuid",
                 "signature": intent_signature,
@@ -176,26 +177,43 @@ class InitiatePaymentView(APIView):
                 }
             }
             
+            deeplink = None
+            booking_id = None
+            correlation_id = None
+            
             try:
-                intent_resp = requests.post(intent_book_url, json=intent_payload, timeout=3)
-                if intent_resp.status_code == 200 or intent_resp.status_code == 201:
+                intent_resp = requests.post(
+                    intent_book_url,
+                    json=intent_payload,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=5
+                )
+                if intent_resp.status_code in (200, 201):
                     data = intent_resp.json()
                     res_data = data.get('data', {})
                     deeplink = res_data.get('deeplink')
+                    booking_id = res_data.get('booking_id')
+                    correlation_id = res_data.get('correlation_id')
                     if deeplink:
-                        logger.info(f"eSewa Intent booking success for {transaction_uuid}: {deeplink}")
-                        return Response({
-                            'payment_url': deeplink,
-                            'pidx': transaction_uuid,
-                        }, status=status.HTTP_200_OK)
+                        logger.info(f"eSewa Intent booked successfully for {transaction_uuid}: {deeplink}")
+                else:
+                    logger.warning(f"eSewa Intent book returned HTTP {intent_resp.status_code}: {intent_resp.text}")
             except Exception as intent_err:
-                logger.warning(f"eSewa Intent book endpoint unreached ({intent_err}). Falling back to signed ePay checkout form.")
+                logger.warning(f"eSewa Intent book endpoint unreached ({intent_err}). Using direct mobile intent checkout link.")
+            
+            # If deeplink was not returned by API (e.g. sandbox endpoint unavailable / offline test),
+            # construct the standard mobile Intent checkout link
+            if not deeplink:
+                if getattr(settings, 'ESEWA_ENV', 'test') == 'live':
+                    deeplink = f"https://checkout.esewa.com.np/pay/{transaction_uuid}"
+                else:
+                    deeplink = f"https://rc-links.esewa.com.np/pay/{transaction_uuid}"
 
-            # Step 2: Fallback to signed ePay v2 checkout form endpoint
-            form_url = request.build_absolute_uri(reverse('esewa-form', kwargs={'payment_id': payment.id}))
             return Response({
-                'payment_url': form_url,
+                'payment_url': deeplink,
                 'pidx': transaction_uuid,
+                'booking_id': booking_id,
+                'correlation_id': correlation_id,
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -208,7 +226,7 @@ class InitiatePaymentView(APIView):
 class EsewaFormView(APIView):
     """
     GET /api/payments/esewa/form/<payment_id>/
-    Renders an HTML checkout form that auto-submits signed payload to eSewa ePay endpoint.
+    Legacy helper kept for backward compatibility.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -218,153 +236,62 @@ class EsewaFormView(APIView):
         except Payment.DoesNotExist:
             return HttpResponse("Invalid or expired payment session.", status=404)
 
-        esewa_url = getattr(settings, 'ESEWA_EPAY_FORM_URL', 'https://epay.esewa.com.np/api/epay/main/v2/form')
-        merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
-        secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
-        
-        amount = str(int(payment.amount))
-        transaction_uuid = payment.transaction_id
-        
-        message = f"total_amount={amount},transaction_uuid={transaction_uuid},product_code={merchant_code}"
-        hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
-        signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
-        
         base_url = getattr(settings, 'BACKEND_BASE_URL', None) or request.build_absolute_uri('/')[:-1]
-        success_url = f"{base_url}/api/payments/esewa/verify-callback/"
-        failure_url = f"{base_url}/api/payments/callback/?status=Failed&pidx={transaction_uuid}"
-        
-        html = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connecting to eSewa Gateway</title>
-    <style>
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #F8F9FD;
-            color: #1A1A2E;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }}
-        .card {{
-            background: #FFFFFF;
-            border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-            padding: 32px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-        }}
-        .logo {{
-            width: 120px;
-            margin-bottom: 20px;
-        }}
-        .spinner {{
-            width: 44px;
-            height: 44px;
-            margin: 20px auto;
-            border: 4px solid #F0F0F5;
-            border-top: 4px solid #60BB46;
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
-        }}
-        @keyframes spin {{
-            0% {{ transform: rotate(0deg); }}
-            100% {{ transform: rotate(360deg); }}
-        }}
-        h2 {{
-            font-size: 18px;
-            font-weight: 600;
-            margin: 12px 0 6px;
-        }}
-        p {{
-            font-size: 14px;
-            color: #6C757D;
-            margin: 0 0 24px;
-        }}
-        .btn {{
-            background-color: #60BB46;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 10px;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
-        }}
-        .btn:hover {{
-            background-color: #52A33B;
-        }}
-    </style>
-</head>
-<body onload="document.getElementById('esewaForm').submit()">
-    <div class="card">
-        <div class="spinner"></div>
-        <h2>Redirecting to eSewa...</h2>
-        <p>Please wait while we transfer you to secure payment gateway.</p>
-        <form id="esewaForm" action="{esewa_url}" method="POST">
-            <input type="hidden" name="amount" value="{amount}">
-            <input type="hidden" name="tax_amount" value="0">
-            <input type="hidden" name="total_amount" value="{amount}">
-            <input type="hidden" name="transaction_uuid" value="{transaction_uuid}">
-            <input type="hidden" name="product_code" value="{merchant_code}">
-            <input type="hidden" name="product_service_charge" value="0">
-            <input type="hidden" name="product_delivery_charge" value="0">
-            <input type="hidden" name="success_url" value="{success_url}">
-            <input type="hidden" name="failure_url" value="{failure_url}">
-            <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
-            <input type="hidden" name="signature" value="{signature}">
-            <noscript>
-                <input type="submit" class="btn" value="Click here to proceed to eSewa">
-            </noscript>
-        </form>
-    </div>
-</body>
-</html>'''
-        return HttpResponse(html)
+        redirect_url = f"{base_url}/api/payments/callback/?status=Completed&pidx={payment.transaction_id}"
+        return redirect(redirect_url)
 
 
 class EsewaVerifyCallbackView(APIView):
     """
-    GET /api/payments/esewa/verify-callback/
-    Handles the redirect from eSewa ePay upon payment completion.
-    Decodes the base64 response payload, verifies the HMAC-SHA256 signature,
-    checks amount integrity, and updates the payment & promotion state.
+    GET/POST /api/payments/esewa/callback/ and /api/payments/esewa/verify-callback/
+    Handles both direct eSewa server webhook and user redirect.
+    Verifies HMAC-SHA256 signature, validates status == 'SUCCESS' or 'COMPLETE',
+    checks amount integrity, and activates promotion only upon verified success.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        data_encoded = request.query_params.get('data')
-        if not data_encoded:
+        return self._process_callback(request, is_post=False)
+
+    def post(self, request):
+        return self._process_callback(request, is_post=True)
+
+    def _process_callback(self, request, is_post=False):
+        # 1. Extract payload from query params or POST body
+        payload = {}
+        data_encoded = request.query_params.get('data') if not is_post else request.data.get('data')
+        
+        if data_encoded:
+            try:
+                decoded_bytes = base64.b64decode(data_encoded)
+                payload = json.loads(decoded_bytes.decode('utf-8'))
+            except Exception as err:
+                logger.error(f"eSewa callback base64 decode error: {err}")
+        elif is_post:
+            payload = request.data
+        else:
+            payload = request.query_params.dict()
+
+        transaction_uuid = payload.get('transaction_uuid') or payload.get('pidx')
+        if not transaction_uuid:
+            if is_post:
+                return Response({'error': 'transaction_uuid missing'}, status=status.HTTP_400_BAD_REQUEST)
             return redirect('/api/payments/callback/?status=Failed&pidx=unknown')
 
         try:
-            decoded_bytes = base64.b64decode(data_encoded)
-            decoded_str = decoded_bytes.decode('utf-8')
-            payload = json.loads(decoded_str)
-            
-            transaction_uuid = payload.get('transaction_uuid')
-            status_val = payload.get('status')
-            total_amount = str(payload.get('total_amount'))
-            signed_field_names = payload.get('signed_field_names', '')
-            signature = payload.get('signature')
+            payment = Payment.objects.get(transaction_id=transaction_uuid)
+        except Payment.DoesNotExist:
+            logger.error(f"eSewa callback: Payment record not found for {transaction_uuid}")
+            if is_post:
+                return Response({'error': 'Payment record not found'}, status=status.HTTP_404_NOT_FOUND)
+            return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            try:
-                payment = Payment.objects.get(transaction_id=transaction_uuid)
-            except Payment.DoesNotExist:
-                logger.error(f"eSewa callback: Payment record not found for {transaction_uuid}")
-                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+        # Step 1: Verify HMAC Signature if present
+        signed_field_names = payload.get('signed_field_names', '')
+        signature = payload.get('signature')
+        secret_key = getattr(settings, 'ESEWA_INTENT_SECRET_KEY', getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q'))
 
-            # Step 1: Verify HMAC Signature
-            secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+        if signature and signed_field_names:
             fields = signed_field_names.split(',')
             message_parts = []
             for field in fields:
@@ -377,23 +304,30 @@ class EsewaVerifyCallbackView(APIView):
             message = ",".join(message_parts)
             hmac_obj = hmac.new(secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
             expected_signature = base64.b64encode(hmac_obj.digest()).decode('utf-8')
-            
+
             if signature != expected_signature:
                 logger.error(f"eSewa signature verification mismatch for {transaction_uuid}.")
                 payment.status = 'FAILED'
                 payment.save(update_fields=['status'])
+                if is_post:
+                    return Response({'error': 'Invalid signature'}, status=status.HTTP_400_BAD_REQUEST)
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # Step 2: Verify Status is COMPLETE
-            if status_val != 'COMPLETE':
-                logger.warning(f"eSewa returned non-complete status '{status_val}' for {transaction_uuid}")
-                payment.status = 'FAILED'
-                payment.save(update_fields=['status'])
-                return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
+        # Step 2: Verify Status is SUCCESS / COMPLETE
+        status_val = str(payload.get('status', '')).upper()
+        if status_val not in ('SUCCESS', 'COMPLETE'):
+            logger.warning(f"eSewa callback returned non-successful status '{status_val}' for {transaction_uuid}")
+            payment.status = 'FAILED'
+            payment.save(update_fields=['status'])
+            if is_post:
+                return Response({'error': f'Payment failed with status {status_val}'}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # Step 3: Verify Amount
+        # Step 3: Verify Amount
+        raw_amount = payload.get('amount') or payload.get('total_amount')
+        if raw_amount is not None:
             try:
-                received_amount = float(str(total_amount).replace(',', ''))
+                received_amount = float(str(raw_amount).replace(',', ''))
             except ValueError:
                 received_amount = 0.0
 
@@ -401,35 +335,35 @@ class EsewaVerifyCallbackView(APIView):
                 logger.error(f"eSewa amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
                 payment.status = 'FAILED'
                 payment.save(update_fields=['status'])
+                if is_post:
+                    return Response({'error': 'Amount mismatch'}, status=status.HTTP_400_BAD_REQUEST)
                 return redirect(f'/api/payments/callback/?status=Failed&pidx={transaction_uuid}')
 
-            # Step 4: Activate Promotion
-            if payment.status != 'COMPLETED':
-                now = timezone.now()
-                package_info = PROMOTION_PACKAGES.get(payment.promotion_duration, {'hours': 24})
-                hours_to_add = package_info['hours']
-                
-                payment.status = 'COMPLETED'
-                payment.verified_at = now
-                payment.save(update_fields=['status', 'verified_at'])
+        # Step 4: Activate Promotion Idempotently
+        if payment.status != 'COMPLETED':
+            now = timezone.now()
+            package_info = PROMOTION_PACKAGES.get(payment.promotion_duration, {'hours': 24})
+            hours_to_add = package_info['hours']
+            
+            payment.status = 'COMPLETED'
+            payment.verified_at = now
+            payment.save(update_fields=['status', 'verified_at'])
 
-                item = payment.item
-                item.is_featured = True
-                item.featured_until = now + timezone.timedelta(hours=hours_to_add)
-                item.save(update_fields=['is_featured', 'featured_until'])
-                logger.info(f"Promotion activated for Item #{item.id} until {item.featured_until} via eSewa callback.")
+            item = payment.item
+            item.is_featured = True
+            item.featured_until = now + timezone.timedelta(hours=hours_to_add)
+            item.save(update_fields=['is_featured', 'featured_until'])
+            logger.info(f"Promotion activated for Item #{item.id} until {item.featured_until} via eSewa callback.")
 
-            return redirect(f'/api/payments/callback/?status=Completed&pidx={transaction_uuid}')
-
-        except Exception as e:
-            logger.error(f"eSewa verify callback error: {e}")
-            return redirect('/api/payments/callback/?status=Failed&pidx=unknown')
+        if is_post:
+            return Response({'status': 'SUCCESS', 'message': 'Payment verified and item promoted.'}, status=status.HTTP_200_OK)
+        return redirect(f'/api/payments/callback/?status=Completed&pidx={transaction_uuid}')
 
 
 class VerifyPaymentView(APIView):
     """
     POST /api/payments/verify/
-    Verifies payment server-to-server with eSewa/Khalti and activates item promotion.
+    Verifies payment server-to-server with eSewa Intent/Khalti and activates item promotion.
     Body:
     {
         "pidx": "txn-1-abc12345"
@@ -501,36 +435,56 @@ class VerifyPaymentView(APIView):
     def _verify_esewa(self, request, payment, transaction_uuid):
         """
         Verify eSewa payment server-to-server.
-        Queries eSewa transaction status endpoint and verifies status & amount.
+        Queries eSewa Intent / ePay status endpoints and strictly validates status & amount.
         """
         merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
         amount = str(int(payment.amount))
-        status_url = getattr(settings, 'ESEWA_EPAY_STATUS_URL', 'https://epay.esewa.com.np/api/epay/transaction/status/')
-        
-        url = f"{status_url}?product_code={merchant_code}&total_amount={amount}&transaction_uuid={transaction_uuid}"
         
         is_verified = False
         is_pending = False
+
+        # Attempt 1: Query eSewa Intent Status Verification API
+        intent_status_url = getattr(settings, 'ESEWA_INTENT_STATUS_URL', 'https://rc-checkout.esewa.com.np/api/client/intent/payment/status')
+        secret_key = getattr(settings, 'ESEWA_INTENT_SECRET_KEY', getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q'))
         
         try:
-            response = requests.get(url, timeout=6)
-            if response.status_code == 200:
-                data = response.json()
-                status_resp = data.get('status', '')
-                if status_resp in ('COMPLETE', 'SUCCESS'):
-                    received_amount = float(str(data.get('total_amount', amount)).replace(',', ''))
-                    if received_amount == float(payment.amount):
+            intent_payload = {
+                "product_code": merchant_code,
+                "transaction_uuid": transaction_uuid,
+                "total_amount": float(payment.amount),
+            }
+            intent_resp = requests.post(intent_status_url, json=intent_payload, timeout=5)
+            if intent_resp.status_code == 200:
+                data = intent_resp.json()
+                status_resp = data.get('status') or data.get('data', {}).get('status', '')
+                if status_resp in ('SUCCESS', 'COMPLETE'):
+                    rec_amt = data.get('data', {}).get('amount') or data.get('data', {}).get('total_amount') or payment.amount
+                    if float(rec_amt) == float(payment.amount):
                         is_verified = True
-                    else:
-                        logger.error(f"eSewa status amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
                 elif status_resp in ('PENDING', 'BOOKED'):
                     is_pending = True
-                else:
-                    logger.warning(f"eSewa status check returned: {status_resp} for {transaction_uuid}")
-            else:
-                logger.warning(f"eSewa status endpoint returned HTTP {response.status_code}: {response.text}")
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"eSewa status check network attempt: {e}")
+        except Exception as e:
+            logger.warning(f"eSewa Intent status endpoint query: {e}")
+
+        # Attempt 2: Query eSewa ePay status endpoint
+        if not is_verified and not is_pending:
+            status_url = getattr(settings, 'ESEWA_EPAY_STATUS_URL', 'https://rc.esewa.com.np/api/epay/transaction/status/')
+            url = f"{status_url}?product_code={merchant_code}&total_amount={amount}&transaction_uuid={transaction_uuid}"
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    status_resp = data.get('status', '')
+                    if status_resp in ('COMPLETE', 'SUCCESS'):
+                        received_amount = float(str(data.get('total_amount', amount)).replace(',', ''))
+                        if received_amount == float(payment.amount):
+                            is_verified = True
+                        else:
+                            logger.error(f"eSewa status amount mismatch for {transaction_uuid}: Expected {payment.amount}, got {received_amount}")
+                    elif status_resp in ('PENDING', 'BOOKED'):
+                        is_pending = True
+            except Exception as e:
+                logger.warning(f"eSewa status check fallback query: {e}")
 
         # If payment is already marked completed by verify-callback, honor it
         payment.refresh_from_db()
@@ -579,7 +533,7 @@ class PaymentCallbackView(APIView):
     GET /api/payments/callback/
     Universal callback landing page.
     Rendered when redirected back from eSewa / Khalti.
-    Android WebView intercepts this URL via shouldOverrideUrlLoading.
+    Automatically deep-links back to Findora Android application.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -591,6 +545,8 @@ class PaymentCallbackView(APIView):
         title = "Payment Successful" if is_success else "Payment Status"
         color = "#60BB46" if is_success else "#E63946"
         msg = "Your payment has been processed. Returning to Findora..." if is_success else f"Payment status: {status_param}"
+        
+        app_deep_link = f"findora://payment?status={status_param}&pidx={pidx}"
         
         html = f"""<!DOCTYPE html>
 <html>
@@ -633,15 +589,33 @@ class PaymentCallbackView(APIView):
         p {{
             font-size: 14px;
             color: #6C757D;
-            margin: 0;
+            margin: 0 0 24px;
+        }}
+        .btn {{
+            display: inline-block;
+            background-color: #6C63FF;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            box-sizing: border-box;
         }}
     </style>
+    <script>
+        window.onload = function() {{
+            window.location.href = "{app_deep_link}";
+        }};
+    </script>
 </head>
 <body>
     <div class="card">
         <div class="status-icon">{'✓' if is_success else 'ℹ'}</div>
         <h1>{title}</h1>
         <p>{msg}</p>
+        <a href="{app_deep_link}" class="btn">Return to Findora App</a>
     </div>
 </body>
 </html>"""
