@@ -95,20 +95,76 @@ def award_found_report_points(finder, item):
     return True
 
 
+def get_unique_recovered_items_count(user):
+    """
+    Computes the number of UNIQUE items successfully recovered/handed over
+    to the owner by this finder.
+
+    Rules:
+    - Only resolved items (status == 'resolved') count.
+    - Counts resolved 'found' items created by this finder.
+    - Counts resolved items where this user received a successful return transaction.
+    - Linked parent/child items (e.g. lost item + found item report) refer to the
+      same physical recovered item and are counted ONLY ONCE.
+    - Dual confirmations (Owner + Finder) for the same item count as 1 recovered item.
+    - Pending, approved, rejected, or incomplete returns are not counted.
+    """
+    if not user:
+        return 0
+
+    user_id = user.pk if hasattr(user, 'pk') else user
+
+    # 1. Resolved found items reported by this finder
+    found_resolved_ids = set(
+        Item.objects.filter(user_id=user_id, type='found', status='resolved').values_list('id', flat=True)
+    )
+
+    # 2. Resolved items where this user received a successful return transaction
+    tx_resolved_ids = set(
+        PointTransaction.objects.filter(
+            user_id=user_id,
+            transaction_type=TX_SUCCESSFUL_RETURN,
+            related_item__status='resolved',
+        ).values_list('related_item_id', flat=True)
+    )
+
+    all_item_ids = found_resolved_ids | tx_resolved_ids
+    if not all_item_ids:
+        return 0
+
+    # Group by canonical root item (parent_item if linked, otherwise item itself)
+    items = Item.objects.filter(id__in=all_item_ids).select_related('parent_item')
+    canonical_items = set()
+    for it in items:
+        if it.parent_item_id:
+            canonical_items.add(f"item_group_{it.parent_item_id}")
+        else:
+            canonical_items.add(f"item_group_{it.id}")
+
+    return len(canonical_items)
+
+
 @transaction.atomic
 def process_successful_return_reward(finder, owner, item):
     """
     Awards +100 points, increments successful returns count, evaluates badges,
     and sends notifications upon confirmed return completion.
-    Strictly idempotent to prevent duplicate points.
+    Strictly idempotent to prevent duplicate points or multiple counts for the same physical item.
     """
     if not finder or not item:
         return False
 
-    # 1. Idempotency Check: Prevent duplicate points award for the same return
+    # 1. Idempotency Check: Prevent duplicate points award for the same return / item pair
+    related_ids = [item.pk]
+    if item.parent_item_id:
+        related_ids.append(item.parent_item_id)
+    # Also check any child found reports linked to this item
+    child_ids = list(item.found_reports.values_list('id', flat=True))
+    related_ids.extend(child_ids)
+
     already_awarded = PointTransaction.objects.filter(
         user=finder,
-        related_item=item,
+        related_item_id__in=related_ids,
         transaction_type=TX_SUCCESSFUL_RETURN,
     ).exists()
 
@@ -128,10 +184,10 @@ def process_successful_return_reward(finder, owner, item):
         related_item=item,
     )
 
-    # 3. Update Finder Reputation Aggregate
+    # 3. Update Finder Reputation Aggregate with exact unique recovered-items count
     rep = get_or_create_reputation(finder)
     rep.total_points += POINTS_SUCCESSFUL_RETURN
-    rep.successful_returns += 1
+    rep.successful_returns = get_unique_recovered_items_count(finder)
     rep.save(update_fields=['total_points', 'successful_returns', 'updated_at'])
 
     # 4. Check & Award Badges
@@ -178,7 +234,7 @@ def check_and_award_badges(user, rep=None):
     if rep is None:
         rep = get_or_create_reputation(user)
 
-    returns_count = rep.successful_returns
+    returns_count = max(rep.successful_returns, get_unique_recovered_items_count(user))
     newly_awarded = []
 
     for badge in BADGES:

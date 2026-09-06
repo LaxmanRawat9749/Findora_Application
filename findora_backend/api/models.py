@@ -413,18 +413,18 @@ class FinderReputation(models.Model):
 
     @property
     def reputation_display(self):
+        from .reputation_service import get_unique_recovered_items_count
+        returns_count = max(self.successful_returns, get_unique_recovered_items_count(self.user))
         if self.rating_count > 0:
             return f"{self.average_rating:.1f}"
-        if self.successful_returns > 0:
+        if returns_count > 0:
             return "Not rated yet"
         return "New Finder"
 
     @property
     def is_trusted_finder(self):
-        returns_count = max(
-            self.successful_returns,
-            Item.objects.filter(user=self.user, type='found', status='resolved').distinct().count()
-        )
+        from .reputation_service import get_unique_recovered_items_count
+        returns_count = max(self.successful_returns, get_unique_recovered_items_count(self.user))
         return bool(self.rating_count > 0 and self.average_rating >= 4.0 and returns_count > 3)
 
     @property

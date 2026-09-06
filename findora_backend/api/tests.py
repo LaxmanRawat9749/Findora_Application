@@ -2841,6 +2841,147 @@ class NotificationRoutingAndSerializationTests(TestCase):
         self.assertIn('Successful Return', notif_rep.message)
 
 
+class FinderRecoveredItemsCountTests(TestCase):
+    """
+    Test suite ensuring that Recovered Items strictly counts unique items
+    successfully recovered and handed over to the Owner (1 item = 1 count),
+    not the number of confirmation events, notifications, or dual confirmations.
+    """
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='owner_user', email='owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='finder_user', email='finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Gold Watch', category='other', status='approved'
+        )
+        self.found_item = Item.objects.create(
+            user=self.finder, parent_item=self.lost_item, type='found', title='Found Gold Watch', category='other', status='approved'
+        )
+        self.conversation = Conversation.objects.create(
+            item=self.lost_item, owner=self.owner, finder=self.finder
+        )
+
+    def test_single_item_with_owner_and_finder_confirmations_counts_as_one(self):
+        """
+        Owner confirms return -> Finder confirms return -> Return reaches resolved state.
+        Recovered items count must be exactly 1, NOT 2.
+        """
+        # 1. Owner marks returned
+        mark_view = MarkItemReturnedView.as_view()
+        req_mark = self.factory.post(f'/api/items/{self.lost_item.id}/mark-returned/')
+        force_authenticate(req_mark, user=self.owner)
+        res_mark = mark_view(req_mark, pk=self.lost_item.id)
+        self.assertEqual(res_mark.status_code, 200)
+
+        # Before finder confirms, status is still approved, count is 0
+        rep_view = ReputationProfileView.as_view()
+        req_rep = self.factory.get('/api/reputation/')
+        force_authenticate(req_rep, user=self.finder)
+        res_rep = rep_view(req_rep)
+        self.assertEqual(res_rep.data['successful_returns'], 0)
+        self.assertEqual(res_rep.data['items_recovered'], 0)
+
+        # 2. Finder confirms return -> item resolves
+        confirm_view = ConfirmItemReturnView.as_view()
+        req_confirm = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req_confirm, user=self.finder)
+        res_confirm = confirm_view(req_confirm, pk=self.lost_item.id)
+        self.assertEqual(res_confirm.status_code, 200)
+
+        # Also resolve the linked found item if existing workflow marks it resolved
+        self.found_item.status = 'resolved'
+        self.found_item.save(update_fields=['status'])
+
+        # Verify Finder Profile API / Reputation API
+        res_rep_after = rep_view(req_rep)
+        self.assertEqual(res_rep_after.data['successful_returns'], 1)
+        self.assertEqual(res_rep_after.data['items_recovered'], 1)
+
+        # Verify UserSerializer
+        user_serializer = UserSerializer(self.finder)
+        self.assertEqual(user_serializer.data['successful_returns'], 1)
+        self.assertEqual(user_serializer.data['items_recovered'], 1)
+        self.assertEqual(user_serializer.data['recovered_items_count'], 1)
+
+        # Verify PublicProfileSerializer
+        pub_serializer = PublicProfileSerializer(self.finder)
+        self.assertEqual(pub_serializer.data['successful_returns'], 1)
+        self.assertEqual(pub_serializer.data['recovered_items'], 1)
+        self.assertEqual(pub_serializer.data['items_recovered'], 1)
+
+    def test_duplicate_confirmation_or_notifications_do_not_increase_count(self):
+        """
+        Duplicate confirmation requests, extra notifications, or repeated API calls
+        must never increase the recovered items count.
+        """
+        # Resolve return
+        self.lost_item.owner_returned_confirm = True
+        self.lost_item.finder_returned_confirm = True
+        self.lost_item.status = 'resolved'
+        self.lost_item.save()
+
+        process_successful_return_reward(self.finder, self.owner, self.lost_item)
+
+        # Attempt duplicate process reward on same item or child found item
+        duplicate_result = process_successful_return_reward(self.finder, self.owner, self.lost_item)
+        self.assertFalse(duplicate_result)
+
+        child_result = process_successful_return_reward(self.finder, self.owner, self.found_item)
+        self.assertFalse(child_result)
+
+        # Create multiple notifications
+        Notification.objects.create(user=self.finder, type='reputation', message='Test 1', related_item=self.lost_item)
+        Notification.objects.create(user=self.finder, type='claim', message='Test 2', related_item=self.lost_item)
+
+        # Verify count is still exactly 1
+        user_serializer = UserSerializer(self.finder)
+        self.assertEqual(user_serializer.data['successful_returns'], 1)
+        self.assertEqual(user_serializer.data['items_recovered'], 1)
+
+    def test_unresolved_returns_not_counted(self):
+        """
+        Pending, approved, rejected items are not counted in Recovered Items.
+        """
+        Item.objects.create(user=self.finder, type='found', title='Pending Item', category='phone', status='pending')
+        Item.objects.create(user=self.finder, type='found', title='Approved Item', category='phone', status='approved')
+        Item.objects.create(user=self.finder, type='found', title='Rejected Item', category='phone', status='rejected')
+
+        user_serializer = UserSerializer(self.finder)
+        self.assertEqual(user_serializer.data['successful_returns'], 0)
+        self.assertEqual(user_serializer.data['items_recovered'], 0)
+
+    def test_second_distinct_item_increments_count_to_two(self):
+        """
+        When a second distinct item is successfully recovered and returned,
+        the count increases from 1 to 2.
+        """
+        # Item 1 resolved
+        self.lost_item.status = 'resolved'
+        self.lost_item.owner_returned_confirm = True
+        self.lost_item.finder_returned_confirm = True
+        self.lost_item.save()
+        process_successful_return_reward(self.finder, self.owner, self.lost_item)
+
+        user_serializer1 = UserSerializer(self.finder)
+        self.assertEqual(user_serializer1.data['successful_returns'], 1)
+
+        # Item 2 reported and resolved
+        item2 = Item.objects.create(
+            user=self.finder, type='found', title='Found Car Keys', category='keys', status='resolved'
+        )
+        process_successful_return_reward(self.finder, self.owner, item2)
+
+        user_serializer2 = UserSerializer(self.finder)
+        self.assertEqual(user_serializer2.data['successful_returns'], 2)
+        self.assertEqual(user_serializer2.data['items_recovered'], 2)
+
+
+
 
 
 
