@@ -858,18 +858,22 @@ class ItemDetailView(APIView):
             return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
             
         # Enforce visibility rules for detail view:
-        # Creators can view their own reports; others can view approved items.
+        # Creators can view their own reports; others can view approved or resolved items.
         if request.user.role != 'admin':
             if item.user != request.user:
-                if item.status != 'approved':
+                if item.status not in ['approved', 'resolved']:
                     return Response({'error': 'You do not have permission to view this item.'}, status=status.HTTP_403_FORBIDDEN)
                 if item.type == 'found' and request.user.role == 'owner':
-                    # Owner can only view found reports linked to their own lost items
-                    if not (item.parent_item and item.parent_item.user == request.user):
+                    # Owner can only view found reports linked to their own lost items or via conversation
+                    is_linked = bool(item.parent_item and item.parent_item.user == request.user)
+                    has_conv = Conversation.objects.filter(item=item, owner=request.user).exists()
+                    if not (is_linked or has_conv):
                         return Response({'error': 'You do not have permission to view this found report.'}, status=status.HTTP_403_FORBIDDEN)
                 elif item.type == 'lost' and request.user.role == 'owner':
-                    # Owner cannot view another owner's lost item
-                    return Response({'error': 'You do not have permission to view this lost item.'}, status=status.HTTP_403_FORBIDDEN)
+                    # Owner cannot view another owner's lost item unless they have a conversation on it
+                    has_conv = Conversation.objects.filter(item=item, owner=request.user).exists()
+                    if not has_conv:
+                        return Response({'error': 'You do not have permission to view this lost item.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ItemSerializer(item, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -978,8 +982,8 @@ class MarkItemReturnedView(APIView):
         if item.user != request.user:
             return Response({'error': 'Only the reporter/owner can mark the item as returned'}, status=status.HTTP_403_FORBIDDEN)
 
-        if item.status == 'resolved':
-            return Response({'error': 'Item is already resolved'}, status=status.HTTP_400_BAD_REQUEST)
+        if item.status == 'resolved' or item.owner_returned_confirm:
+            return Response({'error': 'Item is already marked as returned or resolved'}, status=status.HTTP_400_BAD_REQUEST)
 
         item.owner_returned_confirm = True
         item.save(update_fields=['owner_returned_confirm', 'updated_at'])
@@ -1014,8 +1018,8 @@ class ConfirmItemReturnView(APIView):
         if not item.owner_returned_confirm:
             return Response({'error': 'The owner has not marked this item as returned yet'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if item.status == 'resolved':
-            return Response({'message': 'Item is already resolved'}, status=status.HTTP_200_OK)
+        if item.status == 'resolved' or item.finder_returned_confirm:
+            return Response({'error': 'This return has already been confirmed and resolved.', 'status': 'resolved'}, status=status.HTTP_400_BAD_REQUEST)
 
         item.finder_returned_confirm = True
         item.status = 'resolved'

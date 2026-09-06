@@ -298,7 +298,10 @@ public class ItemDetailActivity extends BaseActivity {
         binding.tvReturnedBadge.setVisibility(View.GONE);
         binding.cvRateFinder.setVisibility(View.GONE);
 
-        if ("resolved".equalsIgnoreCase(item.getStatus())) {
+        boolean isResolved = "resolved".equalsIgnoreCase(item.getStatus()) ||
+                (item.isOwnerReturnedConfirm() && item.isFinderReturnedConfirm());
+
+        if (isResolved) {
             binding.layoutDefaultActions.setVisibility(View.GONE);
             binding.layoutFoundActions.setVisibility(View.GONE);
             binding.tvReturnedBadge.setVisibility(View.VISIBLE);
@@ -349,7 +352,7 @@ public class ItemDetailActivity extends BaseActivity {
                     }
                 }
                 
-                if (item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm()) {
+                if (item.isOwnerReturnedConfirm() && !item.isFinderReturnedConfirm() && !"resolved".equalsIgnoreCase(item.getStatus())) {
                     binding.layoutReturnActions.setVisibility(View.VISIBLE);
                     binding.btnConfirmReturn.setVisibility(View.VISIBLE);
                 }
@@ -503,6 +506,11 @@ public class ItemDetailActivity extends BaseActivity {
 
     private void handleMarkReturned() {
         if (currentItem == null) return;
+        if ("resolved".equalsIgnoreCase(currentItem.getStatus()) || currentItem.isOwnerReturnedConfirm()) {
+            Toast.makeText(this, "This item has already been marked as returned.", Toast.LENGTH_SHORT).show();
+            displayItem(currentItem);
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Mark as Returned")
                 .setMessage("Are you sure you want to mark this item as returned? The finder will be notified to confirm.")
@@ -512,21 +520,41 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void callMarkReturned() {
+        if (currentItem == null) return;
         binding.progressBar.setVisibility(View.VISIBLE);
+        binding.btnMarkReturned.setEnabled(false);
         apiService.markItemReturned(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 binding.progressBar.setVisibility(View.GONE);
+                binding.btnMarkReturned.setEnabled(true);
                 if (response.isSuccessful()) {
                     Toast.makeText(ItemDetailActivity.this, "Item marked as returned", Toast.LENGTH_SHORT).show();
+                    if (currentItem != null) {
+                        currentItem.setOwnerReturnedConfirm(true);
+                        FindoraCache.getInstance(ItemDetailActivity.this).saveItemDetail(currentItem);
+                        displayItem(currentItem);
+                    }
                     loadItemDetail();
                 } else {
-                    Toast.makeText(ItemDetailActivity.this, "Failed to mark as returned", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Failed to mark as returned";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errStr = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errStr);
+                            if (obj.has("error")) {
+                                errorMsg = obj.getString("error");
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    Toast.makeText(ItemDetailActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    loadItemDetail();
                 }
             }
             @Override
             public void onFailure(Call<MessageResponse> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
+                binding.btnMarkReturned.setEnabled(true);
                 Toast.makeText(ItemDetailActivity.this, "Network error", Toast.LENGTH_SHORT).show();
             }
         });
@@ -534,6 +562,11 @@ public class ItemDetailActivity extends BaseActivity {
 
     private void handleConfirmReturn() {
         if (currentItem == null) return;
+        if ("resolved".equalsIgnoreCase(currentItem.getStatus()) || currentItem.isFinderReturnedConfirm()) {
+            Toast.makeText(this, "This return has already been confirmed and resolved.", Toast.LENGTH_SHORT).show();
+            displayItem(currentItem);
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Confirm Return")
                 .setMessage("Are you sure you want to confirm the return of this item? This will resolve the listing.")
@@ -543,21 +576,42 @@ public class ItemDetailActivity extends BaseActivity {
     }
 
     private void callConfirmReturn() {
+        if (currentItem == null) return;
         binding.progressBar.setVisibility(View.VISIBLE);
+        binding.btnConfirmReturn.setEnabled(false);
         apiService.confirmItemReturn(currentItem.getId()).enqueue(new Callback<MessageResponse>() {
             @Override
             public void onResponse(Call<MessageResponse> call, Response<MessageResponse> response) {
                 binding.progressBar.setVisibility(View.GONE);
+                binding.btnConfirmReturn.setEnabled(true);
                 if (response.isSuccessful()) {
                     Toast.makeText(ItemDetailActivity.this, "Return confirmed successfully", Toast.LENGTH_SHORT).show();
+                    if (currentItem != null) {
+                        currentItem.setFinderReturnedConfirm(true);
+                        currentItem.setStatus("resolved");
+                        FindoraCache.getInstance(ItemDetailActivity.this).saveItemDetail(currentItem);
+                        displayItem(currentItem);
+                    }
                     loadItemDetail();
                 } else {
-                    Toast.makeText(ItemDetailActivity.this, "Failed to confirm return", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Failed to confirm return";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errStr = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errStr);
+                            if (obj.has("error")) {
+                                errorMsg = obj.getString("error");
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    Toast.makeText(ItemDetailActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    loadItemDetail();
                 }
             }
             @Override
             public void onFailure(Call<MessageResponse> call, Throwable t) {
                 binding.progressBar.setVisibility(View.GONE);
+                binding.btnConfirmReturn.setEnabled(true);
                 Toast.makeText(ItemDetailActivity.this, "Network error", Toast.LENGTH_SHORT).show();
             }
         });

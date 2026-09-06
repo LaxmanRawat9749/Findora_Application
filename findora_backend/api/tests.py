@@ -2610,6 +2610,122 @@ class ChatMessageDeletionTests(TestCase):
         self.assertEqual(res_unrelated.status_code, 403)
 
 
+class ItemReturnWorkflowAndNotificationTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='return_owner', email='return_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='return_finder', email='return_finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.intruder = User.objects.create_user(
+            username='return_intruder', email='return_intruder@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Wallet', category='wallet', status='approved'
+        )
+        self.found_item = Item.objects.create(
+            user=self.finder, parent_item=self.lost_item, type='found', title='Lost Wallet', category='wallet', status='approved'
+        )
+        self.conversation = Conversation.objects.create(
+            item=self.lost_item, owner=self.owner, finder=self.finder
+        )
+
+    def test_full_return_workflow_and_duplicate_prevention(self):
+        """
+        Verify the complete return workflow:
+        1. Owner marks returned -> OK.
+        2. Duplicate mark returned -> Rejected (400).
+        3. Finder confirms return -> OK, status becomes 'resolved'.
+        4. Duplicate confirm return -> Rejected (400).
+        5. Both Owner and Finder can retrieve item detail in 'resolved' status.
+        """
+        mark_view = MarkItemReturnedView.as_view()
+        confirm_view = ConfirmItemReturnView.as_view()
+        detail_view = ItemDetailView.as_view()
+
+        # Step 1: Owner marks item returned
+        req_mark = self.factory.post(f'/api/items/{self.lost_item.id}/mark-returned/')
+        force_authenticate(req_mark, user=self.owner)
+        res_mark = mark_view(req_mark, pk=self.lost_item.id)
+        self.assertEqual(res_mark.status_code, 200)
+
+        self.lost_item.refresh_from_db()
+        self.assertTrue(self.lost_item.owner_returned_confirm)
+        self.assertFalse(self.lost_item.finder_returned_confirm)
+        self.assertEqual(self.lost_item.status, 'approved')
+
+        # Step 2: Duplicate mark returned attempt by Owner -> 400 Bad Request
+        req_mark_dup = self.factory.post(f'/api/items/{self.lost_item.id}/mark-returned/')
+        force_authenticate(req_mark_dup, user=self.owner)
+        res_mark_dup = mark_view(req_mark_dup, pk=self.lost_item.id)
+        self.assertEqual(res_mark_dup.status_code, 400)
+        self.assertIn('already marked', res_mark_dup.data['error'].lower())
+
+        # Non-owner cannot mark returned
+        req_mark_finder = self.factory.post(f'/api/items/{self.lost_item.id}/mark-returned/')
+        force_authenticate(req_mark_finder, user=self.finder)
+        res_mark_finder = mark_view(req_mark_finder, pk=self.lost_item.id)
+        self.assertEqual(res_mark_finder.status_code, 403)
+
+        # Step 3: Finder confirms return
+        req_confirm = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req_confirm, user=self.finder)
+        res_confirm = confirm_view(req_confirm, pk=self.lost_item.id)
+        self.assertEqual(res_confirm.status_code, 200)
+
+        self.lost_item.refresh_from_db()
+        self.assertTrue(self.lost_item.finder_returned_confirm)
+        self.assertEqual(self.lost_item.status, 'resolved')
+        self.assertIsNotNone(self.lost_item.resolved_at)
+
+        # Step 4: Duplicate confirm return attempt by Finder -> 400 Bad Request
+        req_confirm_dup = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req_confirm_dup, user=self.finder)
+        res_confirm_dup = confirm_view(req_confirm_dup, pk=self.lost_item.id)
+        self.assertEqual(res_confirm_dup.status_code, 400)
+        self.assertIn('already been confirmed', res_confirm_dup.data['error'].lower())
+
+        # Step 5: Verify ItemDetailView returns 200 for both participants when status is 'resolved'
+        req_detail_owner = self.factory.get(f'/api/items/{self.lost_item.id}/')
+        force_authenticate(req_detail_owner, user=self.owner)
+        res_detail_owner = detail_view(req_detail_owner, pk=self.lost_item.id)
+        self.assertEqual(res_detail_owner.status_code, 200)
+        self.assertEqual(res_detail_owner.data['status'], 'resolved')
+        self.assertTrue(res_detail_owner.data['owner_returned_confirm'])
+        self.assertTrue(res_detail_owner.data['finder_returned_confirm'])
+
+        req_detail_finder = self.factory.get(f'/api/items/{self.lost_item.id}/')
+        force_authenticate(req_detail_finder, user=self.finder)
+        res_detail_finder = detail_view(req_detail_finder, pk=self.lost_item.id)
+        self.assertEqual(res_detail_finder.status_code, 200)
+        self.assertEqual(res_detail_finder.data['status'], 'resolved')
+        self.assertTrue(res_detail_finder.data['owner_returned_confirm'])
+        self.assertTrue(res_detail_finder.data['finder_returned_confirm'])
+
+    def test_cannot_confirm_before_owner_marks_returned(self):
+        """Finder cannot confirm return before owner has marked it as returned."""
+        confirm_view = ConfirmItemReturnView.as_view()
+        req = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req, user=self.finder)
+        res = confirm_view(req, pk=self.lost_item.id)
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('has not marked', res.data['error'].lower())
+
+    def test_reporter_cannot_confirm_own_item_return(self):
+        """The owner/reporter cannot call confirm-return on their own item."""
+        self.lost_item.owner_returned_confirm = True
+        self.lost_item.save()
+
+        confirm_view = ConfirmItemReturnView.as_view()
+        req = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req, user=self.owner)
+        res = confirm_view(req, pk=self.lost_item.id)
+        self.assertEqual(res.status_code, 403)
+
+
+
 
 
 
