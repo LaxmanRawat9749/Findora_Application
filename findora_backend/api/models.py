@@ -15,6 +15,7 @@ import string
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -415,7 +416,14 @@ class FinderReputation(models.Model):
     def reputation_display(self):
         if self.rating_count > 0:
             return f"{self.average_rating:.1f}"
-        if self.successful_returns > 0:
+        recovered_count = max(
+            self.successful_returns,
+            Item.objects.filter(
+                Q(user=self.user, type='found', status='resolved') |
+                Q(point_transactions__user=self.user, point_transactions__transaction_type='SUCCESSFUL_RETURN', status='resolved')
+            ).distinct().count()
+        )
+        if recovered_count > 0:
             return "Not rated yet"
         return "New Finder"
 
@@ -423,7 +431,10 @@ class FinderReputation(models.Model):
     def is_trusted_finder(self):
         returns_count = max(
             self.successful_returns,
-            Item.objects.filter(user=self.user, type='found', status='resolved').distinct().count()
+            Item.objects.filter(
+                Q(user=self.user, type='found', status='resolved') |
+                Q(point_transactions__user=self.user, point_transactions__transaction_type='SUCCESSFUL_RETURN', status='resolved')
+            ).distinct().count()
         )
         return bool(self.rating_count > 0 and self.average_rating >= 4.0 and returns_count > 3)
 

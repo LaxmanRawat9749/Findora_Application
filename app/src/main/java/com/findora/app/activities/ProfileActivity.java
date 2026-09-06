@@ -220,6 +220,7 @@ public class ProfileActivity extends BaseActivity {
 
             binding.tvFoundReportsCount.setText(String.valueOf(user.getFoundReports()));
             binding.tvItemsRecoveredCount.setText(String.valueOf(user.getItemsRecovered()));
+            binding.tvReturnsScore.setText(String.valueOf(user.getItemsRecovered()));
 
             if (user.isTrustedFinder()) {
                 binding.layoutTrustedFinderBadge.setVisibility(View.VISIBLE);
@@ -270,7 +271,7 @@ public class ProfileActivity extends BaseActivity {
                     com.findora.app.models.FinderReputation rep = response.body();
                     binding.tvReputationScore.setText(rep.getReputationDisplay());
                     binding.tvPointsScore.setText(rep.getTotalPoints() + " Pts");
-                    binding.tvReturnsScore.setText(String.valueOf(rep.getSuccessfulReturns()));
+                    binding.tvReturnsScore.setText(String.valueOf(rep.getItemsRecovered()));
 
                     binding.tvFoundReportsCount.setText(String.valueOf(rep.getFoundReports()));
                     binding.tvItemsRecoveredCount.setText(String.valueOf(rep.getItemsRecovered()));

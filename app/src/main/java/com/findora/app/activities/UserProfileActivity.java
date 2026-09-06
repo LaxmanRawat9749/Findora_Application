@@ -109,7 +109,7 @@ public class UserProfileActivity extends BaseActivity {
         if ("finder".equalsIgnoreCase(profile.getRole())) {
             binding.cvReputationInfo.setVisibility(View.VISIBLE);
             binding.tvUserReputation.setText(profile.getReputationDisplay());
-            binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
+            binding.tvUserReturns.setText(String.valueOf(profile.getRecoveredItems()));
             binding.tvUserPoints.setText(String.valueOf(profile.getTotalPoints()));
 
             if (profile.isTrustedFinder()) {
