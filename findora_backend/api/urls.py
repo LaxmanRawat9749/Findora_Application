@@ -44,7 +44,6 @@ urlpatterns = [
     path('payments/verify/', payment_views.VerifyPaymentView.as_view(), name='payment-verify'),
     path('payments/callback/', payment_views.PaymentCallbackView.as_view(), name='payment-callback'),
     path('payments/esewa/form/<int:payment_id>/', payment_views.EsewaFormView.as_view(), name='esewa-form'),
-    path('payments/esewa/callback/', payment_views.EsewaVerifyCallbackView.as_view(), name='esewa-callback'),
     path('payments/esewa/verify-callback/', payment_views.EsewaVerifyCallbackView.as_view(), name='esewa-verify-callback'),
 
     # ─── Chat ─────────────────────────────────────────────────────────────────

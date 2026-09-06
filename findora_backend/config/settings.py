@@ -223,40 +223,14 @@ if not BREVO_API_KEY:
         "Add BREVO_API_KEY to your environment variables (Render Dashboard → Environment)."
     )
 
-# ─── Payment Gateway Settings ──────────────────────────────────────────────────
-PAYMENT_ENV = os.environ.get('PAYMENT_ENV', os.environ.get('ESEWA_ENV', 'test')).lower()
-
-# Khalti
+# ─── Khalti Payment Gateway ────────────────────────────────────────────────────
 KHALTI_SECRET_KEY = os.environ.get('KHALTI_SECRET_KEY', 'test_secret_key')
+PAYMENT_ENV = os.environ.get('PAYMENT_ENV', 'test').lower()
+
 if PAYMENT_ENV == 'live':
     KHALTI_API_URL = "https://khalti.com/api/v2"
 else:
     KHALTI_API_URL = "https://a.khalti.com/api/v2"
-
-# eSewa Configuration
-# Environment: 'test' (UAT) or 'live' (Production)
-ESEWA_ENV = PAYMENT_ENV
-if ESEWA_ENV == 'live':
-    ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', ''))
-    ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '')
-    ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', os.environ.get('ESEWA_SECRET_KEY', ''))
-    ESEWA_EPAY_FORM_URL = os.environ.get('ESEWA_EPAY_FORM_URL', 'https://epay.esewa.com.np/api/epay/main/v2/form')
-    ESEWA_EPAY_STATUS_URL = os.environ.get('ESEWA_EPAY_STATUS_URL', 'https://epay.esewa.com.np/api/epay/transaction/status/')
-    ESEWA_INTENT_BOOK_URL = "https://checkout.esewa.com.np/api/client/intent/payment/book"
-    ESEWA_INTENT_STATUS_URL = "https://checkout.esewa.com.np/api/client/intent/payment/status"
-else:
-    # Official eSewa UAT / Sandbox test credentials
-    ESEWA_PRODUCT_CODE = os.environ.get('ESEWA_PRODUCT_CODE', os.environ.get('ESEWA_MERCHANT_ID', 'EPAYTEST'))
-    ESEWA_SECRET_KEY = os.environ.get('ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
-    ESEWA_INTENT_SECRET_KEY = os.environ.get('ESEWA_INTENT_SECRET_KEY', '8gBm/:&EnhH.1/q')
-    ESEWA_EPAY_FORM_URL = os.environ.get('ESEWA_EPAY_FORM_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
-    ESEWA_EPAY_STATUS_URL = os.environ.get('ESEWA_EPAY_STATUS_URL', 'https://rc.esewa.com.np/api/epay/transaction/status/')
-    ESEWA_INTENT_BOOK_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/book"
-    ESEWA_INTENT_STATUS_URL = "https://rc-checkout.esewa.com.np/api/client/intent/payment/status"
-
-# Public Backend URL for callbacks
-BACKEND_BASE_URL = os.environ.get('BACKEND_BASE_URL', 'https://findora-application.onrender.com')
-
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 # Structured request logging so every API call is visible in the console with
