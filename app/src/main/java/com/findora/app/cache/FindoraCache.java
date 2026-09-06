@@ -81,8 +81,17 @@ public class FindoraCache {
         if (items == null) return;
         int userId = getCurrentUserId();
         String key = "items_feed_" + userId;
-        memoryCache.put(key, new ArrayList<>(items));
-        writeToDisk(key + ".json", items);
+
+        // Sanitize: only active approved items belong in the dashboard feed cache
+        List<Item> sanitized = new ArrayList<>();
+        for (Item it : items) {
+            if (it != null && it.getId() > 0 && isFeedEligible(it)) {
+                sanitized.add(it);
+            }
+        }
+
+        memoryCache.put(key, new ArrayList<>(sanitized));
+        writeToDisk(key + ".json", sanitized);
 
         // Also update individual item detail caches
         for (Item item : items) {
@@ -92,26 +101,59 @@ public class FindoraCache {
         }
     }
 
+    public boolean isFeedEligible(Item item) {
+        if (item == null) return false;
+        if ("resolved".equalsIgnoreCase(item.getStatus()) || "rejected".equalsIgnoreCase(item.getStatus())) {
+            return false;
+        }
+        if (item.isOwnerReturnedConfirm() && item.isFinderReturnedConfirm()) {
+            return false;
+        }
+        return "approved".equalsIgnoreCase(item.getStatus());
+    }
+
     public List<Item> getCachedItems() {
         int userId = getCurrentUserId();
         String key = "items_feed_" + userId;
+
+        List<Item> rawList = null;
 
         // Try L1 Memory
         Object inMemory = memoryCache.get(key);
         if (inMemory instanceof List) {
             //noinspection unchecked
-            return (List<Item>) inMemory;
+            rawList = (List<Item>) inMemory;
+        } else {
+            // Try L2 Disk
+            Type type = new TypeToken<List<Item>>() {}.getType();
+            List<Item> diskItems = readFromDisk(key + ".json", type);
+            if (diskItems != null) {
+                memoryCache.put(key, diskItems);
+                rawList = diskItems;
+            }
         }
 
-        // Try L2 Disk
-        Type type = new TypeToken<List<Item>>() {}.getType();
-        List<Item> diskItems = readFromDisk(key + ".json", type);
-        if (diskItems != null) {
-            memoryCache.put(key, diskItems);
-            return diskItems;
+        if (rawList == null || rawList.isEmpty()) {
+            return Collections.emptyList();
         }
 
-        return Collections.emptyList();
+        // Strictly sanitize: ensure no resolved or non-approved items leak into feed UI
+        List<Item> sanitized = new ArrayList<>();
+        boolean hasIneligible = false;
+        for (Item it : rawList) {
+            if (it != null && it.getId() > 0 && isFeedEligible(it)) {
+                sanitized.add(it);
+            } else {
+                hasIneligible = true;
+            }
+        }
+
+        if (hasIneligible) {
+            memoryCache.put(key, new ArrayList<>(sanitized));
+            writeToDisk(key + ".json", sanitized);
+        }
+
+        return sanitized;
     }
 
     public void saveItemDetail(Item item) {
@@ -125,7 +167,11 @@ public class FindoraCache {
         writeToDisk(key + ".json", item);
 
         if (updateFeed) {
-            updateOrInsertItem(item);
+            if (isFeedEligible(item)) {
+                updateOrInsertItem(item);
+            } else {
+                removeItemFromFeed(item.getId());
+            }
         }
     }
 
@@ -157,6 +203,11 @@ public class FindoraCache {
 
     public void updateOrInsertItem(Item item) {
         if (item == null || item.getId() <= 0) return;
+        if (!isFeedEligible(item)) {
+            removeItemFromFeed(item.getId());
+            return;
+        }
+
         List<Item> currentItems = new ArrayList<>(getCachedItems());
         boolean found = false;
         for (int i = 0; i < currentItems.size(); i++) {
@@ -172,11 +223,10 @@ public class FindoraCache {
         saveItems(currentItems);
     }
 
-    public void removeItem(int itemId) {
+    public void removeItemFromFeed(int itemId) {
         if (itemId <= 0) return;
-        String detailKey = "item_detail_" + itemId;
-        memoryCache.remove(detailKey);
-        deleteDiskFile(detailKey + ".json");
+        int userId = getCurrentUserId();
+        String key = "items_feed_" + userId;
 
         List<Item> currentItems = new ArrayList<>(getCachedItems());
         boolean modified = false;
@@ -188,8 +238,18 @@ public class FindoraCache {
             }
         }
         if (modified) {
-            saveItems(currentItems);
+            memoryCache.put(key, new ArrayList<>(currentItems));
+            writeToDisk(key + ".json", currentItems);
         }
+    }
+
+    public void removeItem(int itemId) {
+        if (itemId <= 0) return;
+        String detailKey = "item_detail_" + itemId;
+        memoryCache.remove(detailKey);
+        deleteDiskFile(detailKey + ".json");
+
+        removeItemFromFeed(itemId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

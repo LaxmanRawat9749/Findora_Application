@@ -46,6 +46,7 @@ public class HomeActivity extends BaseActivity {
     private ApiService apiService;
     
     private ItemAdapter adapter;
+    private Call<List<Item>> getItemsCall;
 
     private String currentType = null; // null = all
     private String currentCategory = null; // null = all
@@ -376,9 +377,15 @@ public class HomeActivity extends BaseActivity {
         }
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        apiService.getItems().enqueue(new Callback<List<Item>>() {
+        if (getItemsCall != null && !getItemsCall.isExecuted() && !getItemsCall.isCanceled()) {
+            getItemsCall.cancel();
+        }
+
+        getItemsCall = apiService.getItems();
+        getItemsCall.enqueue(new Callback<List<Item>>() {
             @Override
             public void onResponse(Call<List<Item>> call, Response<List<Item>> response) {
+                if (call.isCanceled()) return;
                 binding.progressBar.setVisibility(View.GONE);
                 binding.swipeRefresh.setRefreshing(false);
 
@@ -394,6 +401,7 @@ public class HomeActivity extends BaseActivity {
 
             @Override
             public void onFailure(Call<List<Item>> call, Throwable t) {
+                if (call.isCanceled()) return;
                 binding.progressBar.setVisibility(View.GONE);
                 binding.swipeRefresh.setRefreshing(false);
                 if (originalItemList == null || originalItemList.isEmpty()) {
@@ -535,5 +543,14 @@ public class HomeActivity extends BaseActivity {
             })
             .setNegativeButton("Cancel", null)
             .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (getItemsCall != null) {
+            getItemsCall.cancel();
+            getItemsCall = null;
+        }
     }
 }
