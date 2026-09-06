@@ -17,6 +17,9 @@ public class PaymentResponse {
         @SerializedName("post_data")
         private String postData;
 
+        @SerializedName("form_html")
+        private String formHtml;
+
         public String getPidx() { return pidx; }
         public void setPidx(String pidx) { this.pidx = pidx; }
 
@@ -28,6 +31,9 @@ public class PaymentResponse {
 
         public String getPostData() { return postData; }
         public void setPostData(String postData) { this.postData = postData; }
+
+        public String getFormHtml() { return formHtml; }
+        public void setFormHtml(String formHtml) { this.formHtml = formHtml; }
     }
 
     public static class Verify {

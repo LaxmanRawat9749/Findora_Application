@@ -188,11 +188,101 @@ class InitiatePaymentView(APIView):
                 f"signature={urllib.parse.quote(signature)}"
             )
 
+            form_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to eSewa...</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F8F9FD;
+            color: #1A1A2E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }}
+        .card {{
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 32px;
+            max-width: 380px;
+            width: 100%;
+        }}
+        .spinner {{
+            border: 4px solid #E9ECEF;
+            border-top: 4px solid #60BB46;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        h2 {{
+            font-size: 18px;
+            margin: 0 0 8px;
+            color: #1A1A2E;
+        }}
+        p {{
+            font-size: 14px;
+            color: #6C757D;
+            margin: 0 0 20px;
+        }}
+        .btn {{
+            background-color: #60BB46;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            cursor: pointer;
+        }}
+    </style>
+</head>
+<body onload="document.getElementById('esewaForm').submit();">
+    <div class="card">
+        <div class="spinner"></div>
+        <h2>Redirecting to eSewa</h2>
+        <p>Connecting securely to eSewa payment gateway...</p>
+        <form id="esewaForm" action="{esewa_form_url}" method="POST">
+            <input type="hidden" name="amount" value="{amount}">
+            <input type="hidden" name="tax_amount" value="0">
+            <input type="hidden" name="total_amount" value="{amount}">
+            <input type="hidden" name="transaction_uuid" value="{transaction_uuid}">
+            <input type="hidden" name="product_code" value="{merchant_code}">
+            <input type="hidden" name="product_service_charge" value="0">
+            <input type="hidden" name="product_delivery_charge" value="0">
+            <input type="hidden" name="success_url" value="{success_url}">
+            <input type="hidden" name="failure_url" value="{failure_url}">
+            <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
+            <input type="hidden" name="signature" value="{signature}">
+            <noscript>
+                <button type="submit" class="btn">Click here to continue to eSewa</button>
+            </noscript>
+        </form>
+    </div>
+</body>
+</html>"""
+
             return Response({
                 'payment_url': form_url,
                 'pidx': transaction_uuid,
                 'form_url': esewa_form_url,
                 'post_data': post_data,
+                'form_html': form_html,
                 'amount': amount,
                 'total_amount': amount,
                 'transaction_uuid': transaction_uuid,
