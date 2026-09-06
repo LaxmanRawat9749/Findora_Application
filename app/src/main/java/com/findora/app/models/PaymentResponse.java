@@ -11,11 +11,23 @@ public class PaymentResponse {
         @SerializedName("payment_url")
         private String paymentUrl;
 
+        @SerializedName("form_url")
+        private String formUrl;
+
+        @SerializedName("post_data")
+        private String postData;
+
         public String getPidx() { return pidx; }
         public void setPidx(String pidx) { this.pidx = pidx; }
 
         public String getPaymentUrl() { return paymentUrl; }
         public void setPaymentUrl(String paymentUrl) { this.paymentUrl = paymentUrl; }
+
+        public String getFormUrl() { return formUrl; }
+        public void setFormUrl(String formUrl) { this.formUrl = formUrl; }
+
+        public String getPostData() { return postData; }
+        public void setPostData(String postData) { this.postData = postData; }
     }
 
     public static class Verify {

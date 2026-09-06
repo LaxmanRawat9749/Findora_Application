@@ -136,11 +136,13 @@ public class PromoteItemActivity extends BaseActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     String paymentUrl = response.body().getPaymentUrl();
                     String pidx = response.body().getPidx();
+                    String formUrl = response.body().getFormUrl();
+                    String postData = response.body().getPostData();
 
-                    if (paymentUrl != null && !paymentUrl.isEmpty()) {
+                    if ((paymentUrl != null && !paymentUrl.isEmpty()) || (formUrl != null && !formUrl.isEmpty())) {
                         activeTransactionUuid = pidx;
                         setLoadingText("Opening eSewa payment...");
-                        launchPaymentWebView(paymentUrl, pidx);
+                        launchPaymentWebView(paymentUrl, pidx, formUrl, postData);
                     } else {
                         isPaymentInProgress = false;
                         hideLoading();
@@ -169,11 +171,13 @@ public class PromoteItemActivity extends BaseActivity {
         });
     }
 
-    private void launchPaymentWebView(String paymentUrl, String pidx) {
+    private void launchPaymentWebView(String paymentUrl, String pidx, String formUrl, String postData) {
         hideLoading();
         Intent intent = new Intent(this, KhaltiWebViewActivity.class);
         intent.putExtra(KhaltiWebViewActivity.EXTRA_URL, paymentUrl);
         intent.putExtra(KhaltiWebViewActivity.EXTRA_PIDX, pidx);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_FORM_URL, formUrl);
+        intent.putExtra(KhaltiWebViewActivity.EXTRA_POST_DATA, postData);
         intent.putExtra(KhaltiWebViewActivity.EXTRA_TITLE, "eSewa Checkout");
         startActivityForResult(intent, REQUEST_CODE_PAYMENT);
     }

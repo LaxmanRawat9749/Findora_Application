@@ -141,7 +141,7 @@ class InitiatePaymentView(APIView):
         """
         Initiates eSewa ePay v2 form payment flow.
         Generates unique transaction UUID, HMAC-SHA256 signature, and returns
-        the form URL to be loaded in the in-app payment WebView.
+        the form URL and POST parameters to be loaded in the in-app payment WebView.
         """
         try:
             # Generate unique transaction UUID
@@ -152,6 +152,7 @@ class InitiatePaymentView(APIView):
             amount = str(int(price))
             merchant_code = getattr(settings, 'ESEWA_PRODUCT_CODE', 'EPAYTEST')
             secret_key = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')
+            esewa_form_url = getattr(settings, 'ESEWA_EPAY_FORM_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
             
             # eSewa v2 signature string: total_amount,transaction_uuid,product_code
             message = f"total_amount={amount},transaction_uuid={transaction_uuid},product_code={merchant_code}"
@@ -165,9 +166,41 @@ class InitiatePaymentView(APIView):
             except Exception:
                 form_url = f"{base_url}/api/payments/esewa/form/{payment.id}/"
             
+            try:
+                success_url = request.build_absolute_uri(reverse('esewa-verify-callback'))
+            except Exception:
+                success_url = f"{base_url}/api/payments/esewa/verify-callback/"
+                
+            failure_url = f"{base_url}/api/payments/callback/?status=Failed&pidx={transaction_uuid}"
+            
+            import urllib.parse
+            post_data = (
+                f"amount={urllib.parse.quote(amount)}&"
+                f"tax_amount=0&"
+                f"total_amount={urllib.parse.quote(amount)}&"
+                f"transaction_uuid={urllib.parse.quote(transaction_uuid)}&"
+                f"product_code={urllib.parse.quote(merchant_code)}&"
+                f"product_service_charge=0&"
+                f"product_delivery_charge=0&"
+                f"success_url={urllib.parse.quote(success_url)}&"
+                f"failure_url={urllib.parse.quote(failure_url)}&"
+                f"signed_field_names=total_amount,transaction_uuid,product_code&"
+                f"signature={urllib.parse.quote(signature)}"
+            )
+
             return Response({
                 'payment_url': form_url,
                 'pidx': transaction_uuid,
+                'form_url': esewa_form_url,
+                'post_data': post_data,
+                'amount': amount,
+                'total_amount': amount,
+                'transaction_uuid': transaction_uuid,
+                'product_code': merchant_code,
+                'signed_field_names': 'total_amount,transaction_uuid,product_code',
+                'signature': signature,
+                'success_url': success_url,
+                'failure_url': failure_url,
             }, status=status.HTTP_200_OK)
             
         except Exception as e:

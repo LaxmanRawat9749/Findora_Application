@@ -24,9 +24,13 @@ public class KhaltiWebViewActivity extends BaseActivity {
     public static final String EXTRA_PIDX = "extra_pidx";
     public static final String EXTRA_STATUS = "extra_status";
     public static final String EXTRA_TITLE = "extra_title";
+    public static final String EXTRA_FORM_URL = "extra_form_url";
+    public static final String EXTRA_POST_DATA = "extra_post_data";
 
     private ActivityKhaltiWebviewBinding binding;
     private String originalUrl;
+    private String formUrl;
+    private String postData;
     private String pidx;
 
     @Override
@@ -43,6 +47,8 @@ public class KhaltiWebViewActivity extends BaseActivity {
 
         pidx = getIntent().getStringExtra(EXTRA_PIDX);
         originalUrl = getIntent().getStringExtra(EXTRA_URL);
+        formUrl = getIntent().getStringExtra(EXTRA_FORM_URL);
+        postData = getIntent().getStringExtra(EXTRA_POST_DATA);
 
         binding.toolbar.setNavigationOnClickListener(v -> showCancelConfirmationDialog());
 
@@ -53,13 +59,15 @@ public class KhaltiWebViewActivity extends BaseActivity {
             }
         });
 
-        if (originalUrl == null || originalUrl.isEmpty()) {
-            finishWithResult("Error: Invalid URL", pidx);
-            return;
-        }
-
         setupWebView();
-        binding.webview.loadUrl(originalUrl);
+
+        if (formUrl != null && !formUrl.isEmpty() && postData != null && !postData.isEmpty()) {
+            binding.webview.postUrl(formUrl, postData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } else if (originalUrl != null && !originalUrl.isEmpty()) {
+            binding.webview.loadUrl(originalUrl);
+        } else {
+            finishWithResult("Error: Invalid URL", pidx);
+        }
     }
 
     private void setupWebView() {
