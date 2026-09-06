@@ -729,10 +729,21 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'type', 'message', 'related_item', 'created_at']
 
     def get_conversation_id(self, obj):
-        if obj.type == 'message' and obj.related_item:
-            from .utils import get_or_create_matched_conversation
-            conv, _ = get_or_create_matched_conversation(obj.related_item, obj.user)
-            return conv.id if conv else None
+        if obj.related_item:
+            from .models import Conversation
+            from django.db.models import Q
+            # Search for an existing conversation for this item (or counterpart parent item) involving obj.user
+            conv = Conversation.objects.filter(
+                Q(item=obj.related_item) | Q(item__parent_item=obj.related_item)
+            ).filter(
+                Q(owner=obj.user) | Q(finder=obj.user)
+            ).first()
+            if conv:
+                return conv.id
+            if obj.type == 'message':
+                from .utils import get_or_create_matched_conversation
+                conv, _ = get_or_create_matched_conversation(obj.related_item, obj.user)
+                return conv.id if conv else None
         return None
 
 

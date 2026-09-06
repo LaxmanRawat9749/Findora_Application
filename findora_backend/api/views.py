@@ -995,7 +995,7 @@ class MarkItemReturnedView(APIView):
                 other_user = conv.finder if conv.owner == request.user else conv.owner
                 Notification.objects.create(
                     user=other_user,
-                    type='message',
+                    type='claim',
                     message=f'The user {request.user.username} has marked "{item.title}" as returned. Please confirm.',
                     related_item=item
                 )
@@ -1038,7 +1038,7 @@ class ConfirmItemReturnView(APIView):
 
         Notification.objects.create(
             user=item.user,
-            type='message',
+            type='claim',
             message=f'{request.user.username} confirmed the return of "{item.title}". Item is now resolved.',
             related_item=item
         )

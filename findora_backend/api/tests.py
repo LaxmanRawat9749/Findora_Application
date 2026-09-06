@@ -1,5 +1,6 @@
 from unittest.mock import patch
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.exceptions import ValidationError
 from api.models import (
@@ -2723,6 +2724,122 @@ class ItemReturnWorkflowAndNotificationTests(TestCase):
         force_authenticate(req, user=self.owner)
         res = confirm_view(req, pk=self.lost_item.id)
         self.assertEqual(res.status_code, 403)
+
+
+class NotificationRoutingAndSerializationTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='notif_owner', email='notif_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='notif_finder', email='notif_finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.intruder = User.objects.create_user(
+            username='notif_intruder', email='notif_intruder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Diamond Ring', category='jewelry', status='approved'
+        )
+        self.conversation = Conversation.objects.create(
+            item=self.lost_item, owner=self.owner, finder=self.finder
+        )
+
+    def test_chat_notification_includes_valid_conversation_id(self):
+        """Chat notification serialized for recipient contains conversation_id."""
+        chat_msg = ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message='Hello, I saw you found it!'
+        )
+        notif = Notification.objects.create(
+            user=self.finder,
+            type='message',
+            message=f'New message from {self.owner.username}: Hello, I saw you found it!',
+            related_item=self.lost_item
+        )
+        from api.serializers import NotificationSerializer
+        data = NotificationSerializer(notif).data
+        self.assertEqual(data['type'], 'message')
+        self.assertEqual(data['related_item'], self.lost_item.id)
+        self.assertEqual(data['conversation_id'], self.conversation.id)
+
+    def test_chat_history_accessible_after_successful_return(self):
+        """
+        Old chat notification and conversation history remain fully accessible
+        after the item has been returned and resolved.
+        """
+        ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.owner, message='Message 1 before return'
+        )
+        ChatMessage.objects.create(
+            conversation=self.conversation, sender=self.finder, message='Message 2 before return'
+        )
+        notif = Notification.objects.create(
+            user=self.finder,
+            type='message',
+            message=f'New message from {self.owner.username}: Message 1 before return',
+            related_item=self.lost_item
+        )
+
+        # Mark and confirm return -> item becomes resolved
+        self.lost_item.owner_returned_confirm = True
+        self.lost_item.finder_returned_confirm = True
+        self.lost_item.status = 'resolved'
+        self.lost_item.resolved_at = timezone.now()
+        self.lost_item.save()
+
+        # Serializing the old notification still returns conversation_id
+        from api.serializers import NotificationSerializer
+        data = NotificationSerializer(notif).data
+        self.assertEqual(data['conversation_id'], self.conversation.id)
+
+        # Both participants can fetch chat history
+        chat_view = ChatListView.as_view()
+        for participant in [self.owner, self.finder]:
+            req = self.factory.get(f'/api/chat/?conversation_id={self.conversation.id}')
+            force_authenticate(req, user=participant)
+            res = chat_view(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(len(res.data), 2)
+
+        # Intruder cannot access conversation
+        req_intruder = self.factory.get(f'/api/chat/?conversation_id={self.conversation.id}')
+        force_authenticate(req_intruder, user=self.intruder)
+        res_intruder = chat_view(req_intruder)
+        self.assertEqual(res_intruder.status_code, 403)
+
+    def test_return_and_rating_notification_lifecycle_types(self):
+        """Verify return and rating notification creation types and contents."""
+        mark_view = MarkItemReturnedView.as_view()
+        confirm_view = ConfirmItemReturnView.as_view()
+
+        # 1. Owner marks returned -> Notification to finder with type='claim'
+        req_mark = self.factory.post(f'/api/items/{self.lost_item.id}/mark-returned/')
+        force_authenticate(req_mark, user=self.owner)
+        res_mark = mark_view(req_mark, pk=self.lost_item.id)
+        self.assertEqual(res_mark.status_code, 200)
+
+        notif_mark = Notification.objects.filter(user=self.finder, type='claim').first()
+        self.assertIsNotNone(notif_mark)
+        self.assertIn('marked "Lost Diamond Ring" as returned', notif_mark.message)
+
+        # 2. Finder confirms return -> Notification to owner with type='claim', and rating notification
+        req_confirm = self.factory.post(f'/api/items/{self.lost_item.id}/confirm-return/')
+        force_authenticate(req_confirm, user=self.finder)
+        res_confirm = confirm_view(req_confirm, pk=self.lost_item.id)
+        self.assertEqual(res_confirm.status_code, 200)
+
+        notif_confirm = Notification.objects.filter(user=self.owner, type='claim').first()
+        self.assertIsNotNone(notif_confirm)
+        self.assertIn('confirmed the return', notif_confirm.message)
+
+        notif_rating = Notification.objects.filter(user=self.owner, type='rating').first()
+        self.assertIsNotNone(notif_rating)
+        self.assertIn('Rate your Finder', notif_rating.message)
+
+        notif_rep = Notification.objects.filter(user=self.finder, type='reputation').first()
+        self.assertIsNotNone(notif_rep)
+        self.assertIn('Successful Return', notif_rep.message)
+
 
 
 

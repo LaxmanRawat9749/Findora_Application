@@ -33,6 +33,8 @@ import com.findora.app.models.MessageResponse;
 
 public class ItemDetailActivity extends BaseActivity {
 
+    public static final String EXTRA_AUTO_OPEN_RATING = "EXTRA_AUTO_OPEN_RATING";
+
     private ActivityItemDetailBinding binding;
     private ApiService apiService;
     
@@ -43,6 +45,7 @@ public class ItemDetailActivity extends BaseActivity {
     private Call<ConversationInitResponse> conversationInitCall;
     private ItemImagePagerAdapter imagePagerAdapter;
     private boolean isFirstLaunch = true;
+    private boolean hasAutoOpenedRating = false;
 
     private long lastActionTime = 0;
 
@@ -378,6 +381,11 @@ public class ItemDetailActivity extends BaseActivity {
                         binding.btnRateFinder.setText("Rate");
                         binding.btnRateFinder.setEnabled(true);
                         binding.btnRateFinder.setOnClickListener(v -> showRatingDialog());
+
+                        if (!hasAutoOpenedRating && getIntent().getBooleanExtra(EXTRA_AUTO_OPEN_RATING, false)) {
+                            hasAutoOpenedRating = true;
+                            showRatingDialog();
+                        }
                     } else if (status.isHasRated() && status.getRating() != null) {
                         binding.cvRateFinder.setVisibility(View.VISIBLE);
                         binding.tvRateTitle.setText("Finder Rated");

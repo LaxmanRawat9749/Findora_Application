@@ -82,8 +82,31 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         }
 
         void bind(Notification notification) {
-            binding.tvTitle.setText(notification.getType() != null ?
-                    notification.getType().replace('_', ' ').toUpperCase() : "Notification");
+            String type = notification.getType() != null ? notification.getType().trim() : "";
+            String msg = notification.getMessage() != null ? notification.getMessage() : "";
+            String title;
+            if (isReturnNotification(type, msg)) {
+                title = "RETURN UPDATE";
+            } else if ("message".equalsIgnoreCase(type)) {
+                title = "NEW MESSAGE";
+            } else if ("rating".equalsIgnoreCase(type) || msg.toLowerCase().contains("rate your finder")) {
+                title = "RATING";
+            } else if ("badge".equalsIgnoreCase(type)) {
+                title = "BADGE UNLOCKED";
+            } else if ("reputation".equalsIgnoreCase(type)) {
+                title = "POINTS & REPUTATION";
+            } else if ("approved".equalsIgnoreCase(type)) {
+                title = "REPORT APPROVED";
+            } else if ("rejected".equalsIgnoreCase(type)) {
+                title = "REPORT REJECTED";
+            } else if ("match".equalsIgnoreCase(type)) {
+                title = "MATCH FOUND";
+            } else if (!type.isEmpty()) {
+                title = type.replace('_', ' ').toUpperCase();
+            } else {
+                title = "NOTIFICATION";
+            }
+            binding.tvTitle.setText(title);
             binding.tvMessage.setText(notification.getMessage());
 
             String time = notification.getCreatedAt();
@@ -108,6 +131,16 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
                     listener.onNotificationClick(notification);
                 }
             });
+        }
+
+        private boolean isReturnNotification(String type, String message) {
+            if ("claim".equalsIgnoreCase(type)) return true;
+            if (message == null) return false;
+            String lower = message.toLowerCase();
+            return (lower.contains("marked") && lower.contains("returned"))
+                    || lower.contains("confirmed the return")
+                    || lower.contains("return confirmation")
+                    || lower.contains("item is now resolved");
         }
     }
 }
