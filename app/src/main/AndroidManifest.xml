@@ -11,14 +11,6 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <supports-screens
-        android:smallScreens="true"
-        android:normalScreens="true"
-        android:largeScreens="true"
-        android:xlargeScreens="true"
-        android:anyDensity="true"
-        android:resizeable="false" />
-
     <application
         android:name=".FindoraApplication"
         android:allowBackup="true"
@@ -30,22 +22,17 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Findora"
-        android:resizeableActivity="false"
         tools:replace="android:theme">
 
         <activity
             android:name=".activities.ConversationListActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".activities.SplashActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Findora.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -56,118 +43,81 @@
         <activity
             android:name=".activities.LoginActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.RegisterActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.VerifyOtpActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.ForgotPasswordActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.ResetPasswordActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.HomeActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.UploadItemActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.ItemDetailActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.SearchActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.ChatActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.NotificationsActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.ProfileActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.FullScreenImageActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.UserProfileActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.MyReportsActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.PromoteItemActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.KhaltiWebViewActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.PointHistoryActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection" />
+            android:screenOrientation="portrait" />
+
 
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:resizeableActivity="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <provider

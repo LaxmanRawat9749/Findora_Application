@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.findora.app.R;
 import com.findora.app.utils.SessionManager;
 
-public class SplashActivity extends PortraitBaseActivity {
+public class SplashActivity extends AppCompatActivity {
 
     LinearLayout layoutLogo;
     View dot1, dot2, dot3;
@@ -24,12 +24,18 @@ public class SplashActivity extends PortraitBaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
+
+        getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        );
 
         sessionManager = new SessionManager(this);
 

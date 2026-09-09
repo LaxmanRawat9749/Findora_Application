@@ -42,8 +42,6 @@ import java.io.InputStream;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import java.util.ArrayList;
-import java.util.List;
 import androidx.exifinterface.media.ExifInterface;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -70,7 +68,6 @@ public class ChatActivity extends BaseActivity {
     private Uri currentPhotoUri;
     private ActivityResultLauncher<Uri> takePictureLauncher;
     private ActivityResultLauncher<String> pickMultipleMediaLauncher;
-    private ActivityResultLauncher<Intent> pickGalleryLauncher;
     private ActivityResultLauncher<String[]> requestPermissionsLauncher;
     private static final java.util.concurrent.atomic.AtomicInteger tempMessageIdCounter = new java.util.concurrent.atomic.AtomicInteger(1000);
     private final java.util.concurrent.atomic.AtomicInteger activeUploadsCount = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -323,27 +320,6 @@ public class ChatActivity extends BaseActivity {
             }
         );
 
-        pickGalleryLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    Intent data = result.getData();
-                    List<Uri> uris = new ArrayList<>();
-                    if (data.getClipData() != null) {
-                        int count = data.getClipData().getItemCount();
-                        for (int i = 0; i < count; i++) {
-                            uris.add(data.getClipData().getItemAt(i).getUri());
-                        }
-                    } else if (data.getData() != null) {
-                        uris.add(data.getData());
-                    }
-                    if (!uris.isEmpty()) {
-                        showImagesPreviewDialog(uris);
-                    }
-                }
-            }
-        );
-
         pickMultipleMediaLauncher = registerForActivityResult(
             new ActivityResultContracts.GetMultipleContents(),
             uris -> {
@@ -403,14 +379,7 @@ public class ChatActivity extends BaseActivity {
     }
 
     private void launchGallery() {
-        try {
-            Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            intent.setType("image/*");
-            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            pickGalleryLauncher.launch(intent);
-        } catch (Exception e) {
-            pickMultipleMediaLauncher.launch("image/*");
-        }
+        pickMultipleMediaLauncher.launch("image/*");
     }
 
     private void showImagesPreviewDialog(List<Uri> initialUris) {

@@ -33,6 +33,7 @@
         <item name="android:windowBackground">@color/screen_background</item>
         <item name="android:navigationBarColor">@color/surface_01</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowDisablePreview">true</item>
         <item name="android:windowAllowEnterTransitionOverlap">true</item>
         <item name="android:windowAllowReturnTransitionOverlap">true</item>
 
@@ -173,10 +174,10 @@
     <style name="Theme.Findora.Splash" parent="Theme.Findora">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">#534AB7</item>
         <item name="android:statusBarColor">#534AB7</item>
         <item name="android:navigationBarColor">#534AB7</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
     </style>
 
 </resources>

@@ -20,7 +20,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class VerifyOtpActivity extends PortraitBaseActivity {
+public class VerifyOtpActivity extends AppCompatActivity {
 
     private ActivityVerifyOtpBinding binding;
     private ApiService apiService;
@@ -31,6 +31,7 @@ public class VerifyOtpActivity extends PortraitBaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
         binding = ActivityVerifyOtpBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
