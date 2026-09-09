@@ -1,7 +1,10 @@
 package com.findora.app.adapters;
 
 import android.content.Context;
+import android.view.InputDevice;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -27,51 +30,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onProfileClick(int userId);
     }
 
-    public interface OnMessageActionListener {
-        void onCopy(ChatMessage message);
-        void onEdit(ChatMessage message);
-        void onDelete(ChatMessage message);
-    }
-
     private Context context;
     private List<ChatMessage> messages = new ArrayList<>();
     private int currentUserId;
     private OnMessageLongClickListener longClickListener;
     private OnProfileClickListener profileClickListener;
-    private OnMessageActionListener actionListener;
-    private int selectedMessageId = -1;
 
     public ChatAdapter(Context context, int currentUserId, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
-        this(context, currentUserId, listener, profileClickListener, null);
-    }
-
-    public ChatAdapter(Context context, int currentUserId, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
         this.context = context;
         this.currentUserId = currentUserId;
         this.longClickListener = listener;
         this.profileClickListener = profileClickListener;
-        this.actionListener = actionListener;
-    }
-
-    public int getSelectedMessageId() {
-        return selectedMessageId;
-    }
-
-    public void setSelectedMessageId(int newId) {
-        if (selectedMessageId == newId) return;
-        int oldId = selectedMessageId;
-        selectedMessageId = newId;
-
-        for (int i = 0; i < messages.size(); i++) {
-            ChatMessage m = messages.get(i);
-            if (m != null && (m.getId() == oldId || m.getId() == newId)) {
-                notifyItemChanged(i);
-            }
-        }
-    }
-
-    public void clearSelection() {
-        setSelectedMessageId(-1);
     }
 
     public void setMessages(List<ChatMessage> newMessages) {
@@ -249,19 +218,9 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         ChatMessage msg = messages.get(position);
         if (holder instanceof SentViewHolder) {
-            ((SentViewHolder) holder).bind(msg, longClickListener, profileClickListener, actionListener);
+            ((SentViewHolder) holder).bind(msg, longClickListener, profileClickListener);
         } else {
-            ((ReceivedViewHolder) holder).bind(msg, longClickListener, profileClickListener, actionListener);
-        }
-    }
-
-    @Override
-    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
-        super.onViewRecycled(holder);
-        if (holder instanceof SentViewHolder) {
-            ((SentViewHolder) holder).cleanup();
-        } else if (holder instanceof ReceivedViewHolder) {
-            ((ReceivedViewHolder) holder).cleanup();
+            ((ReceivedViewHolder) holder).bind(msg, longClickListener, profileClickListener);
         }
     }
 
@@ -270,44 +229,20 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return messages.size();
     }
 
-    class SentViewHolder extends RecyclerView.ViewHolder {
+    static class SentViewHolder extends RecyclerView.ViewHolder {
         private ItemChatSentBinding binding;
-        private boolean isMenuOpen = false;
-        private androidx.appcompat.widget.PopupMenu currentPopup = null;
-        private boolean isDeleted = false;
 
         SentViewHolder(ItemChatSentBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
         }
 
-        void cleanup() {
-            if (currentPopup != null) {
-                currentPopup.dismiss();
-                currentPopup = null;
-            }
-            isMenuOpen = false;
-        }
-
-        void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
-            this.isDeleted = msg.isDeletedForEveryone();
+        void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
+            boolean isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
-                cleanup();
-                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
-                binding.btnMoreOptions.setOnClickListener(null);
-                binding.getRoot().setOnClickListener(null);
-                binding.getRoot().setOnLongClickListener(null);
-                binding.getRoot().setOnContextClickListener(null);
-                binding.getRoot().setOnTouchListener(null);
-                binding.layoutBubble.setOnClickListener(null);
-                binding.layoutBubble.setOnLongClickListener(null);
-                binding.layoutBubble.setOnContextClickListener(null);
-                binding.layoutBubble.setOnTouchListener(null);
-
                 binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
-                binding.ivMessageImage.setOnLongClickListener(null);
 
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 String deletedText = "image".equals(msg.getMessageType()) ? "This image was deleted" : "This message was deleted";
@@ -318,9 +253,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
                 binding.tvMessage.setTextColor(android.graphics.Color.parseColor("#CCCCCC"));
                 binding.tvEdited.setVisibility(android.view.View.GONE);
-            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
-                setupMessageInteractions(msg, listener, actionListener);
 
+                setupMessageInteractions(msg, listener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage);
+            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.layoutImageContainer.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -337,16 +273,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     binding.getRoot().getContext().startActivity(intent);
                 });
 
-                binding.ivMessageImage.setOnLongClickListener(v -> {
-                    if (listener != null) listener.onMessageLongClick(msg);
-                    return true;
-                });
-
-                binding.ivMessageImage.setOnContextClickListener(v -> {
-                    openOptionsMenu(msg, actionListener);
-                    return true;
-                });
-
                 if (msg.getCaption() != null && !msg.getCaption().trim().isEmpty()) {
                     binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                     binding.tvMessage.setText(msg.getCaption());
@@ -356,18 +282,21 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
                 binding.tvMessage.setTextColor(android.graphics.Color.WHITE);
                 binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
-            } else {
-                setupMessageInteractions(msg, listener, actionListener);
 
+                setupMessageInteractions(msg, listener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage, binding.ivMessageImage, binding.layoutImageContainer);
+            } else {
                 binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
-                binding.ivMessageImage.setOnLongClickListener(null);
 
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 binding.tvMessage.setText(msg.getMessage());
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
                 binding.tvMessage.setTextColor(android.graphics.Color.WHITE);
                 binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                setupMessageInteractions(msg, listener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage);
             }
 
             binding.tvTime.setText(formatTime(msg.getSentAt()));
@@ -388,144 +317,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        private void setupMessageInteractions(ChatMessage msg, OnMessageLongClickListener listener, OnMessageActionListener actionListener) {
-            boolean isSelected = (msg.getId() == selectedMessageId);
-            binding.btnMoreOptions.setVisibility(isSelected ? android.view.View.VISIBLE : android.view.View.GONE);
-
-            // Left-Click: select message to show 3-dots (or open menu if already selected)
-            android.view.View.OnClickListener clickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "SentMsg " + msg.getId() + " clicked");
-                if (selectedMessageId == msg.getId()) {
-                    openOptionsMenu(msg, actionListener);
-                } else {
-                    setSelectedMessageId(msg.getId());
-                }
-            };
-            binding.getRoot().setOnClickListener(clickListener);
-            binding.layoutBubble.setOnClickListener(clickListener);
-
-            // Long-Press: mobile message options bottom sheet
-            android.view.View.OnLongClickListener longClickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "SentMsg " + msg.getId() + " long-clicked");
-                if (listener != null) listener.onMessageLongClick(msg);
-                return true;
-            };
-            binding.getRoot().setOnLongClickListener(longClickListener);
-            binding.layoutBubble.setOnLongClickListener(longClickListener);
-
-            // Right-Click (Context Click / BUTTON_SECONDARY)
-            android.view.View.OnContextClickListener contextClickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "SentMsg " + msg.getId() + " context-clicked (Right-Click)");
-                openOptionsMenu(msg, actionListener);
-                return true;
-            };
-            binding.getRoot().setOnContextClickListener(contextClickListener);
-            binding.layoutBubble.setOnContextClickListener(contextClickListener);
-
-            android.view.View.OnTouchListener touchListener = (v, event) -> {
-                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN || event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                    if ((event.getButtonState() & android.view.MotionEvent.BUTTON_SECONDARY) != 0 ||
-                        event.getActionButton() == android.view.MotionEvent.BUTTON_SECONDARY) {
-                        if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                            openOptionsMenu(msg, actionListener);
-                        }
-                        return true;
-                    }
-                }
-                return false;
-            };
-            binding.getRoot().setOnTouchListener(touchListener);
-            binding.layoutBubble.setOnTouchListener(touchListener);
-
-            // 3-dot button click: opens menu directly
-            binding.btnMoreOptions.setOnClickListener(v -> {
-                android.util.Log.d("FindoraChatClick", "SentMsg " + msg.getId() + " 3-dot clicked");
-                openOptionsMenu(msg, actionListener);
-            });
-        }
-
-        private void openOptionsMenu(ChatMessage msg, OnMessageActionListener actionListener) {
-            if (msg.isDeletedForEveryone()) return;
-            if (currentPopup != null) {
-                currentPopup.dismiss();
-            }
-            setSelectedMessageId(msg.getId());
-            binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
-
-            androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(binding.btnMoreOptions.getContext(), binding.btnMoreOptions);
-            popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_sent, popup.getMenu());
-
-            isMenuOpen = true;
-            currentPopup = popup;
-
-            popup.setOnMenuItemClickListener(item -> {
-                int itemId = item.getItemId();
-                android.util.Log.d("FindoraChatClick", "Menu item selected: " + item.getTitle() + " on message " + msg.getId());
-                if (itemId == com.findora.app.R.id.action_copy) {
-                    if (actionListener != null) actionListener.onCopy(msg);
-                    return true;
-                } else if (itemId == com.findora.app.R.id.action_edit) {
-                    if (actionListener != null) actionListener.onEdit(msg);
-                    return true;
-                } else if (itemId == com.findora.app.R.id.action_delete) {
-                    if (actionListener != null) actionListener.onDelete(msg);
-                    return true;
-                }
-                return false;
-            });
-
-            popup.setOnDismissListener(p -> {
-                android.util.Log.d("FindoraChatClick", "Menu dismissed on message " + msg.getId());
-                isMenuOpen = false;
-                currentPopup = null;
-            });
-
-            popup.show();
-        }
-
         private String formatTime(String timestamp) {
             return com.findora.app.utils.DateUtils.formatChatTime(timestamp);
         }
     }
 
-    class ReceivedViewHolder extends RecyclerView.ViewHolder {
+    static class ReceivedViewHolder extends RecyclerView.ViewHolder {
         private ItemChatReceivedBinding binding;
-        private boolean isMenuOpen = false;
-        private androidx.appcompat.widget.PopupMenu currentPopup = null;
-        private boolean isDeleted = false;
 
         ReceivedViewHolder(ItemChatReceivedBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
         }
 
-        void cleanup() {
-            if (currentPopup != null) {
-                currentPopup.dismiss();
-                currentPopup = null;
-            }
-            isMenuOpen = false;
-        }
-
-        void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
-            this.isDeleted = msg.isDeletedForEveryone();
+        void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener) {
+            boolean isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
-                cleanup();
-                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
-                binding.btnMoreOptions.setOnClickListener(null);
-                binding.getRoot().setOnClickListener(null);
-                binding.getRoot().setOnLongClickListener(null);
-                binding.getRoot().setOnContextClickListener(null);
-                binding.getRoot().setOnTouchListener(null);
-                binding.layoutBubble.setOnClickListener(null);
-                binding.layoutBubble.setOnLongClickListener(null);
-                binding.layoutBubble.setOnContextClickListener(null);
-                binding.layoutBubble.setOnTouchListener(null);
-
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
-                binding.ivMessageImage.setOnLongClickListener(null);
 
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 String deletedText = "image".equals(msg.getMessageType()) ? "This image was deleted" : "This message was deleted";
@@ -536,9 +346,10 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.ITALIC);
                 binding.tvMessage.setTextColor(android.graphics.Color.GRAY);
                 binding.tvEdited.setVisibility(android.view.View.GONE);
-            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
-                setupMessageInteractions(msg, longClickListener, actionListener);
 
+                setupMessageInteractions(msg, longClickListener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage);
+            } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -546,16 +357,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     android.content.Intent intent = new android.content.Intent(binding.getRoot().getContext(), com.findora.app.activities.FullScreenImageActivity.class);
                     intent.putExtra("image_url", msg.getImageUrl());
                     binding.getRoot().getContext().startActivity(intent);
-                });
-
-                binding.ivMessageImage.setOnLongClickListener(v -> {
-                    if (longClickListener != null) longClickListener.onMessageLongClick(msg);
-                    return true;
-                });
-
-                binding.ivMessageImage.setOnContextClickListener(v -> {
-                    openOptionsMenu(msg, actionListener);
-                    return true;
                 });
 
                 if (msg.getCaption() != null && !msg.getCaption().trim().isEmpty()) {
@@ -567,18 +368,21 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
                 binding.tvMessage.setTextColor(binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.text_dark, null));
                 binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
-            } else {
-                setupMessageInteractions(msg, longClickListener, actionListener);
 
+                setupMessageInteractions(msg, longClickListener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage, binding.ivMessageImage);
+            } else {
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
-                binding.ivMessageImage.setOnLongClickListener(null);
 
                 binding.tvMessage.setVisibility(android.view.View.VISIBLE);
                 binding.tvMessage.setText(msg.getMessage());
                 binding.tvMessage.setTypeface(null, android.graphics.Typeface.NORMAL);
                 binding.tvMessage.setTextColor(binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.text_dark, null));
                 binding.tvEdited.setVisibility(msg.isEdited() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                setupMessageInteractions(msg, longClickListener, binding.btnMessageOptions,
+                        binding.getRoot(), binding.layoutBubble, binding.tvMessage);
             }
 
             binding.tvTime.setText(formatTime(msg.getSentAt()));
@@ -599,97 +403,85 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        private void setupMessageInteractions(ChatMessage msg, OnMessageLongClickListener listener, OnMessageActionListener actionListener) {
-            boolean isSelected = (msg.getId() == selectedMessageId);
-            binding.btnMoreOptions.setVisibility(isSelected ? android.view.View.VISIBLE : android.view.View.GONE);
+        private String formatTime(String timestamp) {
+            return com.findora.app.utils.DateUtils.formatChatTime(timestamp);
+        }
+    }
 
-            // Left-Click: select message to show 3-dots (or open menu if already selected)
-            android.view.View.OnClickListener clickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "ReceivedMsg " + msg.getId() + " clicked");
-                if (selectedMessageId == msg.getId()) {
-                    openOptionsMenu(msg, actionListener);
-                } else {
-                    setSelectedMessageId(msg.getId());
-                }
-            };
-            binding.getRoot().setOnClickListener(clickListener);
-            binding.layoutBubble.setOnClickListener(clickListener);
+    private static void setupMessageInteractions(
+            ChatMessage msg,
+            OnMessageLongClickListener listener,
+            View optionsButton,
+            View... targetViews) {
 
-            // Long-Press: mobile message options bottom sheet
-            android.view.View.OnLongClickListener longClickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "ReceivedMsg " + msg.getId() + " long-clicked");
+        if (optionsButton != null) {
+            optionsButton.setOnClickListener(v -> {
                 if (listener != null) listener.onMessageLongClick(msg);
-                return true;
-            };
-            binding.getRoot().setOnLongClickListener(longClickListener);
-            binding.layoutBubble.setOnLongClickListener(longClickListener);
+            });
+        }
 
-            // Right-Click (Context Click / BUTTON_SECONDARY)
-            android.view.View.OnContextClickListener contextClickListener = v -> {
-                android.util.Log.d("FindoraChatClick", "ReceivedMsg " + msg.getId() + " context-clicked (Right-Click)");
-                openOptionsMenu(msg, actionListener);
+        View.OnContextClickListener contextClickListener = v -> {
+            if (listener != null) {
+                listener.onMessageLongClick(msg);
                 return true;
-            };
-            binding.getRoot().setOnContextClickListener(contextClickListener);
-            binding.layoutBubble.setOnContextClickListener(contextClickListener);
+            }
+            return false;
+        };
 
-            android.view.View.OnTouchListener touchListener = (v, event) -> {
-                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN || event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                    if ((event.getButtonState() & android.view.MotionEvent.BUTTON_SECONDARY) != 0 ||
-                        event.getActionButton() == android.view.MotionEvent.BUTTON_SECONDARY) {
-                        if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                            openOptionsMenu(msg, actionListener);
-                        }
+        View.OnLongClickListener longClickListener = v -> {
+            if (listener != null) {
+                listener.onMessageLongClick(msg);
+                return true;
+            }
+            return false;
+        };
+
+        View.OnGenericMotionListener motionListener = (v, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_UP) {
+                int buttonState = event.getButtonState();
+                int actionButton = event.getActionButton();
+                if (actionButton == MotionEvent.BUTTON_SECONDARY || (buttonState & MotionEvent.BUTTON_SECONDARY) != 0) {
+                    if (listener != null) {
+                        listener.onMessageLongClick(msg);
                         return true;
                     }
                 }
-                return false;
-            };
-            binding.getRoot().setOnTouchListener(touchListener);
-            binding.layoutBubble.setOnTouchListener(touchListener);
-
-            // 3-dot button click: opens menu directly
-            binding.btnMoreOptions.setOnClickListener(v -> {
-                android.util.Log.d("FindoraChatClick", "ReceivedMsg " + msg.getId() + " 3-dot clicked");
-                openOptionsMenu(msg, actionListener);
-            });
-        }
-
-        private void openOptionsMenu(ChatMessage msg, OnMessageActionListener actionListener) {
-            if (msg.isDeletedForEveryone()) return;
-            if (currentPopup != null) {
-                currentPopup.dismiss();
             }
-            setSelectedMessageId(msg.getId());
-            binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
-
-            androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(binding.btnMoreOptions.getContext(), binding.btnMoreOptions);
-            popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_received, popup.getMenu());
-
-            isMenuOpen = true;
-            currentPopup = popup;
-
-            popup.setOnMenuItemClickListener(item -> {
-                int itemId = item.getItemId();
-                android.util.Log.d("FindoraChatClick", "Menu item selected: " + item.getTitle() + " on message " + msg.getId());
-                if (item.getItemId() == com.findora.app.R.id.action_copy) {
-                    if (actionListener != null) actionListener.onCopy(msg);
-                    return true;
+            if ((event.getSource() & InputDevice.SOURCE_CLASS_POINTER) != 0 || event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                if (action == MotionEvent.ACTION_HOVER_ENTER || action == MotionEvent.ACTION_HOVER_MOVE) {
+                    if (optionsButton != null) {
+                        optionsButton.setVisibility(View.VISIBLE);
+                    }
+                } else if (action == MotionEvent.ACTION_HOVER_EXIT) {
+                    if (optionsButton != null) {
+                        optionsButton.setVisibility(View.GONE);
+                    }
                 }
-                return false;
-            });
+            }
+            return false;
+        };
 
-            popup.setOnDismissListener(p -> {
-                android.util.Log.d("FindoraChatClick", "Menu dismissed on message " + msg.getId());
-                isMenuOpen = false;
-                currentPopup = null;
-            });
+        View.OnTouchListener touchListener = (v, event) -> {
+            int buttonState = event.getButtonState();
+            if ((buttonState & MotionEvent.BUTTON_SECONDARY) != 0) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_BUTTON_PRESS) {
+                    if (listener != null) {
+                        listener.onMessageLongClick(msg);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
 
-            popup.show();
-        }
-
-        private String formatTime(String timestamp) {
-            return com.findora.app.utils.DateUtils.formatChatTime(timestamp);
+        for (View v : targetViews) {
+            if (v != null) {
+                v.setOnContextClickListener(contextClickListener);
+                v.setOnLongClickListener(longClickListener);
+                v.setOnGenericMotionListener(motionListener);
+                v.setOnTouchListener(touchListener);
+            }
         }
     }
 }

@@ -1407,14 +1407,20 @@ class ChatMessageDetailView(APIView):
         if msg.deleted_for_everyone:
             return Response({'error': 'Cannot edit deleted message'}, status=status.HTTP_400_BAD_REQUEST)
 
-        new_text = request.data.get('message', '').strip()
-        if not new_text:
-            return Response({'error': 'Message cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
-
-        msg.message = new_text
-        msg.is_edited = True
-        msg.edited_at = timezone.now()
-        msg.save(update_fields=['message', 'is_edited', 'edited_at'])
+        if msg.message_type == 'image':
+            new_caption = request.data.get('caption', request.data.get('message', '')).strip()
+            msg.caption = new_caption
+            msg.is_edited = True
+            msg.edited_at = timezone.now()
+            msg.save(update_fields=['caption', 'is_edited', 'edited_at'])
+        else:
+            new_text = request.data.get('message', '').strip()
+            if not new_text:
+                return Response({'error': 'Message cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+            msg.message = new_text
+            msg.is_edited = True
+            msg.edited_at = timezone.now()
+            msg.save(update_fields=['message', 'is_edited', 'edited_at'])
 
         return Response(ChatMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_200_OK)
 

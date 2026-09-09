@@ -100,9 +100,9 @@
         android:id="@+id/layoutEditBanner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface_02"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/surface_02"
         android:paddingHorizontal="@dimen/screen_padding_horizontal"
         android:paddingVertical="8dp"
         android:visibility="gone">
@@ -110,9 +110,9 @@
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_marginEnd="8dp"
-            android:src="@android:drawable/ic_menu_edit"
-            app:tint="@color/primary_purple" />
+            android:src="@drawable/ic_edit"
+            app:tint="@color/primary_purple"
+            android:layout_marginEnd="8dp" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -123,27 +123,27 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Editing message"
+                android:text="Editing Message"
                 android:textColor="@color/primary_purple"
                 android:textSize="12sp"
-                android:textStyle="bold" />
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
-                android:id="@+id/tvEditingMessageText"
+                android:id="@+id/tvEditingMessagePreview"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
                 android:textColor="@color/text_gray"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
         </LinearLayout>
 
         <ImageButton
-            android:id="@+id/btnCloseEdit"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:id="@+id/btnCancelEdit"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:src="@drawable/ic_close"
             app:tint="@color/text_gray"
             android:contentDescription="Cancel Edit" />
     </LinearLayout>
