@@ -58,6 +58,7 @@ public class UploadItemActivity extends BaseActivity {
     private ActivityResultLauncher<String[]> requestPermissionsLauncher;
     private ActivityResultLauncher<Uri> takePictureLauncher;
     private ActivityResultLauncher<String> pickMultipleMediaLauncher;
+    private ActivityResultLauncher<Intent> pickGalleryLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -204,6 +205,27 @@ public class UploadItemActivity extends BaseActivity {
             }
         });
 
+        pickGalleryLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                Intent data = result.getData();
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    if (selectedImages.size() >= 1 || count > 1) {
+                        Toast.makeText(this, "Only one photo can be uploaded.", Toast.LENGTH_SHORT).show();
+                        if (selectedImages.isEmpty() && count > 0) {
+                            addImage(data.getClipData().getItemAt(0).getUri());
+                        }
+                        return;
+                    }
+                    for (int i = 0; i < count; i++) {
+                        addImage(data.getClipData().getItemAt(i).getUri());
+                    }
+                } else if (data.getData() != null) {
+                    addImage(data.getData());
+                }
+            }
+        });
+
         pickMultipleMediaLauncher = registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), uris -> {
             if (uris != null && !uris.isEmpty()) {
                 if (selectedImages.size() >= 1 || uris.size() > 1) {
@@ -271,7 +293,13 @@ public class UploadItemActivity extends BaseActivity {
     }
 
     private void launchGallery() {
-        pickMultipleMediaLauncher.launch("image/*");
+        try {
+            Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            intent.setType("image/*");
+            pickGalleryLauncher.launch(intent);
+        } catch (Exception e) {
+            pickMultipleMediaLauncher.launch("image/*");
+        }
     }
 
     private void showSettingsDialog() {

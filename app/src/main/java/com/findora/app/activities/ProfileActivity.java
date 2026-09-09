@@ -78,10 +78,13 @@ public class ProfileActivity extends BaseActivity {
                 }
             });
 
-    private final ActivityResultLauncher<String> pickImageLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri != null) {
-                    startCrop(uri);
+    private final ActivityResultLauncher<Intent> pickImageLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri selectedUri = result.getData().getData();
+                    if (selectedUri != null) {
+                        startCrop(selectedUri);
+                    }
                 }
             });
             
@@ -592,7 +595,15 @@ public class ProfileActivity extends BaseActivity {
     }
     
     private void launchGallery() {
-        pickImageLauncher.launch("image/*");
+        try {
+            Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            intent.setType("image/*");
+            pickImageLauncher.launch(intent);
+        } catch (Exception e) {
+            Intent fallbackIntent = new Intent(Intent.ACTION_GET_CONTENT);
+            fallbackIntent.setType("image/*");
+            pickImageLauncher.launch(fallbackIntent);
+        }
     }
 
     private void showSettingsDialog() {

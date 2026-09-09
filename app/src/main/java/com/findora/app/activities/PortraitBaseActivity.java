@@ -31,6 +31,15 @@ public abstract class PortraitBaseActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Restore portrait lock upon returning from external intents (Camera, Gallery, UCrop)
+        if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+    }
+
+    @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         // Ensure orientation remains portrait when configuration changes (e.g. keyboard, window resize, focus change)
@@ -42,12 +51,6 @@ public abstract class PortraitBaseActivity extends AppCompatActivity {
     @Override
     public void recreate() {
         super.recreate();
-        applySeamlessTransition();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
         applySeamlessTransition();
     }
 

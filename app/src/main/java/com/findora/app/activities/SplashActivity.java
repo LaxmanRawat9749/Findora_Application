@@ -31,11 +31,6 @@ public class SplashActivity extends PortraitBaseActivity {
             getSupportActionBar().hide();
         }
 
-        getWindow().setFlags(
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-        );
-
         sessionManager = new SessionManager(this);
 
         layoutLogo = findViewById(R.id.layoutLogo);
