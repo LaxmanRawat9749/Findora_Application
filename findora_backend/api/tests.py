@@ -3307,6 +3307,139 @@ class LoginAndHealthCheckEndpointTests(TestCase):
         self.assertEqual(res.data['error'], 'Invalid username or password.')
 
 
+class AdminPanelUserOrganizationTests(TestCase):
+    """
+    Tests verifying the Findora Admin Panel user organization:
+      - Admin Section: strictly Admin accounts only.
+      - Users -> Owners: strictly Owner accounts only (no admins).
+      - Users -> Finders: strictly Finder accounts only (no admins).
+      - Navigation hierarchy and mutual exclusivity.
+    """
+
+    def setUp(self):
+        from django.contrib import admin
+        from api.admin import Admin, Owner, Finder
+
+        self.site = admin.site
+        self.admin_model_admin = self.site._registry[Admin]
+        self.owner_model_admin = self.site._registry[Owner]
+        self.finder_model_admin = self.site._registry[Finder]
+
+        self.superuser = User.objects.create_superuser(
+            username='org_superuser', email='org_super@example.com', password='Password123!', role='admin'
+        )
+        self.staff_admin = User.objects.create_user(
+            username='org_staff', email='org_staff@example.com', password='Password123!', role='admin', is_staff=True
+        )
+        self.owner1 = User.objects.create_user(
+            username='org_owner1', email='org_own1@example.com', password='Password123!', role='owner'
+        )
+        self.owner2 = User.objects.create_user(
+            username='org_owner2', email='org_own2@example.com', password='Password123!', role='owner'
+        )
+        self.finder1 = User.objects.create_user(
+            username='org_finder1', email='org_fnd1@example.com', password='Password123!', role='finder'
+        )
+        self.finder2 = User.objects.create_user(
+            username='org_finder2', email='org_fnd2@example.com', password='Password123!', role='finder'
+        )
+
+        self.factory = APIRequestFactory()
+
+    def test_admin_section_contains_only_admins(self):
+        """Admin queryset returns ONLY administrator accounts and excludes all owners/finders."""
+        req = self.factory.get('/admin/api/admin/')
+        req.user = self.superuser
+
+        qs = self.admin_model_admin.get_queryset(req)
+        self.assertIn(self.superuser, qs)
+        self.assertIn(self.staff_admin, qs)
+        self.assertNotIn(self.owner1, qs)
+        self.assertNotIn(self.owner2, qs)
+        self.assertNotIn(self.finder1, qs)
+        self.assertNotIn(self.finder2, qs)
+        self.assertEqual(qs.count(), 2)
+
+    def test_owner_section_contains_only_owners(self):
+        """Owners queryset returns ONLY owner accounts and strictly excludes admins and finders."""
+        req = self.factory.get('/admin/api/owner/')
+        req.user = self.superuser
+
+        qs = self.owner_model_admin.get_queryset(req)
+        self.assertIn(self.owner1, qs)
+        self.assertIn(self.owner2, qs)
+        self.assertNotIn(self.superuser, qs)
+        self.assertNotIn(self.staff_admin, qs)
+        self.assertNotIn(self.finder1, qs)
+        self.assertNotIn(self.finder2, qs)
+        self.assertEqual(qs.count(), 2)
+
+    def test_finder_section_contains_only_finders(self):
+        """Finders queryset returns ONLY finder accounts and strictly excludes admins and owners."""
+        req = self.factory.get('/admin/api/finder/')
+        req.user = self.superuser
+
+        qs = self.finder_model_admin.get_queryset(req)
+        self.assertIn(self.finder1, qs)
+        self.assertIn(self.finder2, qs)
+        self.assertNotIn(self.superuser, qs)
+        self.assertNotIn(self.staff_admin, qs)
+        self.assertNotIn(self.owner1, qs)
+        self.assertNotIn(self.owner2, qs)
+        self.assertEqual(qs.count(), 2)
+
+    def test_mutual_exclusivity_and_no_duplication(self):
+        """Verify zero overlap/duplication across Admin, Owner, and Finder sections."""
+        req = self.factory.get('/admin/')
+        req.user = self.superuser
+
+        admin_ids = set(self.admin_model_admin.get_queryset(req).values_list('id', flat=True))
+        owner_ids = set(self.owner_model_admin.get_queryset(req).values_list('id', flat=True))
+        finder_ids = set(self.finder_model_admin.get_queryset(req).values_list('id', flat=True))
+
+        self.assertTrue(admin_ids.isdisjoint(owner_ids), "Admin and Owner sections must not overlap!")
+        self.assertTrue(admin_ids.isdisjoint(finder_ids), "Admin and Finder sections must not overlap!")
+        self.assertTrue(owner_ids.isdisjoint(finder_ids), "Owner and Finder sections must not overlap!")
+
+        total_users = User.objects.count()
+        self.assertEqual(len(admin_ids) + len(owner_ids) + len(finder_ids), total_users)
+
+    def test_admin_app_list_navigation_structure(self):
+        """Verify get_app_list generates Admin, Users (Owners & Finders), and Findora Management sections."""
+        req = self.factory.get('/admin/')
+        req.user = self.superuser
+
+        app_list = self.site.get_app_list(req)
+        section_map = {app['name']: [m['name'] for m in app['models']] for app in app_list}
+
+        self.assertIn('Admin', section_map)
+        self.assertIn('Admin', section_map['Admin'])
+
+        self.assertIn('Users', section_map)
+        self.assertIn('Owners', section_map['Users'])
+        self.assertIn('Finders', section_map['Users'])
+
+        self.assertIn('Findora Management', section_map)
+        self.assertNotIn('Users', section_map['Findora Management'])
+
+    def test_role_admin_views_render_successfully(self):
+        """Verify changelist and changeform pages for Admin, Owner, and Finder return 200 OK."""
+        from api.admin import Admin, Owner, Finder
+
+        self.client.login(username='org_superuser', password='Password123!')
+
+        for model, obj in [(Admin, self.superuser), (Owner, self.owner1), (Finder, self.finder1)]:
+            model_name = model._meta.model_name
+            # Changelist
+            res_cl = self.client.get(f'/admin/api/{model_name}/')
+            self.assertEqual(res_cl.status_code, 200, f'/admin/api/{model_name}/ failed to render')
+
+            # Changeform
+            res_ch = self.client.get(f'/admin/api/{model_name}/{obj.id}/change/')
+            self.assertEqual(res_ch.status_code, 200, f'/admin/api/{model_name}/{obj.id}/change/ failed to render')
+
+
+
 
 
 

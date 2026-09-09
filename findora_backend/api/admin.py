@@ -2,15 +2,22 @@
 Findora Django Admin Configuration.
 
 Provides a unified, streamlined, and secure management interface:
-  - User Admin: Role-based list display (Owners, Finders & Admins), verification, account unlock,
-    lost/found report metrics, points, and reputation summary card.
+  - Admin Panel Structure:
+      ADMIN PANEL
+      ├── Admin
+      │   └── Admin users/details only (Admin model)
+      │
+      └── Users
+          ├── Owners (Owner users only)
+          └── Finders (Finder users only)
   - Item Admin: Lost & Found reports with status workflows (approval, rejection, resolution),
     reporter details, trust card, reward badges, and media previews.
   - Finder Ratings & Reputation: Combined feature managing Finder performance, average star ratings,
     rating counts, successful returns, total points, badges, and complete owner reviews history.
   - Payment Admin: Featured listing payments, status auditing, and transaction tracking.
+  - Chat Message Admin: Direct message inspection and chat media previews.
 
-Note: Internal technical models (PointTransaction, UserBadge, Conversation, ChatMessage,
+Note: Internal technical models (PointTransaction, UserBadge, Conversation,
 Notification, OTPToken, Claim) are managed programmatically by backend services
 and APIs; their database models, tables, and logic remain 100% active and intact.
 """
@@ -36,21 +43,59 @@ FinderReputation._meta.verbose_name = 'Finder Rating & Reputation'
 FinderReputation._meta.verbose_name_plural = 'Finder Ratings & Reputation'
 
 
-# ─── User Admin ───────────────────────────────────────────────────────────────
+# ─── URL Routing Helper ──────────────────────────────────────────────────────
 
-@admin.register(User)
+def get_user_admin_url(user):
+    """Return the appropriate role-based Admin change URL for a given user."""
+    if not user or not getattr(user, 'pk', None):
+        return '#'
+    if getattr(user, 'role', '') == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+        return f'/admin/api/admin/{user.id}/change/'
+    elif getattr(user, 'role', '') == 'finder':
+        return f'/admin/api/finder/{user.id}/change/'
+    else:
+        return f'/admin/api/owner/{user.id}/change/'
+
+
+# ─── Proxy Models for Role-Segregated Admin Sections ─────────────────────────
+
+class Admin(User):
+    """Proxy model representing Administrator accounts in Django Admin."""
+    class Meta:
+        proxy = True
+        app_label = 'api'
+        verbose_name = 'Admin'
+        verbose_name_plural = 'Admin'
+
+
+class Owner(User):
+    """Proxy model representing Owner accounts in Django Admin."""
+    class Meta:
+        proxy = True
+        app_label = 'api'
+        verbose_name = 'Owner'
+        verbose_name_plural = 'Owners'
+
+
+class Finder(User):
+    """Proxy model representing Finder accounts in Django Admin."""
+    class Meta:
+        proxy = True
+        app_label = 'api'
+        verbose_name = 'Finder'
+        verbose_name_plural = 'Finders'
+
+
+# ─── Base User Admin with Rich Formatting ────────────────────────────────────
+
 class FindoraUserAdmin(UserAdmin):
     """
-    Admin interface for Findora users.
-
-    Displays user-centric activity metrics (Lost reports, Found reports,
-    successful returns, points, and reputation) according to Owner/Finder roles.
+    Base Admin interface for Findora users providing shared display widgets,
+    profile image renderers, badge cards, and bulk actions.
     """
 
     list_display = [
-        'full_name', 'username', 'email', 'role_badge', 'account_status',
-        'lost_reports_count', 'found_reports_count', 'successful_returns_count',
-        'points_display', 'reputation_display',
+        'full_name', 'username', 'email', 'phone', 'role_badge', 'account_status',
         'is_active', 'created_at',
     ]
     list_filter = ['role', 'is_verified', 'is_locked', 'is_active', 'created_at']
@@ -59,7 +104,7 @@ class FindoraUserAdmin(UserAdmin):
     readonly_fields = [
         'user_profile_display',
         'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
-        'finder_performance_summary',
+        'finder_performance_summary', 'owner_activity_summary',
     ]
     list_per_page = 25
     date_hierarchy = 'created_at'
@@ -76,7 +121,7 @@ class FindoraUserAdmin(UserAdmin):
         }),
         ('Status & Security', {
             'fields': (
-                'is_active', 'is_verified', 'failed_login_attempts',
+                'is_active', 'is_verified', 'is_locked', 'failed_login_attempts',
             ),
         }),
         ('Finder Performance (Ratings & Reputation)', {
@@ -91,76 +136,6 @@ class FindoraUserAdmin(UserAdmin):
             'classes': ('collapse',),
         }),
     )
-
-    def _user_has_finder_activity(self, user):
-        """
-        Check if the user has participated as a Finder or has Finder reputation data:
-          - user role is 'finder'
-          - user has submitted found item reports
-          - user has received owner ratings
-          - user has active finder reputation (points, returns, reviews)
-          - user has unlocked badges
-        """
-        if not user or not user.pk:
-            return False
-        if getattr(user, 'role', '') == 'finder':
-            return True
-        if user.items.filter(type='found').exists():
-            return True
-        if hasattr(user, 'ratings_received') and user.ratings_received.exists():
-            return True
-        rep = getattr(user, 'reputation', None)
-        if rep and (rep.total_points > 0 or rep.successful_returns > 0 or rep.rating_count > 0):
-            return True
-        if hasattr(user, 'badges') and user.badges.exists():
-            return True
-        return False
-
-    def get_fieldsets(self, request, obj=None):
-        """
-        Dynamically include the 'Finder Performance (Ratings & Reputation)' fieldset
-        only when the user has Finder activity/reputation data. For Owner-only users with
-        no Finder activity, the section is completely excluded.
-        """
-        if not obj:
-            return self.add_fieldsets
-
-        fieldsets = [
-            ('Profile', {
-                'fields': ('user_profile_display',),
-            }),
-            ('Account Info', {
-                'fields': ('username', 'email'),
-            }),
-            ('Personal Info', {
-                'fields': ('first_name', 'last_name', 'phone', 'role'),
-            }),
-            ('Status & Security', {
-                'fields': (
-                    'is_active', 'is_verified', 'failed_login_attempts',
-                ),
-            }),
-        ]
-
-        if self._user_has_finder_activity(obj):
-            fieldsets.append(
-                ('Finder Performance (Ratings & Reputation)', {
-                    'fields': ('finder_performance_summary',),
-                })
-            )
-
-        fieldsets.extend([
-            ('Permissions', {
-                'fields': ('is_staff', 'is_superuser', 'groups', 'user_permissions'),
-                'classes': ('collapse',),
-            }),
-            ('Timestamps', {
-                'fields': ('last_login', 'created_at', 'updated_at'),
-                'classes': ('collapse',),
-            }),
-        ])
-
-        return tuple(fieldsets)
 
     add_fieldsets = (
         ('Create User', {
@@ -312,6 +287,21 @@ class FindoraUserAdmin(UserAdmin):
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">New</span>'
         )
 
+    @admin.display(description='Reputation Status')
+    def trust_status_badge(self, obj):
+        rep = getattr(obj, 'reputation', None)
+        if rep and rep.is_trusted_finder:
+            return mark_safe(
+                '<span style="background:#DCFCE7;color:#16A34A;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px;">🛡️ Trusted Finder</span>'
+            )
+        if rep and rep.successful_returns > 0:
+            return mark_safe(
+                '<span style="background:#EFF6FF;color:#2563EB;padding:3px 10px;border-radius:12px;font-weight:600;font-size:11px;">Active Finder</span>'
+            )
+        return mark_safe(
+            '<span style="background:#F3F4F6;color:#6B7280;padding:3px 10px;border-radius:12px;font-size:11px;">New Finder</span>'
+        )
+
     @admin.display(description='Finder Performance Summary')
     def finder_performance_summary(self, obj):
         rep = getattr(obj, 'reputation', None)
@@ -340,6 +330,31 @@ class FindoraUserAdmin(UserAdmin):
             rep_link
         )
 
+    @admin.display(description='Owner Activity Summary')
+    def owner_activity_summary(self, obj):
+        lost_items = obj.items.filter(type='lost')
+        total_lost = lost_items.count()
+        resolved_count = lost_items.filter(status='resolved').count()
+        pending_count = lost_items.filter(status='pending').count()
+        approved_count = lost_items.filter(status='approved').count()
+
+        return format_html(
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:14px;border-radius:8px;font-size:13px;max-width:600px;line-height:1.7;">'
+            '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">'
+            '<div><span style="color:#64748B;font-size:11px;display:block;">Total Lost Reports</span><strong style="color:#6D28D9;font-size:16px;">{}</strong></div>'
+            '<div><span style="color:#64748B;font-size:11px;display:block;">Recovered / Resolved</span><strong style="color:#16A34A;font-size:16px;">{}</strong></div>'
+            '<div><span style="color:#64748B;font-size:11px;display:block;">Active / Approved</span><strong style="color:#2563EB;font-size:16px;">{}</strong></div>'
+            '<div><span style="color:#64748B;font-size:11px;display:block;">Pending Review</span><strong style="color:#D97706;font-size:16px;">{}</strong></div>'
+            '</div>'
+            '<div><a href="/admin/api/item/?type__exact=lost&user__id__exact={}" style="color:#4F46E5;font-weight:600;text-decoration:underline;">👉 View Owner\'s Lost Item Reports</a></div>'
+            '</div>',
+            total_lost,
+            resolved_count,
+            approved_count,
+            pending_count,
+            obj.id
+        )
+
     # ─── Bulk Actions ─────────────────────────────────────────────────────────
 
     @admin.action(description='Mark selected users as verified')
@@ -361,6 +376,236 @@ class FindoraUserAdmin(UserAdmin):
     def activate_users(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f'{updated} user(s) activated.')
+
+
+# ─── 1. Admin Section: Administrator Accounts Only ────────────────────────────
+
+@admin.register(Admin)
+class AdminUserAdmin(FindoraUserAdmin):
+    """
+    Dedicated Admin interface for Findora Administrators.
+
+    Exclusively manages administrator accounts. Shows permissions, staff status,
+    access control, and security timestamps with zero leakage into owner/finder lists.
+    """
+
+    list_display = [
+        'full_name', 'username', 'email', 'phone', 'role_badge', 'account_status',
+        'staff_status_badge', 'is_active', 'last_login_display', 'created_at',
+    ]
+    list_filter = ['is_superuser', 'is_staff', 'is_verified', 'is_locked', 'is_active', 'created_at']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+    ordering = ['-created_at']
+    readonly_fields = [
+        'user_profile_display',
+        'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
+    ]
+
+    fieldsets = (
+        ('Profile', {
+            'fields': ('user_profile_display',),
+        }),
+        ('Account Info', {
+            'fields': ('username', 'email'),
+        }),
+        ('Personal Info', {
+            'fields': ('first_name', 'last_name', 'phone', 'role'),
+        }),
+        ('Status & Security', {
+            'fields': (
+                'is_active', 'is_verified', 'is_locked', 'failed_login_attempts',
+            ),
+        }),
+        ('Administrator Permissions', {
+            'fields': ('is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'classes': ('collapse',),
+        }),
+        ('Timestamps', {
+            'fields': ('last_login', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    add_fieldsets = (
+        ('Create Administrator Account', {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'first_name', 'last_name', 'phone', 'password1', 'password2', 'is_staff', 'is_superuser'),
+        }),
+    )
+
+    def get_queryset(self, request):
+        """Display ONLY administrator accounts in the Admin section."""
+        return super().get_queryset(request).filter(
+            Q(role='admin') | Q(is_staff=True) | Q(is_superuser=True)
+        )
+
+    def save_model(self, request, obj, form, change):
+        """Ensure administrator accounts maintain role='admin' and is_staff=True."""
+        if not change:
+            obj.role = 'admin'
+            obj.is_staff = True
+        elif not obj.role:
+            obj.role = 'admin'
+        super().save_model(request, obj, form, change)
+
+    @admin.display(description='Admin Level')
+    def staff_status_badge(self, obj):
+        if obj.is_superuser:
+            return mark_safe('<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:4px;font-weight:700">👑 Superuser</span>')
+        if obj.is_staff:
+            return mark_safe('<span style="background:#EFF6FF;color:#2563EB;padding:2px 8px;border-radius:4px;font-weight:600">🛡️ Staff</span>')
+        return mark_safe('<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">Admin</span>')
+
+    @admin.display(description='Last Login')
+    def last_login_display(self, obj):
+        if obj.last_login:
+            return obj.last_login.strftime('%b %d, %Y, %I:%M %p')
+        return mark_safe('<span style="color:#94A3B8;">Never</span>')
+
+
+# ─── 2. Owner Section: Owner Accounts Only ────────────────────────────────────
+
+@admin.register(Owner)
+class OwnerUserAdmin(FindoraUserAdmin):
+    """
+    Dedicated Admin interface for Findora Item Owners.
+
+    Exclusively displays users whose role is 'owner'.
+    Admin accounts will NEVER appear in this section.
+    """
+
+    list_display = [
+        'full_name', 'username', 'email', 'phone', 'role_badge', 'account_status',
+        'lost_reports_count', 'is_active', 'created_at',
+    ]
+    list_filter = ['is_verified', 'is_locked', 'is_active', 'created_at']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+    ordering = ['-created_at']
+    readonly_fields = [
+        'user_profile_display',
+        'owner_activity_summary',
+        'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
+    ]
+
+    fieldsets = (
+        ('Profile', {
+            'fields': ('user_profile_display',),
+        }),
+        ('Account Info', {
+            'fields': ('username', 'email'),
+        }),
+        ('Personal Info', {
+            'fields': ('first_name', 'last_name', 'phone', 'role'),
+        }),
+        ('Status & Security', {
+            'fields': (
+                'is_active', 'is_verified', 'is_locked', 'failed_login_attempts',
+            ),
+        }),
+        ('Owner Activity (Lost Item Reports)', {
+            'fields': ('owner_activity_summary',),
+        }),
+        ('Timestamps', {
+            'fields': ('last_login', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    add_fieldsets = (
+        ('Create Owner Account', {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'first_name', 'last_name', 'phone', 'password1', 'password2'),
+        }),
+    )
+
+    def get_queryset(self, request):
+        """Display ONLY users whose existing role is Owner; excludes all admins/staff."""
+        return super().get_queryset(request).filter(
+            Q(role='owner') | Q(role='user') | Q(role='')
+        ).exclude(
+            Q(role='admin') | Q(is_staff=True) | Q(is_superuser=True)
+        )
+
+    def save_model(self, request, obj, form, change):
+        """Ensure accounts created here default to role='owner'."""
+        if not change and not obj.role:
+            obj.role = 'owner'
+        super().save_model(request, obj, form, change)
+
+
+# ─── 3. Finder Section: Finder Accounts Only ──────────────────────────────────
+
+@admin.register(Finder)
+class FinderUserAdmin(FindoraUserAdmin):
+    """
+    Dedicated Admin interface for Findora Item Finders.
+
+    Exclusively displays users whose role is 'finder'.
+    Admin accounts will NEVER appear in this section.
+    """
+
+    list_display = [
+        'full_name', 'username', 'email', 'phone', 'role_badge', 'account_status',
+        'found_reports_count', 'successful_returns_count', 'points_display', 'reputation_display',
+        'trust_status_badge', 'is_active', 'created_at',
+    ]
+    list_filter = ['is_verified', 'is_locked', 'is_active', 'created_at']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+    ordering = ['-created_at']
+    readonly_fields = [
+        'user_profile_display',
+        'finder_performance_summary',
+        'created_at', 'updated_at', 'last_login', 'failed_login_attempts',
+    ]
+
+    fieldsets = (
+        ('Profile', {
+            'fields': ('user_profile_display',),
+        }),
+        ('Account Info', {
+            'fields': ('username', 'email'),
+        }),
+        ('Personal Info', {
+            'fields': ('first_name', 'last_name', 'phone', 'role'),
+        }),
+        ('Status & Security', {
+            'fields': (
+                'is_active', 'is_verified', 'is_locked', 'failed_login_attempts',
+            ),
+        }),
+        ('Finder Performance (Ratings & Reputation)', {
+            'fields': ('finder_performance_summary',),
+        }),
+        ('Timestamps', {
+            'fields': ('last_login', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    add_fieldsets = (
+        ('Create Finder Account', {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'first_name', 'last_name', 'phone', 'password1', 'password2'),
+        }),
+    )
+
+    def get_queryset(self, request):
+        """Display ONLY users whose existing role is Finder; excludes all admins/staff."""
+        return super().get_queryset(request).filter(
+            role='finder'
+        ).exclude(
+            Q(role='admin') | Q(is_staff=True) | Q(is_superuser=True)
+        )
+
+    def save_model(self, request, obj, form, change):
+        """Ensure accounts created here default to role='finder'."""
+        if not change and not obj.role:
+            obj.role = 'finder'
+        super().save_model(request, obj, form, change)
+
+
+# Register base User with FindoraUserAdmin for backward compatibility and direct URL support
+admin.site.register(User, FindoraUserAdmin)
 
 
 # ─── Item Admin ───────────────────────────────────────────────────────────────
@@ -568,14 +813,17 @@ class ItemAdmin(admin.ModelAdmin):
         context_role = 'Owner (Lost Report)' if obj.type == 'lost' else 'Finder (Found Report)'
         role_color = '#6D28D9' if obj.type == 'lost' else '#16A34A'
         role_bg = '#EDE9FE' if obj.type == 'lost' else '#DCFCE7'
+        user_link = get_user_admin_url(u)
+
         return format_html(
             '<div style="line-height:1.7;font-size:13px;">'
-            '<div><strong>Name:</strong> {}</div>'
+            '<div><strong>Name:</strong> <a href="{}" style="color:#4F46E5;font-weight:600;">{}</a></div>'
             '<div><strong>Role for this report:</strong> '
             '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span></div>'
             '<div><strong>Email:</strong> <a href="mailto:{}">{}</a></div>'
             '<div><strong>Phone:</strong> {}</div>'
             '</div>',
+            user_link,
             u.get_full_name() or u.username,
             role_bg, role_color, context_role,
             u.email, u.email,
@@ -755,10 +1003,11 @@ class FinderReputationAdmin(admin.ModelAdmin):
     def finder_display(self, obj):
         u = obj.user
         full_name = u.get_full_name() or u.username
+        user_link = get_user_admin_url(u)
         return format_html(
-            '<a href="/admin/api/user/{}/change/" style="font-weight:700;color:#4F46E5;">{}</a> '
+            '<a href="{}" style="font-weight:700;color:#4F46E5;">{}</a> '
             '<span style="color:#64748B;font-size:12px;">(@{})</span>',
-            u.id, full_name, u.username
+            user_link, full_name, u.username
         )
 
     @admin.display(description='Average Rating', ordering='average_rating')
@@ -811,15 +1060,17 @@ class FinderReputationAdmin(admin.ModelAdmin):
         u = obj.user
         full_name = u.get_full_name() or u.username
         role_label = (u.role or 'user').capitalize()
+        user_link = get_user_admin_url(u)
+
         return format_html(
             '<div style="background:#F8FAFC;border:1px solid #E2E8F0;padding:14px;border-radius:8px;line-height:1.8;font-size:13px;max-width:550px;">'
-            '<div><strong>User:</strong> <a href="/admin/api/user/{}/change/" style="font-weight:700;color:#4F46E5;font-size:14px;">{} (@{})</a></div>'
+            '<div><strong>User:</strong> <a href="{}" style="font-weight:700;color:#4F46E5;font-size:14px;">{} (@{})</a></div>'
             '<div><strong>Email:</strong> <a href="mailto:{}">{}</a></div>'
             '<div><strong>Phone:</strong> {}</div>'
             '<div><strong>Account Role:</strong> <span style="background:#EDE9FE;color:#6D28D9;padding:2px 8px;border-radius:4px;font-weight:600">{}</span></div>'
             '<div><strong>Member Since:</strong> {}</div>'
             '</div>',
-            u.id, full_name, u.username,
+            user_link, full_name, u.username,
             u.email, u.email,
             u.phone or 'N/A',
             role_label,
@@ -835,6 +1086,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
         rows = []
         for r in ratings:
             owner_name = r.owner.get_full_name() or r.owner.username
+            owner_link = get_user_admin_url(r.owner)
             item_title = r.item.title if r.item else '—'
             stars = '★' * r.rating + '☆' * (5 - r.rating)
             review_text = format_html('"{}"', r.review) if r.review else mark_safe('<span style="color:#94A3B8;font-style:italic;">No written review</span>')
@@ -842,13 +1094,13 @@ class FinderReputationAdmin(admin.ModelAdmin):
 
             rows.append(format_html(
                 '<tr style="border-bottom:1px solid #E2E8F0;">'
-                '<td style="padding:10px 12px;font-weight:600;"><a href="/admin/api/user/{}/change/" style="color:#4F46E5;">{}</a></td>'
+                '<td style="padding:10px 12px;font-weight:600;"><a href="{}" style="color:#4F46E5;">{}</a></td>'
                 '<td style="padding:10px 12px;"><a href="/admin/api/item/{}/change/" style="color:#0F172A;font-weight:500;">{}</a></td>'
                 '<td style="padding:10px 12px;color:#D97706;font-size:14px;font-weight:700;">{} ({})</td>'
                 '<td style="padding:10px 12px;color:#334155;max-width:300px;">{}</td>'
                 '<td style="padding:10px 12px;color:#64748B;font-size:12px;">{}</td>'
                 '</tr>',
-                r.owner.id, owner_name,
+                owner_link, owner_name,
                 r.item.id if r.item else '', item_title,
                 stars, r.rating,
                 review_text,
@@ -901,7 +1153,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
 class PaymentAdmin(admin.ModelAdmin):
     """Admin interface for item promotion payments."""
 
-    list_display = ['id', 'user', 'item', 'amount_display', 'provider', 'status_badge', 'created_at']
+    list_display = ['id', 'user_link', 'item', 'amount_display', 'provider', 'status_badge', 'created_at']
     list_filter = ['status', 'provider', 'created_at']
     search_fields = ['user__username', 'transaction_id', 'item__title']
     readonly_fields = ['created_at', 'verified_at']
@@ -910,6 +1162,16 @@ class PaymentAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         """Payments are created programmatically via payment gateways (eSewa / Khalti)."""
         return False
+
+    @admin.display(description='User', ordering='user__username')
+    def user_link(self, obj):
+        if not obj.user:
+            return '—'
+        link = get_user_admin_url(obj.user)
+        return format_html(
+            '<a href="{}" style="font-weight:600;color:#4F46E5;">{}</a>',
+            link, obj.user.get_full_name() or obj.user.username
+        )
 
     @admin.display(description='Amount')
     def amount_display(self, obj):
@@ -939,7 +1201,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
     Admin interface for inspecting chat messages and uploaded chat media.
     """
     list_display = [
-        'id', 'chat_media_preview', 'sender', 'conversation', 'message_type',
+        'id', 'chat_media_preview', 'sender_link', 'conversation', 'message_type',
         'message_snippet', 'sent_at', 'is_read',
     ]
     list_filter = ['message_type', 'is_read', 'sent_at']
@@ -947,6 +1209,16 @@ class ChatMessageAdmin(admin.ModelAdmin):
     ordering = ['-sent_at']
     readonly_fields = ['chat_media_display', 'sent_at']
     list_per_page = 25
+
+    @admin.display(description='Sender', ordering='sender__username')
+    def sender_link(self, obj):
+        if not obj.sender:
+            return '—'
+        link = get_user_admin_url(obj.sender)
+        return format_html(
+            '<a href="{}" style="font-weight:600;color:#4F46E5;">{}</a>',
+            link, obj.sender.get_full_name() or obj.sender.username
+        )
 
     @admin.display(description='Media')
     def chat_media_preview(self, obj):
@@ -987,10 +1259,87 @@ class ChatMessageAdmin(admin.ModelAdmin):
         return "[Image]"
 
 
+# ─── Admin Navigation Hierarchy & App Grouping ───────────────────────────────
+
+_original_get_app_list = admin.site.get_app_list
+
+
+def findora_get_app_list(request, app_label=None):
+    """
+    Structure the Admin Panel navigation hierarchy into dedicated sections:
+
+    ADMIN PANEL
+    ├── Admin
+    │   └── Admin (Admin users only)
+    │
+    └── Users
+        ├── Owners (Owner users only)
+        └── Finders (Finder users only)
+
+    Plus Findora Management (Items, Ratings & Reputation, Payments, Chat Messages)
+    and Security/Authentication sections.
+    """
+    if app_label:
+        return _original_get_app_list(request, app_label)
+
+    app_list = _original_get_app_list(request, None)
+    admin_models = []
+    owner_models = []
+    finder_models = []
+    other_api_models = []
+    other_apps = []
+
+    for app in app_list:
+        if app.get('app_label') == 'api':
+            for m in app.get('models', []):
+                obj_name = m.get('object_name')
+                if obj_name == 'Admin':
+                    admin_models.append(m)
+                elif obj_name == 'Owner':
+                    owner_models.append(m)
+                elif obj_name == 'Finder':
+                    finder_models.append(m)
+                elif obj_name != 'User':  # Omit redundant generic User model from UI navigation
+                    other_api_models.append(m)
+        else:
+            other_apps.append(app)
+
+    user_models = owner_models + finder_models
+
+    new_app_list = []
+    if admin_models:
+        new_app_list.append({
+            'name': 'Admin',
+            'app_label': 'admin_section',
+            'app_url': admin_models[0]['admin_url'],
+            'has_module_perms': True,
+            'models': admin_models,
+        })
+    if user_models:
+        new_app_list.append({
+            'name': 'Users',
+            'app_label': 'users_section',
+            'app_url': user_models[0]['admin_url'],
+            'has_module_perms': True,
+            'models': user_models,
+        })
+    if other_api_models:
+        new_app_list.append({
+            'name': 'Findora Management',
+            'app_label': 'api',
+            'app_url': '/admin/api/',
+            'has_module_perms': True,
+            'models': other_api_models,
+        })
+    new_app_list.extend(other_apps)
+    return new_app_list
+
+
+admin.site.get_app_list = findora_get_app_list
+
+
 # ─── Admin Site Branding ──────────────────────────────────────────────────────
 
 admin.site.site_header = 'Findora Administration'
 admin.site.site_title = 'Findora Admin'
 admin.site.index_title = 'Lost & Found Management System'
-
-
