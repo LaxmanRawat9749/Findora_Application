@@ -114,7 +114,25 @@ public class ChatActivity extends BaseActivity {
 
         adapter = new ChatAdapter(this, baseSessionManager.getUserId(), 
             msg -> showMessageOptions(msg),
-            userId -> openUserProfile(userId));
+            userId -> openUserProfile(userId),
+            new ChatAdapter.OnMessageActionListener() {
+                @Override
+                public void onCopy(ChatMessage message) {
+                    copyMessage(message);
+                }
+
+                @Override
+                public void onEdit(ChatMessage message) {
+                    startEditingMessage(message);
+                }
+
+                @Override
+                public void onDelete(ChatMessage message) {
+                    if (message != null && message.getSender() == baseSessionManager.getUserId()) {
+                        showDeleteConfirmationDialog(message.getId(), true);
+                    }
+                }
+            });
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(true);
         binding.rvMessages.setLayoutManager(layoutManager);
@@ -142,6 +160,7 @@ public class ChatActivity extends BaseActivity {
         setupLaunchers();
         binding.btnAttachment.setOnClickListener(v -> showImagePickerDialog());
         binding.btnSend.setOnClickListener(v -> sendMessage());
+        binding.btnCloseEdit.setOnClickListener(v -> cancelEdit());
 
         loadChatProfile();
 
@@ -240,26 +259,29 @@ public class ChatActivity extends BaseActivity {
         binding.etMessage.setText("");
 
         if (messageToEdit != null) {
+            final ChatMessage currentEditMsg = messageToEdit;
             // Edit existing message
-            if ("image".equals(messageToEdit.getMessageType())) {
-                messageToEdit.setCaption(text);
+            if ("image".equals(currentEditMsg.getMessageType())) {
+                currentEditMsg.setCaption(text);
             } else {
-                messageToEdit.setMessage(text);
+                currentEditMsg.setMessage(text);
             }
-            apiService.editMessage(messageToEdit.getId(), messageToEdit).enqueue(new Callback<ChatMessage>() {
+            apiService.editMessage(currentEditMsg.getId(), currentEditMsg).enqueue(new Callback<ChatMessage>() {
                 @Override
                 public void onResponse(Call<ChatMessage> call, Response<ChatMessage> response) {
-                    if (response.isSuccessful()) {
-                        messageToEdit = null;
-                        binding.etMessage.setHint("Type a message...");
-                        loadMessages(); // Refresh UI
+                    if (response.isSuccessful() && response.body() != null) {
+                        ChatMessage updated = response.body();
+                        FindoraCache.getInstance(ChatActivity.this).updateMessage(conversationId, updated);
+                        adapter.replaceMessage(currentEditMsg.getId(), updated);
+                        cancelEdit();
+                        Toast.makeText(ChatActivity.this, "Message edited", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(ChatActivity.this, "Failed to edit message.", Toast.LENGTH_SHORT).show();
                     }
                 }
                 @Override
                 public void onFailure(Call<ChatMessage> call, Throwable t) {
-                    Toast.makeText(ChatActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
             return;
@@ -762,6 +784,48 @@ public class ChatActivity extends BaseActivity {
         startActivity(intent);
     }
 
+    private void copyMessage(ChatMessage message) {
+        if (message == null) return;
+        String textToCopy = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
+        if (textToCopy == null) textToCopy = "";
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText("Message", textToCopy);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(clip);
+        }
+        Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+    }
+
+    private void startEditingMessage(ChatMessage message) {
+        if (message == null || message.getSender() != baseSessionManager.getUserId() || message.isDeletedForEveryone()) {
+            return;
+        }
+        messageToEdit = message;
+        if ("image".equals(message.getMessageType())) {
+            if (message.getImageUrl() != null) {
+                showImagesPreviewDialog(java.util.Collections.singletonList(Uri.parse(message.getImageUrl())));
+            }
+        } else {
+            binding.layoutEditBanner.setVisibility(View.VISIBLE);
+            binding.tvEditingMessageText.setText(message.getMessage() != null ? message.getMessage() : "");
+            binding.etMessage.setText(message.getMessage() != null ? message.getMessage() : "");
+            binding.etMessage.setSelection(binding.etMessage.getText().length());
+            binding.etMessage.setHint("Edit message...");
+            binding.etMessage.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(binding.etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+            }
+        }
+    }
+
+    private void cancelEdit() {
+        messageToEdit = null;
+        binding.layoutEditBanner.setVisibility(View.GONE);
+        binding.etMessage.setText("");
+        binding.etMessage.setHint("Type a message...");
+    }
+
     private void showMessageOptions(ChatMessage message) {
         if (message == null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(this);
@@ -769,39 +833,46 @@ public class ChatActivity extends BaseActivity {
         dialog.setContentView(bottomSheetView);
 
         View btnCopy = bottomSheetView.findViewById(R.id.btnCopy);
+        View btnEdit = bottomSheetView.findViewById(R.id.btnEdit);
         View btnDeleteMe = bottomSheetView.findViewById(R.id.btnDeleteMe);
         View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
 
         if (message.isDeletedForEveryone()) {
             btnCopy.setVisibility(View.GONE);
+            if (btnEdit != null) btnEdit.setVisibility(View.GONE);
+            btnDeleteMe.setVisibility(View.GONE);
             btnDeleteEveryone.setVisibility(View.GONE);
         } else {
             btnCopy.setVisibility(View.VISIBLE);
             btnCopy.setOnClickListener(v -> {
                 dialog.dismiss();
-                String textToCopy = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
-                if (textToCopy == null) textToCopy = "";
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clip = ClipData.newPlainText("Message", textToCopy);
-                if (clipboard != null) clipboard.setPrimaryClip(clip);
-                Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+                copyMessage(message);
             });
 
             if (message.getSender() == baseSessionManager.getUserId()) {
+                if (btnEdit != null) {
+                    btnEdit.setVisibility(View.VISIBLE);
+                    btnEdit.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        startEditingMessage(message);
+                    });
+                }
                 btnDeleteEveryone.setVisibility(View.VISIBLE);
                 btnDeleteEveryone.setOnClickListener(v -> {
                     dialog.dismiss();
                     showDeleteConfirmationDialog(message.getId(), true);
                 });
             } else {
+                if (btnEdit != null) btnEdit.setVisibility(View.GONE);
                 btnDeleteEveryone.setVisibility(View.GONE);
             }
-        }
 
-        btnDeleteMe.setOnClickListener(v -> {
-            dialog.dismiss();
-            showDeleteConfirmationDialog(message.getId(), false);
-        });
+            btnDeleteMe.setVisibility(View.VISIBLE);
+            btnDeleteMe.setOnClickListener(v -> {
+                dialog.dismiss();
+                showDeleteConfirmationDialog(message.getId(), false);
+            });
+        }
 
         dialog.show();
     }

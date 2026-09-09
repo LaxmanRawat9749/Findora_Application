@@ -27,17 +27,29 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onProfileClick(int userId);
     }
 
+    public interface OnMessageActionListener {
+        void onCopy(ChatMessage message);
+        void onEdit(ChatMessage message);
+        void onDelete(ChatMessage message);
+    }
+
     private Context context;
     private List<ChatMessage> messages = new ArrayList<>();
     private int currentUserId;
     private OnMessageLongClickListener longClickListener;
     private OnProfileClickListener profileClickListener;
+    private OnMessageActionListener actionListener;
 
     public ChatAdapter(Context context, int currentUserId, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
+        this(context, currentUserId, listener, profileClickListener, null);
+    }
+
+    public ChatAdapter(Context context, int currentUserId, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
         this.context = context;
         this.currentUserId = currentUserId;
         this.longClickListener = listener;
         this.profileClickListener = profileClickListener;
+        this.actionListener = actionListener;
     }
 
     public void setMessages(List<ChatMessage> newMessages) {
@@ -215,9 +227,19 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         ChatMessage msg = messages.get(position);
         if (holder instanceof SentViewHolder) {
-            ((SentViewHolder) holder).bind(msg, longClickListener, profileClickListener);
+            ((SentViewHolder) holder).bind(msg, longClickListener, profileClickListener, actionListener);
         } else {
-            ((ReceivedViewHolder) holder).bind(msg, longClickListener, profileClickListener);
+            ((ReceivedViewHolder) holder).bind(msg, longClickListener, profileClickListener, actionListener);
+        }
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewRecycled(holder);
+        if (holder instanceof SentViewHolder) {
+            ((SentViewHolder) holder).cleanup();
+        } else if (holder instanceof ReceivedViewHolder) {
+            ((ReceivedViewHolder) holder).cleanup();
         }
     }
 
@@ -228,16 +250,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class SentViewHolder extends RecyclerView.ViewHolder {
         private ItemChatSentBinding binding;
+        private boolean isMenuOpen = false;
+        private androidx.appcompat.widget.PopupMenu currentPopup = null;
 
         SentViewHolder(ItemChatSentBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
         }
 
-        void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
+        void cleanup() {
+            if (currentPopup != null) {
+                currentPopup.dismiss();
+                currentPopup = null;
+            }
+            isMenuOpen = false;
+            binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+        }
+
+        void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
             boolean isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                binding.btnMoreOptions.setOnClickListener(null);
+                binding.btnMoreOptions.setOnHoverListener(null);
+                binding.getRoot().setOnHoverListener(null);
+                binding.layoutBubble.setOnHoverListener(null);
+
                 binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
@@ -253,6 +292,8 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvEdited.setVisibility(android.view.View.GONE);
                 binding.getRoot().setOnLongClickListener(null);
             } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
+                setupHoverAndMenu(msg, actionListener);
+
                 binding.layoutImageContainer.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -289,6 +330,8 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     return true;
                 });
             } else {
+                setupHoverAndMenu(msg, actionListener);
+
                 binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
@@ -323,6 +366,63 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
+        private void setupHoverAndMenu(ChatMessage msg, OnMessageActionListener actionListener) {
+            binding.btnMoreOptions.setVisibility(isMenuOpen ? android.view.View.VISIBLE : android.view.View.GONE);
+
+            android.view.View.OnHoverListener hoverListener = (v, event) -> {
+                int action = event.getAction();
+                if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
+                    if (!msg.isDeletedForEveryone()) {
+                        binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+                    }
+                } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                    if (!isMenuOpen) {
+                        binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                    }
+                }
+                return false;
+            };
+
+            binding.getRoot().setOnHoverListener(hoverListener);
+            binding.layoutBubble.setOnHoverListener(hoverListener);
+            binding.btnMoreOptions.setOnHoverListener(hoverListener);
+
+            binding.btnMoreOptions.setOnClickListener(v -> {
+                if (currentPopup != null) {
+                    currentPopup.dismiss();
+                }
+                androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(v.getContext(), v);
+                popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_sent, popup.getMenu());
+
+                isMenuOpen = true;
+                currentPopup = popup;
+                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+
+                popup.setOnMenuItemClickListener(item -> {
+                    int itemId = item.getItemId();
+                    if (itemId == com.findora.app.R.id.action_copy) {
+                        if (actionListener != null) actionListener.onCopy(msg);
+                        return true;
+                    } else if (itemId == com.findora.app.R.id.action_edit) {
+                        if (actionListener != null) actionListener.onEdit(msg);
+                        return true;
+                    } else if (itemId == com.findora.app.R.id.action_delete) {
+                        if (actionListener != null) actionListener.onDelete(msg);
+                        return true;
+                    }
+                    return false;
+                });
+
+                popup.setOnDismissListener(p -> {
+                    isMenuOpen = false;
+                    currentPopup = null;
+                    binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                });
+
+                popup.show();
+            });
+        }
+
         private String formatTime(String timestamp) {
             return com.findora.app.utils.DateUtils.formatChatTime(timestamp);
         }
@@ -330,16 +430,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class ReceivedViewHolder extends RecyclerView.ViewHolder {
         private ItemChatReceivedBinding binding;
+        private boolean isMenuOpen = false;
+        private androidx.appcompat.widget.PopupMenu currentPopup = null;
 
         ReceivedViewHolder(ItemChatReceivedBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
         }
 
-        void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener) {
+        void cleanup() {
+            if (currentPopup != null) {
+                currentPopup.dismiss();
+                currentPopup = null;
+            }
+            isMenuOpen = false;
+            binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+        }
+
+        void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
             boolean isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                binding.btnMoreOptions.setOnClickListener(null);
+                binding.btnMoreOptions.setOnHoverListener(null);
+                binding.getRoot().setOnHoverListener(null);
+                binding.layoutBubble.setOnHoverListener(null);
+
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
@@ -355,6 +472,8 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 binding.tvEdited.setVisibility(android.view.View.GONE);
                 binding.getRoot().setOnLongClickListener(null);
             } else if ("image".equals(msg.getMessageType()) && msg.getImageUrl() != null) {
+                setupHoverAndMenu(msg, actionListener);
+
                 binding.ivMessageImage.setVisibility(android.view.View.VISIBLE);
                 com.findora.app.utils.GlideImageHelper.loadChatImage(binding.getRoot().getContext(), msg.getImageUrl(), binding.ivMessageImage);
                 
@@ -384,6 +503,8 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     return true;
                 });
             } else {
+                setupHoverAndMenu(msg, actionListener);
+
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
                 binding.ivMessageImage.setOnLongClickListener(null);
@@ -416,6 +537,56 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         binding.getRoot().getContext().getResources().getColor(com.findora.app.R.color.primary_purple, null)));
                 binding.ivAvatar.setImageResource(com.findora.app.R.drawable.ic_person);
             }
+        }
+
+        private void setupHoverAndMenu(ChatMessage msg, OnMessageActionListener actionListener) {
+            binding.btnMoreOptions.setVisibility(isMenuOpen ? android.view.View.VISIBLE : android.view.View.GONE);
+
+            android.view.View.OnHoverListener hoverListener = (v, event) -> {
+                int action = event.getAction();
+                if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
+                    if (!msg.isDeletedForEveryone()) {
+                        binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+                    }
+                } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                    if (!isMenuOpen) {
+                        binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                    }
+                }
+                return false;
+            };
+
+            binding.getRoot().setOnHoverListener(hoverListener);
+            binding.layoutBubble.setOnHoverListener(hoverListener);
+            binding.btnMoreOptions.setOnHoverListener(hoverListener);
+
+            binding.btnMoreOptions.setOnClickListener(v -> {
+                if (currentPopup != null) {
+                    currentPopup.dismiss();
+                }
+                androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(v.getContext(), v);
+                popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_received, popup.getMenu());
+
+                isMenuOpen = true;
+                currentPopup = popup;
+                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+
+                popup.setOnMenuItemClickListener(item -> {
+                    if (item.getItemId() == com.findora.app.R.id.action_copy) {
+                        if (actionListener != null) actionListener.onCopy(msg);
+                        return true;
+                    }
+                    return false;
+                });
+
+                popup.setOnDismissListener(p -> {
+                    isMenuOpen = false;
+                    currentPopup = null;
+                    binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                });
+
+                popup.show();
+            });
         }
 
         private String formatTime(String timestamp) {

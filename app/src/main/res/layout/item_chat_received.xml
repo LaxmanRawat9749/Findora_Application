@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layoutMessageRow"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="start"
+    android:gravity="start|center_vertical"
     android:orientation="horizontal"
     android:paddingVertical="4dp"
     android:paddingHorizontal="@dimen/screen_padding_horizontal">
@@ -27,13 +28,12 @@
     </com.google.android.material.card.MaterialCardView>
 
     <LinearLayout
+        android:id="@+id/layoutBubble"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_bubble_received"
         android:orientation="vertical"
         android:padding="12dp">
-
-
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/ivMessageImage"
@@ -85,4 +85,16 @@
                 android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnMoreOptions"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Message options"
+        android:padding="6dp"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        app:tint="@color/text_gray" />
 </LinearLayout>
