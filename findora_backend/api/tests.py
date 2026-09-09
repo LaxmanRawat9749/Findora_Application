@@ -3439,6 +3439,74 @@ class AdminPanelUserOrganizationTests(TestCase):
             self.assertEqual(res_ch.status_code, 200, f'/admin/api/{model_name}/{obj.id}/change/ failed to render')
 
 
+class ItemAdminLinkedLostItemRemovedTests(TestCase):
+    """
+    Tests verifying that 'Linked Lost Item' / parent_item is completely removed
+    from Django Admin Item change/add pages while the underlying database relationship remains intact.
+    """
+
+    def setUp(self):
+        from django.contrib import admin
+        self.item_admin = admin.site._registry[Item]
+
+        self.superuser = User.objects.create_superuser(
+            username='item_admin_super', email='item_super@example.com', password='Password123!', role='admin'
+        )
+        self.owner = User.objects.create_user(
+            username='item_owner_test', email='item_owner@example.com', password='Password123!', role='owner'
+        )
+        self.finder = User.objects.create_user(
+            username='item_finder_test', email='item_finder@example.com', password='Password123!', role='finder'
+        )
+
+        self.lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Test Phone', category='phone', status='approved', reward=1000.00
+        )
+        self.found_item = Item.objects.create(
+            user=self.finder, parent_item=self.lost_item, type='found', title='Found Test Phone', category='phone', status='pending'
+        )
+
+    def test_item_admin_fieldsets_excludes_parent_item(self):
+        """Verify parent_item is absent from fieldsets for both lost and found item reports."""
+        lost_fieldsets = self.item_admin.get_fieldsets(None, self.lost_item)
+        found_fieldsets = self.item_admin.get_fieldsets(None, self.found_item)
+        add_fieldsets = self.item_admin.get_fieldsets(None, None)
+
+        for fs_list, report_name in [(lost_fieldsets, 'Lost Item'), (found_fieldsets, 'Found Item'), (add_fieldsets, 'Add Item')]:
+            all_fields = []
+            for section_name, section_dict in fs_list:
+                all_fields.extend(section_dict.get('fields', ()))
+            self.assertNotIn('parent_item', all_fields, f'parent_item must not be in {report_name} fieldsets')
+
+    def test_item_admin_change_page_does_not_render_linked_lost_item(self):
+        """Verify the Change Item page does not render 'Linked Lost Item' or parent_item controls."""
+        self.client.login(username='item_admin_super', password='Password123!')
+
+        for item in (self.lost_item, self.found_item):
+            res = self.client.get(f'/admin/api/item/{item.id}/change/')
+            self.assertEqual(res.status_code, 200)
+            content = res.content.decode('utf-8')
+            self.assertNotIn('Linked Lost Item', content)
+            self.assertNotIn('id_parent_item', content)
+
+    def test_item_admin_add_page_does_not_render_linked_lost_item(self):
+        """Verify the Add Item page does not render 'Linked Lost Item' or parent_item controls."""
+        self.client.login(username='item_admin_super', password='Password123!')
+        res = self.client.get('/admin/api/item/add/')
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+        self.assertNotIn('Linked Lost Item', content)
+        self.assertNotIn('id_parent_item', content)
+
+    def test_underlying_item_database_linking_remains_intact(self):
+        """Verify parent_item database relationship and data are preserved and functional."""
+        self.assertEqual(self.found_item.parent_item, self.lost_item)
+        self.assertEqual(self.found_item.parent_item_id, self.lost_item.id)
+        self.assertEqual(self.lost_item.found_reports.count(), 1)
+        self.assertIn(self.found_item, self.lost_item.found_reports.all())
+
+
+
 
 
 
