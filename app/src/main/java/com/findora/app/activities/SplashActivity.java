@@ -46,7 +46,38 @@ public class SplashActivity extends AppCompatActivity {
 
         startAnimations();
 
+        // ── Pre-warm Backend Server ──────────────────────────────────────────
+        // Dispatch an asynchronous, non-blocking health check ping to start waking
+        // the backend server immediately during the 3-second splash animation.
+        prewarmBackendServer();
+
         handler.postDelayed(this::navigateNext, 3000);
+    }
+
+    private void prewarmBackendServer() {
+        if (com.findora.app.network.RetrofitClient.isNetworkAvailable(this)) {
+            try {
+                com.findora.app.network.RetrofitClient.getInstance(this).getApi()
+                    .pingHealth()
+                    .enqueue(new retrofit2.Callback<java.util.Map<String, Object>>() {
+                        @Override
+                        public void onResponse(
+                                retrofit2.Call<java.util.Map<String, Object>> call,
+                                retrofit2.Response<java.util.Map<String, Object>> response) {
+                            android.util.Log.i("SplashActivity", "Backend pre-warm response: HTTP " + response.code());
+                        }
+
+                        @Override
+                        public void onFailure(
+                                retrofit2.Call<java.util.Map<String, Object>> call,
+                                Throwable t) {
+                            android.util.Log.d("SplashActivity", "Backend pre-warm ping dispatched (waking server): " + t.getMessage());
+                        }
+                    });
+            } catch (Exception e) {
+                android.util.Log.w("SplashActivity", "Pre-warm ping error: " + e.getMessage());
+            }
+        }
     }
 
     private void startAnimations() {

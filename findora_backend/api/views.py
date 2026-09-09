@@ -196,6 +196,25 @@ class ResendOTPView(APIView):
         )
 
 
+class HealthCheckView(APIView):
+    """
+    GET /api/health/
+    Lightweight, unauthenticated health check & warm-up endpoint.
+    Returns 200 OK immediately with server status and timestamp.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(
+            {
+                'status': 'healthy',
+                'service': 'findora-backend',
+                'timestamp': timezone.now().isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class LoginView(APIView):
     """
     POST /api/login/
@@ -207,13 +226,15 @@ class LoginView(APIView):
     def post(self, request):
         start_ns = time.perf_counter_ns()
         username = request.data.get('username', '').strip()
+        password = request.data.get('password', '')
 
         logger.info("Login attempt | username=%r | client=%s",
                     username, self._client_ip(request))
 
         try:
             db_start = time.perf_counter_ns()
-            user = User.objects.get(username=username)
+            # Prefetch reputation to avoid extra queries in UserSerializer
+            user = User.objects.select_related('reputation').get(username=username)
             db_ms = (time.perf_counter_ns() - db_start) / 1_000_000
             logger.debug("User lookup OK | username=%r | db=%.1f ms", username, db_ms)
         except User.DoesNotExist:
@@ -250,9 +271,8 @@ class LoginView(APIView):
                 status=status.HTTP_423_LOCKED,
             )
 
-        # Step 4: Password verification
-        auth_user = authenticate(request, username=username, password=request.data.get('password', ''))
-        if not auth_user:
+        # Step 4: Direct password verification (avoids redundant duplicate DB query from authenticate())
+        if not user.check_password(password):
             user.increment_failed_attempts()
             remaining = max(0, 5 - user.failed_login_attempts)
             elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
@@ -269,18 +289,18 @@ class LoginView(APIView):
             )
 
         # Step 5: Success — reset counter, issue tokens
-        auth_user.reset_failed_attempts()
+        user.reset_failed_attempts()
         token_start = time.perf_counter_ns()
-        refresh = RefreshToken.for_user(auth_user)
+        refresh = RefreshToken.for_user(user)
         token_ms = (time.perf_counter_ns() - token_start) / 1_000_000
         elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
 
         logger.info("Login success | username=%r | user_id=%d | token_gen=%.1f ms | total=%.1f ms",
-                    auth_user.username, auth_user.pk, token_ms, elapsed_ms)
+                    user.username, user.pk, token_ms, elapsed_ms)
 
         return Response(
             {
-                'user': UserSerializer(auth_user, context={'request': request}).data,
+                'user': UserSerializer(user, context={'request': request}).data,
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
             },

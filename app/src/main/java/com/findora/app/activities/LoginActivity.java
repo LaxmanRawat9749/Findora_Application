@@ -30,6 +30,8 @@ public class LoginActivity extends AppCompatActivity {
     private ActivityLoginBinding binding;
     private SessionManager sessionManager;
     private ApiService apiService;
+    private Call<AuthResponse> loginCall;
+    private boolean isLoggingIn = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,16 +43,6 @@ public class LoginActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         apiService     = RetrofitClient.getInstance(this).getApi();
 
-        // NOTE: The auto-login check (isLoggedIn → navigateToHome) that existed
-        // here has been intentionally removed. SplashActivity is now the single
-        // authoritative routing point and performs a proper isSessionValid() check
-        // (including JWT expiry) before routing here. Repeating a simpler check
-        // in LoginActivity was the root cause of unauthenticated users bypassing
-        // the Login screen when stale SharedPreferences existed.
-        //
-        // If SplashActivity routed the user here, it is because there is no valid
-        // session — we must always show the Login UI.
-
         binding.btnLogin.setOnClickListener(v -> attemptLogin());
 
         binding.tvForgotPassword.setOnClickListener(v ->
@@ -61,6 +53,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void attemptLogin() {
+        if (isLoggingIn) {
+            Log.d(TAG, "Login attempt ignored — request already in flight");
+            return;
+        }
+
         String username = binding.etUsername.getText().toString().trim();
         String password = binding.etPassword.getText().toString().trim();
 
@@ -72,7 +69,7 @@ public class LoginActivity extends AppCompatActivity {
         // ── Pre-flight network check ──────────────────────────────────────────
         // Detect the absence of any network connectivity before we even attempt
         // a TCP connection. This surfaces a clear, actionable message immediately
-        // rather than waiting 30 seconds for OkHttp to time out.
+        // rather than waiting for OkHttp to time out.
         if (!RetrofitClient.isNetworkAvailable(this)) {
             showError("No internet connection. Please check your Wi-Fi or mobile data.");
             Log.w(TAG, "Login aborted — device has no active network connection");
@@ -85,9 +82,12 @@ public class LoginActivity extends AppCompatActivity {
                 + " | endpoint=login/ | time=" + requestStartMs);
 
         LoginRequest request = new LoginRequest(username, password);
-        apiService.login(request).enqueue(new Callback<AuthResponse>() {
+        loginCall = apiService.login(request);
+        loginCall.enqueue(new Callback<AuthResponse>() {
             @Override
             public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
+                if (isFinishing() || isDestroyed()) return;
+
                 long elapsedMs = System.currentTimeMillis() - requestStartMs;
                 setLoading(false);
 
@@ -126,51 +126,78 @@ public class LoginActivity extends AppCompatActivity {
                     navigateToHome();
 
                 } else {
-                    showError("Invalid credentials. Please try again.");
-                    Log.w(TAG, "Login failed | reason=invalid_credentials | username=" + username
-                            + " | http_status=" + response.code());
+                    String errorMsg = "Invalid credentials. Please try again.";
+                    try {
+                        if (response.errorBody() != null) {
+                            String errorJson = response.errorBody().string();
+                            org.json.JSONObject obj = new org.json.JSONObject(errorJson);
+                            if (obj.has("error")) {
+                                errorMsg = obj.getString("error");
+                            } else if (obj.has("detail")) {
+                                errorMsg = obj.getString("detail");
+                            }
+
+                            // If unverified email, allow immediate navigation to OTP verification
+                            if (response.code() == 403 && "verify".equals(obj.optString("action"))) {
+                                String verifyEmail = obj.optString("email", "");
+                                if (!verifyEmail.isEmpty()) {
+                                    Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+                                    Intent verifyIntent = new Intent(LoginActivity.this, VerifyOtpActivity.class);
+                                    verifyIntent.putExtra(com.findora.app.utils.Constants.EXTRA_EMAIL, verifyEmail);
+                                    verifyIntent.putExtra(com.findora.app.utils.Constants.EXTRA_OTP_PURPOSE, com.findora.app.utils.Constants.OTP_EMAIL_VERIFY);
+                                    startActivity(verifyIntent);
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+
+                    if (response.code() >= 500) {
+                        errorMsg = "Server is starting up or temporarily busy. Please try again in a moment.";
+                    }
+
+                    showError(errorMsg);
+                    Log.w(TAG, "Login failed | reason=invalid_response | username=" + username
+                            + " | http_status=" + response.code() + " | message=" + errorMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<AuthResponse> call, Throwable t) {
+                if (isFinishing() || isDestroyed()) return;
+                if (call.isCanceled()) {
+                    Log.d(TAG, "Login call was canceled");
+                    return;
+                }
+
                 long elapsedMs = System.currentTimeMillis() - requestStartMs;
                 setLoading(false);
 
                 // ── Distinguish failure types for actionable error messages ──
-                // Each exception type maps to a specific root cause so the user
-                // sees a helpful message and the developer sees a precise log.
                 String userMessage;
                 if (t instanceof ConnectException) {
-                    // TCP connection was refused — server is not running, or the
-                    // server's TCP accept-backlog was full (primary root cause of
-                    // the intermittent "Failed to connect" errors we investigated).
+                    // TCP connection was refused — server is not running or backlog full
                     userMessage = "Cannot reach the server. Please ensure the backend is running.";
                     Log.e(TAG, "Login failed | type=ConnectException"
                             + " | username=" + username
                             + " | elapsed=" + elapsedMs + " ms"
-                            + " | cause=" + t.getMessage()
-                            + " | hint=server_down_or_backlog_full", t);
+                            + " | cause=" + t.getMessage(), t);
                 } else if (t instanceof SocketTimeoutException) {
-                    // Connection was established but the server did not respond
-                    // in time — server may be overloaded or blocked on I/O.
-                    userMessage = "Request timed out. The server is slow to respond. Please try again.";
+                    // Timeout — server cold-start or slow response
+                    userMessage = "Request timed out. The server was slow to respond. Please tap Login again.";
                     Log.e(TAG, "Login failed | type=SocketTimeoutException"
                             + " | username=" + username
                             + " | elapsed=" + elapsedMs + " ms"
-                            + " | cause=" + t.getMessage()
-                            + " | hint=server_overloaded_or_blocked", t);
+                            + " | cause=" + t.getMessage(), t);
                 } else if (t instanceof UnknownHostException) {
-                    // DNS resolution failed — BASE_URL hostname is wrong, or device
-                    // has no DNS connectivity (e.g., Wi-Fi connected but no internet).
-                    userMessage = "Cannot resolve server address. Check your Wi-Fi connection.";
+                    // DNS resolution failed
+                    userMessage = "Cannot resolve server address. Check your Wi-Fi or mobile data connection.";
                     Log.e(TAG, "Login failed | type=UnknownHostException"
                             + " | username=" + username
                             + " | elapsed=" + elapsedMs + " ms"
-                            + " | cause=" + t.getMessage()
-                            + " | hint=wrong_base_url_or_no_dns", t);
+                            + " | cause=" + t.getMessage(), t);
                 } else {
-                    // Catch-all for any other IOException (e.g., SSL error, reset)
+                    // Catch-all for other IO exceptions
                     userMessage = "Network error: " + t.getMessage();
                     Log.e(TAG, "Login failed | type=" + t.getClass().getSimpleName()
                             + " | username=" + username
@@ -196,10 +223,21 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setLoading(boolean loading) {
+        isLoggingIn = loading;
         binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         binding.btnLogin.setEnabled(!loading);
+        binding.etUsername.setEnabled(!loading);
+        binding.etPassword.setEnabled(!loading);
         if (loading) {
             binding.tvError.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (loginCall != null && !loginCall.isCanceled()) {
+            loginCall.cancel();
         }
     }
 }

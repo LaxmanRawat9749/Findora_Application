@@ -11,6 +11,9 @@ from . import views
 from . import payment_views
 
 urlpatterns = [
+    # ─── System & Warmup ──────────────────────────────────────────────────────
+    path('health/', views.HealthCheckView.as_view(), name='health-check'),
+
     # ─── Authentication ───────────────────────────────────────────────────────
     path('register/', views.RegisterView.as_view(), name='register'),
     path('verify-otp/', views.VerifyOTPView.as_view(), name='verify-otp'),

@@ -10,6 +10,10 @@ import java.util.Map;
 
 public interface ApiService {
 
+    // ─── Health / Pre-warm ───────────────────────────────────
+    @GET("health/")
+    Call<Map<String, Object>> pingHealth();
+
     // ─── Auth ────────────────────────────────────────────────
     @POST("register/")
     Call<MessageResponse> register(@Body RegisterRequest request);

@@ -197,9 +197,10 @@ public class RetrofitClient {
                         .authenticator(new TokenAuthenticator(ctx))
                         .connectionPool(connectionPool)
                         .dispatcher(dispatcher)
-                        .connectTimeout(15, TimeUnit.SECONDS)
-                        .readTimeout(20, TimeUnit.SECONDS)
-                        .writeTimeout(20, TimeUnit.SECONDS);
+                        .retryOnConnectionFailure(true)
+                        .connectTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(45, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS);
 
                     if (cache != null) {
                         clientBuilder.cache(cache);

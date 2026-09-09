@@ -79,14 +79,6 @@ class UserSerializer(serializers.ModelSerializer):
         rep = getattr(obj, 'reputation', None)
         return rep.total_points if rep else 0
 
-    def get_successful_returns(self, obj):
-        if getattr(obj, 'role', '') != 'finder':
-            return 0
-        return get_unique_recovered_items_count(obj)
-
-    def get_successful_returns_count(self, obj):
-        return self.get_successful_returns(obj)
-
     def get_reputation_display(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return "Not applicable"
@@ -100,13 +92,17 @@ class UserSerializer(serializers.ModelSerializer):
         return rep.primary_badge if rep else None
 
     def get_lost_reports(self, obj):
-        return Item.objects.filter(user=obj, type='lost').distinct().count()
+        if not hasattr(obj, '_cached_lost_reports'):
+            obj._cached_lost_reports = Item.objects.filter(user=obj, type='lost').distinct().count()
+        return obj._cached_lost_reports
 
     def get_lost_reports_count(self, obj):
         return self.get_lost_reports(obj)
 
     def get_found_reports(self, obj):
-        return Item.objects.filter(user=obj, type='found').distinct().count()
+        if not hasattr(obj, '_cached_found_reports'):
+            obj._cached_found_reports = Item.objects.filter(user=obj, type='found').distinct().count()
+        return obj._cached_found_reports
 
     def get_found_reports_count(self, obj):
         return self.get_found_reports(obj)
@@ -114,9 +110,17 @@ class UserSerializer(serializers.ModelSerializer):
     def get_items_recovered(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return 0
-        return get_unique_recovered_items_count(obj)
+        if not hasattr(obj, '_cached_recovered_items'):
+            obj._cached_recovered_items = get_unique_recovered_items_count(obj)
+        return obj._cached_recovered_items
 
     def get_recovered_items_count(self, obj):
+        return self.get_items_recovered(obj)
+
+    def get_successful_returns(self, obj):
+        return self.get_items_recovered(obj)
+
+    def get_successful_returns_count(self, obj):
         return self.get_items_recovered(obj)
 
 
@@ -174,13 +178,17 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return None
 
     def get_lost_reports(self, obj):
-        return Item.objects.filter(user=obj, type='lost').distinct().count()
+        if not hasattr(obj, '_cached_lost_reports'):
+            obj._cached_lost_reports = Item.objects.filter(user=obj, type='lost').distinct().count()
+        return obj._cached_lost_reports
 
     def get_lost_reports_count(self, obj):
         return self.get_lost_reports(obj)
         
     def get_found_reports(self, obj):
-        return Item.objects.filter(user=obj, type='found').distinct().count()
+        if not hasattr(obj, '_cached_found_reports'):
+            obj._cached_found_reports = Item.objects.filter(user=obj, type='found').distinct().count()
+        return obj._cached_found_reports
 
     def get_found_reports_count(self, obj):
         return self.get_found_reports(obj)
@@ -188,7 +196,9 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     def get_recovered_items(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return 0
-        return get_unique_recovered_items_count(obj)
+        if not hasattr(obj, '_cached_recovered_items'):
+            obj._cached_recovered_items = get_unique_recovered_items_count(obj)
+        return obj._cached_recovered_items
 
     def get_items_recovered(self, obj):
         return self.get_recovered_items(obj)
@@ -203,12 +213,10 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return rep.total_points if rep else 0
 
     def get_successful_returns(self, obj):
-        if getattr(obj, 'role', '') != 'finder':
-            return 0
-        return get_unique_recovered_items_count(obj)
+        return self.get_recovered_items(obj)
 
     def get_successful_returns_count(self, obj):
-        return self.get_successful_returns(obj)
+        return self.get_recovered_items(obj)
 
     def get_average_rating(self, obj):
         if getattr(obj, 'role', '') != 'finder':

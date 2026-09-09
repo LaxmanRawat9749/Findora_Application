@@ -85,8 +85,15 @@ if 'test' in sys.argv:
         }
     }
 elif os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
+    db_config = dj_database_url.parse(
+        os.environ.get('DATABASE_URL', ''),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+    db_config.setdefault('OPTIONS', {})
+    db_config['OPTIONS'].setdefault('connect_timeout', 10)
     DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL', ''), conn_max_age=600)
+        'default': db_config
     }
 else:
     # If running locally on your PC, use SQLite so it doesn't crash trying to reach Render's internal network.

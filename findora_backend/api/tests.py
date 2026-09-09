@@ -17,7 +17,7 @@ from api.views import (
     RateFinderView, RatingStatusView, MyReportsView, RegisterView,
     ConversationInitView, ChatListView, NotificationListView,
     AdminItemListView, AdminVerifyItemView,
-    ChangeUsernameView, ChangePasswordView, LoginView
+    ChangeUsernameView, ChangePasswordView, LoginView, HealthCheckView
 )
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
@@ -3207,6 +3207,105 @@ class ChangeUsernameAndPasswordTests(TestCase):
         })
         res = view(req)
         self.assertEqual(res.status_code, 401)
+
+
+class LoginAndHealthCheckEndpointTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner_user = User.objects.create_user(
+            username='test_owner_user',
+            email='owner@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True,
+        )
+        self.finder_user = User.objects.create_user(
+            username='test_finder_user',
+            email='finder@example.com',
+            password='Password123!',
+            role='finder',
+            is_verified=True,
+        )
+        self.unverified_user = User.objects.create_user(
+            username='test_unverified_user',
+            email='unverified@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=False,
+        )
+
+    def test_health_check_endpoint(self):
+        """GET /api/health/ returns 200 OK immediately with status and service name."""
+        view = HealthCheckView.as_view()
+        req = self.factory.get('/api/health/')
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['status'], 'healthy')
+        self.assertEqual(res.data['service'], 'findora-backend')
+        self.assertIn('timestamp', res.data)
+
+    def test_owner_login_success(self):
+        """Owner login succeeds with 200 OK, JWT tokens, and correct role."""
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'test_owner_user',
+            'password': 'Password123!',
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+        self.assertEqual(res.data['user']['role'], 'owner')
+        self.assertEqual(res.data['user']['username'], 'test_owner_user')
+
+    def test_finder_login_success(self):
+        """Finder login succeeds with 200 OK, JWT tokens, and reputation details."""
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'test_finder_user',
+            'password': 'Password123!',
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+        self.assertEqual(res.data['user']['role'], 'finder')
+        self.assertEqual(res.data['user']['username'], 'test_finder_user')
+
+    def test_login_wrong_password(self):
+        """Wrong password returns 401 and decrements remaining attempts."""
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'test_owner_user',
+            'password': 'WrongPassword!',
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 401)
+        self.assertIn('attempt(s) left', res.data['error'])
+
+    def test_login_unverified_email(self):
+        """Unverified email returns 403 Forbidden with action='verify'."""
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'test_unverified_user',
+            'password': 'Password123!',
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.data['action'], 'verify')
+        self.assertEqual(res.data['email'], 'unverified@example.com')
+
+    def test_login_nonexistent_user(self):
+        """Non-existent username returns 401 Unauthorized."""
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'does_not_exist_xyz',
+            'password': 'Password123!',
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.data['error'], 'Invalid username or password.')
+
 
 
 
