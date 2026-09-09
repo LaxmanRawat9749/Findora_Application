@@ -40,27 +40,79 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".activities.LoginActivity" android:exported="false" />
-        <activity android:name=".activities.RegisterActivity" android:exported="false" />
-        <activity android:name=".activities.VerifyOtpActivity" android:exported="false" />
-        <activity android:name=".activities.ForgotPasswordActivity" android:exported="false" />
-        <activity android:name=".activities.ResetPasswordActivity" android:exported="false" />
-        <activity android:name=".activities.HomeActivity" android:exported="false" />
+        <activity
+            android:name=".activities.LoginActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.RegisterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.VerifyOtpActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.ForgotPasswordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.ResetPasswordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.HomeActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.UploadItemActivity"
             android:exported="false"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".activities.ItemDetailActivity" android:exported="false" />
-        <activity android:name=".activities.SearchActivity" android:exported="false" />
-        <activity android:name=".activities.ChatActivity" android:exported="false" />
-        <activity android:name=".activities.NotificationsActivity" android:exported="false" />
-        <activity android:name=".activities.ProfileActivity" android:exported="false" />
-        <activity android:name=".activities.FullScreenImageActivity" android:exported="false" />
-        <activity android:name=".activities.UserProfileActivity" android:exported="false" />
-        <activity android:name=".activities.MyReportsActivity" android:exported="false" />
-        <activity android:name=".activities.PromoteItemActivity" android:exported="false" />
-        <activity android:name=".activities.KhaltiWebViewActivity" android:exported="false" />
-        <activity android:name=".activities.PointHistoryActivity" android:exported="false" />
+        <activity
+            android:name=".activities.ItemDetailActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.SearchActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.ChatActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.NotificationsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.ProfileActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.FullScreenImageActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.UserProfileActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.MyReportsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.PromoteItemActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.KhaltiWebViewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.PointHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
 
         <activity

@@ -43,6 +43,7 @@ public class BaseActivity extends AppCompatActivity {
         }
 
         Log.i(TAG, "Navigation decision: Session valid. Proceeding with " + this.getClass().getSimpleName());
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
         getWindow().setBackgroundDrawableResource(com.findora.app.R.color.screen_background);
         applySeamlessTransition();
