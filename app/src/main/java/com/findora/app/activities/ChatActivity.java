@@ -144,6 +144,45 @@ public class ChatActivity extends BaseActivity {
 
         binding.rvMessages.setAdapter(adapter);
 
+        // Top-Level Mouse Hover & Generic Motion tracking for BlueStacks and mouse environments
+        binding.rvMessages.setOnHoverListener((v, event) -> {
+            int action = event.getAction();
+            android.util.Log.d("FindoraChatHover", "rvMessages onHover action=" + android.view.MotionEvent.actionToString(action) + " at (" + event.getX() + ", " + event.getY() + ")");
+            if (action == android.view.MotionEvent.ACTION_HOVER_MOVE || action == android.view.MotionEvent.ACTION_HOVER_ENTER) {
+                android.view.View child = binding.rvMessages.findChildViewUnder(event.getX(), event.getY());
+                if (child != null) {
+                    androidx.recyclerview.widget.RecyclerView.ViewHolder vh = binding.rvMessages.findContainingViewHolder(child);
+                    adapter.setHoveredViewHolder(vh);
+                } else {
+                    adapter.clearHover();
+                }
+                return true;
+            } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                adapter.clearHover();
+                return true;
+            }
+            return false;
+        });
+
+        binding.rvMessages.setOnGenericMotionListener((v, event) -> {
+            int action = event.getAction();
+            android.util.Log.d("FindoraChatHover", "rvMessages onGenericMotion action=" + android.view.MotionEvent.actionToString(action) + " at (" + event.getX() + ", " + event.getY() + ")");
+            if (action == android.view.MotionEvent.ACTION_HOVER_MOVE || action == android.view.MotionEvent.ACTION_HOVER_ENTER) {
+                android.view.View child = binding.rvMessages.findChildViewUnder(event.getX(), event.getY());
+                if (child != null) {
+                    androidx.recyclerview.widget.RecyclerView.ViewHolder vh = binding.rvMessages.findContainingViewHolder(child);
+                    adapter.setHoveredViewHolder(vh);
+                } else {
+                    adapter.clearHover();
+                }
+                return true;
+            } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                adapter.clearHover();
+                return true;
+            }
+            return false;
+        });
+
         binding.rvMessages.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {

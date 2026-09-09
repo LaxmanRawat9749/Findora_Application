@@ -33,12 +33,18 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onDelete(ChatMessage message);
     }
 
+    public interface HoverableMessageHolder {
+        void setHovered(boolean hovered);
+        boolean isMenuOpen();
+    }
+
     private Context context;
     private List<ChatMessage> messages = new ArrayList<>();
     private int currentUserId;
     private OnMessageLongClickListener longClickListener;
     private OnProfileClickListener profileClickListener;
     private OnMessageActionListener actionListener;
+    private HoverableMessageHolder currentHoveredHolder = null;
 
     public ChatAdapter(Context context, int currentUserId, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener) {
         this(context, currentUserId, listener, profileClickListener, null);
@@ -50,6 +56,27 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.longClickListener = listener;
         this.profileClickListener = profileClickListener;
         this.actionListener = actionListener;
+    }
+
+    public void setHoveredViewHolder(RecyclerView.ViewHolder vh) {
+        if (vh instanceof HoverableMessageHolder) {
+            HoverableMessageHolder newHolder = (HoverableMessageHolder) vh;
+            if (currentHoveredHolder == newHolder) return;
+            if (currentHoveredHolder != null) {
+                currentHoveredHolder.setHovered(false);
+            }
+            currentHoveredHolder = newHolder;
+            currentHoveredHolder.setHovered(true);
+        } else {
+            clearHover();
+        }
+    }
+
+    public void clearHover() {
+        if (currentHoveredHolder != null) {
+            currentHoveredHolder.setHovered(false);
+            currentHoveredHolder = null;
+        }
     }
 
     public void setMessages(List<ChatMessage> newMessages) {
@@ -248,14 +275,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return messages.size();
     }
 
-    static class SentViewHolder extends RecyclerView.ViewHolder {
+    static class SentViewHolder extends RecyclerView.ViewHolder implements HoverableMessageHolder {
         private ItemChatSentBinding binding;
         private boolean isMenuOpen = false;
         private androidx.appcompat.widget.PopupMenu currentPopup = null;
+        private boolean isDeleted = false;
 
         SentViewHolder(ItemChatSentBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+        }
+
+        @Override
+        public void setHovered(boolean hovered) {
+            if (isDeleted) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                return;
+            }
+            if (hovered) {
+                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+            } else if (!isMenuOpen) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+            }
+        }
+
+        @Override
+        public boolean isMenuOpen() {
+            return isMenuOpen;
         }
 
         void cleanup() {
@@ -268,14 +314,19 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         void bind(ChatMessage msg, OnMessageLongClickListener listener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
-            boolean isDeleted = msg.isDeletedForEveryone();
+            this.isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
+                cleanup();
                 binding.btnMoreOptions.setVisibility(android.view.View.GONE);
                 binding.btnMoreOptions.setOnClickListener(null);
                 binding.btnMoreOptions.setOnHoverListener(null);
                 binding.getRoot().setOnHoverListener(null);
+                binding.getRoot().setOnGenericMotionListener(null);
+                binding.getRoot().setOnContextClickListener(null);
                 binding.layoutBubble.setOnHoverListener(null);
+                binding.layoutBubble.setOnGenericMotionListener(null);
+                binding.layoutBubble.setOnContextClickListener(null);
 
                 binding.layoutImageContainer.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
@@ -371,14 +422,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
             android.view.View.OnHoverListener hoverListener = (v, event) -> {
                 int action = event.getAction();
+                android.util.Log.d("FindoraChatHover", "SentMsg " + msg.getId() + " onHover: " + android.view.MotionEvent.actionToString(action));
                 if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
                     if (!msg.isDeletedForEveryone()) {
-                        binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+                        setHovered(true);
                     }
+                    return true;
                 } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
                     if (!isMenuOpen) {
-                        binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                        setHovered(false);
                     }
+                    return true;
                 }
                 return false;
             };
@@ -387,40 +441,81 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             binding.layoutBubble.setOnHoverListener(hoverListener);
             binding.btnMoreOptions.setOnHoverListener(hoverListener);
 
-            binding.btnMoreOptions.setOnClickListener(v -> {
-                if (currentPopup != null) {
-                    currentPopup.dismiss();
-                }
-                androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(v.getContext(), v);
-                popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_sent, popup.getMenu());
-
-                isMenuOpen = true;
-                currentPopup = popup;
-                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
-
-                popup.setOnMenuItemClickListener(item -> {
-                    int itemId = item.getItemId();
-                    if (itemId == com.findora.app.R.id.action_copy) {
-                        if (actionListener != null) actionListener.onCopy(msg);
-                        return true;
-                    } else if (itemId == com.findora.app.R.id.action_edit) {
-                        if (actionListener != null) actionListener.onEdit(msg);
-                        return true;
-                    } else if (itemId == com.findora.app.R.id.action_delete) {
-                        if (actionListener != null) actionListener.onDelete(msg);
-                        return true;
+            android.view.View.OnGenericMotionListener genericMotionListener = (v, event) -> {
+                int action = event.getAction();
+                android.util.Log.d("FindoraChatHover", "SentMsg " + msg.getId() + " onGenericMotion: " + android.view.MotionEvent.actionToString(action));
+                if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
+                    if (!msg.isDeletedForEveryone()) {
+                        setHovered(true);
                     }
-                    return false;
-                });
+                    return true;
+                } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                    if (!isMenuOpen) {
+                        setHovered(false);
+                    }
+                    return true;
+                } else if (action == android.view.MotionEvent.ACTION_BUTTON_PRESS && event.getActionButton() == android.view.MotionEvent.BUTTON_SECONDARY) {
+                    openOptionsMenu(msg, actionListener);
+                    return true;
+                }
+                return false;
+            };
 
-                popup.setOnDismissListener(p -> {
-                    isMenuOpen = false;
-                    currentPopup = null;
-                    binding.btnMoreOptions.setVisibility(android.view.View.GONE);
-                });
+            binding.getRoot().setOnGenericMotionListener(genericMotionListener);
+            binding.layoutBubble.setOnGenericMotionListener(genericMotionListener);
 
-                popup.show();
+            android.view.View.OnContextClickListener contextClickListener = v -> {
+                android.util.Log.d("FindoraChatHover", "SentMsg " + msg.getId() + " onContextClick (Right-Click)");
+                if (!msg.isDeletedForEveryone()) {
+                    openOptionsMenu(msg, actionListener);
+                    return true;
+                }
+                return false;
+            };
+            binding.getRoot().setOnContextClickListener(contextClickListener);
+            binding.layoutBubble.setOnContextClickListener(contextClickListener);
+
+            binding.btnMoreOptions.setOnClickListener(v -> {
+                android.util.Log.d("FindoraChatHover", "SentMsg " + msg.getId() + " 3-dot clicked");
+                openOptionsMenu(msg, actionListener);
             });
+        }
+
+        private void openOptionsMenu(ChatMessage msg, OnMessageActionListener actionListener) {
+            if (currentPopup != null) {
+                currentPopup.dismiss();
+            }
+            androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(binding.btnMoreOptions.getContext(), binding.btnMoreOptions);
+            popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_sent, popup.getMenu());
+
+            isMenuOpen = true;
+            currentPopup = popup;
+            binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+
+            popup.setOnMenuItemClickListener(item -> {
+                int itemId = item.getItemId();
+                android.util.Log.d("FindoraChatHover", "Menu item selected: " + item.getTitle() + " on message " + msg.getId());
+                if (itemId == com.findora.app.R.id.action_copy) {
+                    if (actionListener != null) actionListener.onCopy(msg);
+                    return true;
+                } else if (itemId == com.findora.app.R.id.action_edit) {
+                    if (actionListener != null) actionListener.onEdit(msg);
+                    return true;
+                } else if (itemId == com.findora.app.R.id.action_delete) {
+                    if (actionListener != null) actionListener.onDelete(msg);
+                    return true;
+                }
+                return false;
+            });
+
+            popup.setOnDismissListener(p -> {
+                android.util.Log.d("FindoraChatHover", "Menu dismissed on message " + msg.getId());
+                isMenuOpen = false;
+                currentPopup = null;
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+            });
+
+            popup.show();
         }
 
         private String formatTime(String timestamp) {
@@ -428,14 +523,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
-    static class ReceivedViewHolder extends RecyclerView.ViewHolder {
+    static class ReceivedViewHolder extends RecyclerView.ViewHolder implements HoverableMessageHolder {
         private ItemChatReceivedBinding binding;
         private boolean isMenuOpen = false;
         private androidx.appcompat.widget.PopupMenu currentPopup = null;
+        private boolean isDeleted = false;
 
         ReceivedViewHolder(ItemChatReceivedBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+        }
+
+        @Override
+        public void setHovered(boolean hovered) {
+            if (isDeleted) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                return;
+            }
+            if (hovered) {
+                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+            } else if (!isMenuOpen) {
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+            }
+        }
+
+        @Override
+        public boolean isMenuOpen() {
+            return isMenuOpen;
         }
 
         void cleanup() {
@@ -448,14 +562,19 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         void bind(ChatMessage msg, OnMessageLongClickListener longClickListener, OnProfileClickListener profileClickListener, OnMessageActionListener actionListener) {
-            boolean isDeleted = msg.isDeletedForEveryone();
+            this.isDeleted = msg.isDeletedForEveryone();
 
             if (isDeleted) {
+                cleanup();
                 binding.btnMoreOptions.setVisibility(android.view.View.GONE);
                 binding.btnMoreOptions.setOnClickListener(null);
                 binding.btnMoreOptions.setOnHoverListener(null);
                 binding.getRoot().setOnHoverListener(null);
+                binding.getRoot().setOnGenericMotionListener(null);
+                binding.getRoot().setOnContextClickListener(null);
                 binding.layoutBubble.setOnHoverListener(null);
+                binding.layoutBubble.setOnGenericMotionListener(null);
+                binding.layoutBubble.setOnContextClickListener(null);
 
                 binding.ivMessageImage.setVisibility(android.view.View.GONE);
                 binding.ivMessageImage.setOnClickListener(null);
@@ -544,14 +663,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
             android.view.View.OnHoverListener hoverListener = (v, event) -> {
                 int action = event.getAction();
+                android.util.Log.d("FindoraChatHover", "ReceivedMsg " + msg.getId() + " onHover: " + android.view.MotionEvent.actionToString(action));
                 if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
                     if (!msg.isDeletedForEveryone()) {
-                        binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+                        setHovered(true);
                     }
+                    return true;
                 } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
                     if (!isMenuOpen) {
-                        binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+                        setHovered(false);
                     }
+                    return true;
                 }
                 return false;
             };
@@ -560,33 +682,75 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             binding.layoutBubble.setOnHoverListener(hoverListener);
             binding.btnMoreOptions.setOnHoverListener(hoverListener);
 
-            binding.btnMoreOptions.setOnClickListener(v -> {
-                if (currentPopup != null) {
-                    currentPopup.dismiss();
-                }
-                androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(v.getContext(), v);
-                popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_received, popup.getMenu());
-
-                isMenuOpen = true;
-                currentPopup = popup;
-                binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
-
-                popup.setOnMenuItemClickListener(item -> {
-                    if (item.getItemId() == com.findora.app.R.id.action_copy) {
-                        if (actionListener != null) actionListener.onCopy(msg);
-                        return true;
+            android.view.View.OnGenericMotionListener genericMotionListener = (v, event) -> {
+                int action = event.getAction();
+                android.util.Log.d("FindoraChatHover", "ReceivedMsg " + msg.getId() + " onGenericMotion: " + android.view.MotionEvent.actionToString(action));
+                if (action == android.view.MotionEvent.ACTION_HOVER_ENTER || action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
+                    if (!msg.isDeletedForEveryone()) {
+                        setHovered(true);
                     }
-                    return false;
-                });
+                    return true;
+                } else if (action == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                    if (!isMenuOpen) {
+                        setHovered(false);
+                    }
+                    return true;
+                } else if (action == android.view.MotionEvent.ACTION_BUTTON_PRESS && event.getActionButton() == android.view.MotionEvent.BUTTON_SECONDARY) {
+                    openOptionsMenu(msg, actionListener);
+                    return true;
+                }
+                return false;
+            };
 
-                popup.setOnDismissListener(p -> {
-                    isMenuOpen = false;
-                    currentPopup = null;
-                    binding.btnMoreOptions.setVisibility(android.view.View.GONE);
-                });
+            binding.getRoot().setOnGenericMotionListener(genericMotionListener);
+            binding.layoutBubble.setOnGenericMotionListener(genericMotionListener);
 
-                popup.show();
+            android.view.View.OnContextClickListener contextClickListener = v -> {
+                android.util.Log.d("FindoraChatHover", "ReceivedMsg " + msg.getId() + " onContextClick (Right-Click)");
+                if (!msg.isDeletedForEveryone()) {
+                    openOptionsMenu(msg, actionListener);
+                    return true;
+                }
+                return false;
+            };
+            binding.getRoot().setOnContextClickListener(contextClickListener);
+            binding.layoutBubble.setOnContextClickListener(contextClickListener);
+
+            binding.btnMoreOptions.setOnClickListener(v -> {
+                android.util.Log.d("FindoraChatHover", "ReceivedMsg " + msg.getId() + " 3-dot clicked");
+                openOptionsMenu(msg, actionListener);
             });
+        }
+
+        private void openOptionsMenu(ChatMessage msg, OnMessageActionListener actionListener) {
+            if (currentPopup != null) {
+                currentPopup.dismiss();
+            }
+            androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(binding.btnMoreOptions.getContext(), binding.btnMoreOptions);
+            popup.getMenuInflater().inflate(com.findora.app.R.menu.menu_chat_message_received, popup.getMenu());
+
+            isMenuOpen = true;
+            currentPopup = popup;
+            binding.btnMoreOptions.setVisibility(android.view.View.VISIBLE);
+
+            popup.setOnMenuItemClickListener(item -> {
+                int itemId = item.getItemId();
+                android.util.Log.d("FindoraChatHover", "Menu item selected: " + item.getTitle() + " on message " + msg.getId());
+                if (item.getItemId() == com.findora.app.R.id.action_copy) {
+                    if (actionListener != null) actionListener.onCopy(msg);
+                    return true;
+                }
+                return false;
+            });
+
+            popup.setOnDismissListener(p -> {
+                android.util.Log.d("FindoraChatHover", "Menu dismissed on message " + msg.getId());
+                isMenuOpen = false;
+                currentPopup = null;
+                binding.btnMoreOptions.setVisibility(android.view.View.GONE);
+            });
+
+            popup.show();
         }
 
         private String formatTime(String timestamp) {
