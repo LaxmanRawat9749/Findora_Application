@@ -7,12 +7,11 @@ import com.bumptech.glide.Glide;
 import com.findora.app.R;
 import com.findora.app.views.ZoomableImageView;
 
-public class FullScreenImageActivity extends AppCompatActivity {
+public class FullScreenImageActivity extends PortraitBaseActivity {
     public static final String EXTRA_IMAGE_URL = "image_url";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_full_screen_image);
 

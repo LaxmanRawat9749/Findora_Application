@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.findora.app.utils.SessionManager;
 
@@ -14,7 +13,7 @@ import com.findora.app.utils.SessionManager;
  * Ensures that no unauthenticated user can ever access a protected screen,
  * completely preventing layout inflation or API calls if the session is invalid.
  */
-public class BaseActivity extends AppCompatActivity {
+public abstract class BaseActivity extends PortraitBaseActivity {
 
     private static final String TAG = "AuthAudit";
     protected SessionManager baseSessionManager;
@@ -43,37 +42,7 @@ public class BaseActivity extends AppCompatActivity {
         }
 
         Log.i(TAG, "Navigation decision: Session valid. Proceeding with " + this.getClass().getSimpleName());
-        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         super.onCreate(savedInstanceState);
-        getWindow().setBackgroundDrawableResource(com.findora.app.R.color.screen_background);
-        applySeamlessTransition();
-    }
-
-    @Override
-    public void recreate() {
-        super.recreate();
-        applySeamlessTransition();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        applySeamlessTransition();
-    }
-
-    @Override
-    public void finish() {
-        super.finish();
-        applySeamlessTransition();
-    }
-
-    public void applySeamlessTransition() {
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
-            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0);
-            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0);
-        } else {
-            overridePendingTransition(0, 0);
-        }
     }
 
     private String getTruncatedToken(String token) {
