@@ -3506,6 +3506,159 @@ class ItemAdminLinkedLostItemRemovedTests(TestCase):
         self.assertIn(self.found_item, self.lost_item.found_reports.all())
 
 
+class ItemAdminReporterProfileDisplayTests(TestCase):
+    """
+    Tests verifying that Django Admin Item Change page displays the reporting user's
+    profile information (avatar/thumbnail, username, full name, email, phone, role)
+    directly alongside the User field in a read-only manner.
+    """
+
+    def setUp(self):
+        from django.contrib import admin
+        self.item_admin = admin.site._registry[Item]
+
+        self.superuser = User.objects.create_superuser(
+            username='admin_item_verifier',
+            email='admin_verifier@findora.local',
+            password='Password123!',
+            role='admin',
+        )
+        self.owner_user = User.objects.create_user(
+            username='laxman_owner',
+            first_name='Laxman',
+            last_name='Rawat',
+            email='laxman@example.com',
+            phone='9800000001',
+            password='Password123!',
+            role='owner',
+        )
+        self.finder_user = User.objects.create_user(
+            username='sita_finder',
+            first_name='Sita',
+            last_name='Sharma',
+            email='sita@example.com',
+            phone='9800000002',
+            password='Password123!',
+            role='finder',
+        )
+
+        self.lost_item = Item.objects.create(
+            user=self.owner_user,
+            type='lost',
+            title='Lost Black Leather Wallet',
+            description='Contains citizenship card and money',
+            category='wallet',
+            status='approved',
+            reward=500.00,
+        )
+        self.found_item = Item.objects.create(
+            user=self.finder_user,
+            type='found',
+            title='Found Leather Wallet near Park',
+            description='Black wallet found on bench',
+            category='wallet',
+            status='pending',
+        )
+
+    def test_item_change_page_displays_reporter_profile_details(self):
+        """Verify Item change page displays reporter name, username, email, and phone."""
+        self.client.login(username='admin_item_verifier', password='Password123!')
+        res = self.client.get(f'/admin/api/item/{self.lost_item.id}/change/')
+        self.assertEqual(res.status_code, 200)
+
+        content = res.content.decode('utf-8')
+        # Check presence of User field
+        self.assertIn('User', content)
+        self.assertIn('laxman_owner', content)
+        # Check presence of profile information
+        self.assertIn('Laxman Rawat', content)
+        self.assertIn('@laxman_owner', content)
+        self.assertIn('laxman@example.com', content)
+        self.assertIn('9800000001', content)
+        self.assertIn('Owner (Lost Report)', content)
+        self.assertIn('Reported by this user', content)
+
+    def test_item_change_page_switches_reporter_profile_for_different_user(self):
+        """Verify opening another user's item updates the profile display to that specific reporting user."""
+        self.client.login(username='admin_item_verifier', password='Password123!')
+        res = self.client.get(f'/admin/api/item/{self.found_item.id}/change/')
+        self.assertEqual(res.status_code, 200)
+
+        content = res.content.decode('utf-8')
+        # Verify Finder's profile details are displayed
+        self.assertIn('Sita Sharma', content)
+        self.assertIn('@sita_finder', content)
+        self.assertIn('sita@example.com', content)
+        self.assertIn('9800000002', content)
+        self.assertIn('Finder (Found Report)', content)
+        # Verify Owner's details are not displayed as this item's reporter
+        self.assertNotIn('laxman@example.com', content)
+
+    def test_reporter_profile_display_shows_fallback_when_no_profile_image(self):
+        """Verify 'No profile picture' indication and initials when user has no avatar image."""
+        html = self.item_admin.reporter_profile_display(self.lost_item)
+        self.assertIn('No profile picture', html)
+        self.assertIn('L', html)  # First initial of Laxman
+
+    def test_reporter_profile_display_shows_thumbnail_when_profile_image_exists(self):
+        """Verify small thumbnail and click-to-view link when user has a valid profile image."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import tempfile
+        from django.test import override_settings
+
+        # 1x1 transparent PNG
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x44\x01\x00\x3b'
+        )
+
+        with tempfile.TemporaryDirectory() as temp_media:
+            with override_settings(MEDIA_ROOT=temp_media):
+                self.owner_user.profile_image = SimpleUploadedFile(
+                    name='avatar.gif',
+                    content=small_gif,
+                    content_type='image/gif',
+                )
+                self.owner_user.save()
+
+                html = self.item_admin.reporter_profile_display(self.lost_item)
+                self.assertIn('<img src=', html)
+                self.assertIn('Click to view', html)
+                self.assertIn('border-radius:50%', html)
+
+    def test_user_and_profile_are_readonly_on_change_form(self):
+        """Verify user and reporter_profile_display are read-only when viewing an existing item."""
+        class MockRequest:
+            pass
+
+        req = MockRequest()
+        ro_fields = self.item_admin.get_readonly_fields(req, self.lost_item)
+        self.assertIn('user', ro_fields)
+        self.assertIn('reporter_profile_display', ro_fields)
+
+    def test_item_save_does_not_alter_user_profile_data(self):
+        """Verify saving an item report does not overwrite or tamper with user's profile information."""
+        self.client.login(username='admin_item_verifier', password='Password123!')
+        res = self.client.post(f'/admin/api/item/{self.lost_item.id}/change/', {
+            'type': 'lost',
+            'title': 'Lost Black Leather Wallet (Updated)',
+            'description': 'Updated description',
+            'category': 'wallet',
+            'status': 'approved',
+            'reward': 600.00,
+            'location': 'Kathmandu',
+        })
+        self.assertEqual(res.status_code, 302)
+
+        self.owner_user.refresh_from_db()
+        self.assertEqual(self.owner_user.username, 'laxman_owner')
+        self.assertEqual(self.owner_user.email, 'laxman@example.com')
+        self.assertEqual(self.owner_user.phone, '9800000001')
+        self.assertEqual(self.owner_user.role, 'owner')
+
+
+
 
 
 

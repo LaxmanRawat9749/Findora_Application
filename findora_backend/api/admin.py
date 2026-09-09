@@ -630,7 +630,7 @@ class ItemAdmin(admin.ModelAdmin):
     ]
     ordering = ['-reported_at']
     readonly_fields = [
-        'reported_image_display', 'reporter_info_display', 'reporter_history_display',
+        'reporter_profile_display', 'reported_image_display', 'reporter_history_display',
         'reported_at', 'updated_at',
     ]
     list_per_page = 20
@@ -638,16 +638,13 @@ class ItemAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Item Report Information', {
-            'fields': ('user', 'type', 'title', 'description', 'category', 'reward'),
+            'fields': ('user', 'reporter_profile_display', 'type', 'title', 'description', 'category', 'reward'),
         }),
         ('Reported Item Image', {
             'fields': ('reported_image_display',),
         }),
         ('Location Details', {
             'fields': ('location', 'latitude', 'longitude'),
-        }),
-        ('Reporter Information', {
-            'fields': ('reporter_info_display',),
         }),
         ('Reporter History & Trust', {
             'fields': ('reporter_history_display',),
@@ -682,16 +679,13 @@ class ItemAdmin(admin.ModelAdmin):
         if obj and obj.type == 'found':
             return (
                 ('Item Report Information', {
-                    'fields': ('user', 'type', 'title', 'description', 'category'),
+                    'fields': ('user', 'reporter_profile_display', 'type', 'title', 'description', 'category'),
                 }),
                 ('Reported Item Image', {
                     'fields': ('reported_image_display',),
                 }),
                 ('Location Details', {
                     'fields': ('location', 'latitude', 'longitude'),
-                }),
-                ('Reporter Information', {
-                    'fields': ('reporter_info_display',),
                 }),
                 ('Reporter History & Trust', {
                     'fields': ('reporter_history_display',),
@@ -805,30 +799,90 @@ class ItemAdmin(admin.ModelAdmin):
             )
         return '—'
 
-    @admin.display(description='Reporter Details')
-    def reporter_info_display(self, obj):
-        if not obj.user:
-            return 'No user associated.'
+    @admin.display(description='User Profile')
+    def reporter_profile_display(self, obj):
+        """
+        Display the profile of the user who reported this specific item directly on the Item Change page.
+        Includes profile picture thumbnail (with click-to-enlarge), username, full name, email, phone,
+        and role badge, linking to the user's role-specific admin record.
+        """
+        if not obj or not getattr(obj, 'user', None):
+            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No user associated with this report.</span>')
+
         u = obj.user
-        context_role = 'Owner (Lost Report)' if obj.type == 'lost' else 'Finder (Found Report)'
-        role_color = '#6D28D9' if obj.type == 'lost' else '#16A34A'
-        role_bg = '#EDE9FE' if obj.type == 'lost' else '#DCFCE7'
+        full_name = u.get_full_name() or u.username
+        username_str = f"@{u.username}"
         user_link = get_user_admin_url(u)
 
+        context_role = 'Owner (Lost Report)' if getattr(obj, 'type', '') == 'lost' else 'Finder (Found Report)'
+        role_color = '#6D28D9' if getattr(obj, 'type', '') == 'lost' else '#16A34A'
+        role_bg = '#EDE9FE' if getattr(obj, 'type', '') == 'lost' else '#DCFCE7'
+
+        # Check physical existence of the exact user's profile image
+        has_image = False
+        image_url = None
+        if u.profile_image and hasattr(u.profile_image, 'name') and u.profile_image.name:
+            try:
+                if hasattr(u.profile_image, 'storage') and u.profile_image.storage:
+                    if u.profile_image.storage.exists(u.profile_image.name):
+                        image_url = u.profile_image.url
+                        has_image = True
+                else:
+                    image_url = u.profile_image.url
+                    has_image = True
+            except Exception:
+                has_image = False
+
+        if has_image and image_url:
+            image_block = format_html(
+                '<div style="flex-shrink:0;text-align:center;">'
+                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full profile photo">'
+                '<img src="{}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid #CBD5E1;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:block;" alt="{}" />'
+                '</a>'
+                '<div style="font-size:10px;color:#64748B;margin-top:4px;">Click to view</div>'
+                '</div>',
+                image_url, image_url, full_name
+            )
+        else:
+            initial = (u.first_name[:1] or u.username[:1]).upper()
+            image_block = format_html(
+                '<div style="flex-shrink:0;text-align:center;">'
+                '<div style="width:72px;height:72px;border-radius:50%;background:#F1F5F9;border:2px dashed #CBD5E1;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:24px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.05);">'
+                '{}'
+                '</div>'
+                '<div style="font-size:10px;color:#94A3B8;margin-top:4px;font-weight:500;">No profile picture</div>'
+                '</div>',
+                initial
+            )
+
+        email_line = format_html('<a href="mailto:{}" style="color:#2563EB;text-decoration:none;">{}</a>', u.email, u.email) if u.email else mark_safe('<span style="color:#94A3B8;">N/A</span>')
+        phone_line = u.phone if u.phone else mark_safe('<span style="color:#94A3B8;">N/A</span>')
+
         return format_html(
-            '<div style="line-height:1.7;font-size:13px;">'
-            '<div><strong>Name:</strong> <a href="{}" style="color:#4F46E5;font-weight:600;">{}</a></div>'
-            '<div><strong>Role for this report:</strong> '
-            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600">{}</span></div>'
-            '<div><strong>Email:</strong> <a href="mailto:{}">{}</a></div>'
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:14px 18px;display:inline-flex;align-items:center;gap:18px;box-shadow:0 1px 4px rgba(0,0,0,0.04);max-width:560px;">'
+            '{}'
+            '<div style="line-height:1.6;font-size:13px;color:#334155;">'
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">'
+            '<a href="{}" style="font-size:16px;font-weight:700;color:#0F172A;text-decoration:none;" title="View user admin profile">{}</a>'
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;">{}</span>'
+            '</div>'
+            '<div><strong>Username:</strong> <span style="color:#475569;font-weight:500;">{}</span></div>'
+            '<div><strong>Email:</strong> {}</div>'
             '<div><strong>Phone:</strong> {}</div>'
+            '<div style="margin-top:4px;font-size:11px;color:#64748B;font-style:italic;">Reported by this user</div>'
+            '</div>'
             '</div>',
-            user_link,
-            u.get_full_name() or u.username,
+            image_block,
+            user_link, full_name,
             role_bg, role_color, context_role,
-            u.email, u.email,
-            u.phone or 'N/A',
+            username_str,
+            email_line,
+            phone_line
         )
+
+    # Aliases for backward compatibility
+    user_profile_display = reporter_profile_display
+    reporter_info_display = reporter_profile_display
 
     @admin.display(description='Reporter History')
     def reporter_history_display(self, obj):
