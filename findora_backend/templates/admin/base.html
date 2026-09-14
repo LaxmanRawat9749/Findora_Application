@@ -1,0 +1,121 @@
+{% load i18n static %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
+<head>
+<title>{% block title %}{{ title }} | {{ site_title|default:_('Findora Admin') }}{% endblock %}</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static "admin/css/custom_admin.css" %}">
+{% block extrastyle %}{% endblock %}
+{% block extrahead %}{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+</head>
+
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}"
+  data-admin-utc-offset="{% now "Z" %}">
+
+<!-- Container -->
+<div id="container">
+
+    {% if not is_popup %}
+    <!-- Header -->
+    <header id="header">
+        <div class="findora-header-left">
+            <button id="findora-hamburger-toggle" class="hamburger-btn" title="Toggle Sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <a href="{% url 'admin:index' %}" class="findora-brand">
+                <div class="brand-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <span class="brand-title">Findora<span class="brand-badge">Admin</span></span>
+            </a>
+        </div>
+
+        <div class="findora-header-center">
+            <div class="search-input-wrapper">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="findora-global-search" placeholder="Search items, claims, users... (Ctrl+K)" autocomplete="off">
+                <span class="search-shortcut">Ctrl+K</span>
+            </div>
+        </div>
+
+        <div class="findora-header-right">
+            {% if request.user.is_authenticated %}
+            <a href="{% url 'admin:api_item_changelist' %}?status__exact=pending" class="icon-button" title="Pending Approvals">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {% if pending_reviews %}
+                <span class="notification-badge">{{ pending_reviews }}</span>
+                {% endif %}
+            </a>
+
+            <div class="user-profile-pill" onclick="window.location.href='{% url 'admin:password_change' %}';">
+                <div class="user-avatar-circle">
+                    {{ request.user.first_name|slice:":1"|default:request.user.username|slice:":1"|upper }}
+                </div>
+                <div class="user-info-text">
+                    <div class="user-name-text">{{ request.user.email|default:request.user.username }}</div>
+                    <span class="user-role-tag">Admin</span>
+                </div>
+            </div>
+
+            <a href="{% url 'admin:logout' %}" class="btn-action-sm" style="margin-left: 6px;" title="Sign out">
+                Logout
+            </a>
+            {% endif %}
+        </div>
+    </header>
+    {% endif %}
+
+    <div class="main-wrapper">
+        {% if not is_popup %}
+        {% include "admin/nav_sidebar.html" %}
+        {% endif %}
+
+        <div id="content" class="{% block coltype %}colM{% endblock %}">
+            {% block pretitle %}{% endblock %}
+            {% block content_title %}{% endblock %}
+
+            {% block messages %}
+                {% if messages %}
+                <ul class="messagelist" style="list-style:none;padding:0;margin:0 0 20px 0;">
+                    {% for message in messages %}
+                    <li style="padding:12px 18px;border-radius:8px;margin-bottom:10px;font-weight:500;{% if message.tags == 'error' %}background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;{% elif message.tags == 'warning' %}background:#FEF3C7;color:#D97706;border:1px solid #FDE68A;{% else %}background:#DCFCE7;color:#16A34A;border:1px solid #BBF7D0;{% endif %}">
+                        {{ message|capfirst }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            {% endblock messages %}
+
+            {% block content %}
+            {{ content }}
+            {% endblock %}
+
+            {% block sidebar %}{% endblock %}
+        </div>
+    </div>
+
+</div>
+<!-- END Container -->
+
+<script src="{% static "admin/js/custom_admin.js" %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

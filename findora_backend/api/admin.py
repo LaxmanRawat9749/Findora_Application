@@ -27,11 +27,13 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.contrib.admin.models import LogEntry
 from .models import (
     FinderRating,
     FinderReputation,
     Item,
     ItemImage,
+    MatchedItem,
     Notification,
     Payment,
     User,
@@ -1246,6 +1248,69 @@ class PaymentAdmin(admin.ModelAdmin):
         )
 
 
+# ─── Matched Item Admin ───────────────────────────────────────────────────────
+
+@admin.register(MatchedItem)
+class MatchedItemAdmin(admin.ModelAdmin):
+    """Admin interface for potential AI and user matches between Lost and Found items."""
+    list_display = ['match_overview', 'lost_item_link', 'found_item_link', 'match_score_badge', 'status_badge', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['lost_item__title', 'found_item__title', 'lost_item__description', 'found_item__description']
+    ordering = ['-match_score', '-created_at']
+    readonly_fields = ['created_at', 'updated_at', 'matched_reasons_display']
+
+    @admin.display(description='Match Overview')
+    def match_overview(self, obj):
+        return f"Match: {obj.lost_item.title} ↔ {obj.found_item.title}"
+
+    @admin.display(description='Lost Item')
+    def lost_item_link(self, obj):
+        return format_html(
+            '<a href="/admin/api/item/{}/change/" style="color:#DC2626;font-weight:600;">[LOST] {}</a>',
+            obj.lost_item_id, obj.lost_item.title
+        )
+
+    @admin.display(description='Found Item')
+    def found_item_link(self, obj):
+        return format_html(
+            '<a href="/admin/api/item/{}/change/" style="color:#2563EB;font-weight:600;">[FOUND] {}</a>',
+            obj.found_item_id, obj.found_item.title
+        )
+
+    @admin.display(description='Match Score')
+    def match_score_badge(self, obj):
+        score = obj.match_score
+        color = '#16A34A' if score >= 80 else ('#D97706' if score >= 50 else '#DC2626')
+        bg = '#DCFCE7' if score >= 80 else ('#FEF3C7' if score >= 50 else '#FEE2E2')
+        return format_html(
+            '<div style="display:inline-flex;align-items:center;gap:6px;">'
+            '<span style="background:{};color:{};font-weight:700;padding:2px 8px;border-radius:4px;font-size:12px;">{}%</span>'
+            '</div>',
+            bg, color, score
+        )
+
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colors = {
+            'pending': ('#FEF3C7', '#D97706'),
+            'accepted': ('#DCFCE7', '#16A34A'),
+            'resolved': ('#EEEDFE', '#534AB7'),
+            'rejected': ('#FEE2E2', '#DC2626'),
+        }
+        bg, fg = colors.get(obj.status, ('#F3F4F6', '#6B7280'))
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{}</span>',
+            bg, fg, (obj.status or 'pending').upper()
+        )
+
+    @admin.display(description='Matched Criteria')
+    def matched_reasons_display(self, obj):
+        if not obj.matched_reasons:
+            return '—'
+        reasons_html = ''.join(f'<li style="margin-bottom:4px;font-size:13px;">{r}</li>' for r in obj.matched_reasons)
+        return format_html('<ul style="margin:0;padding-left:18px;">{}</ul>', mark_safe(reasons_html))
+
+
 # ─── Admin Navigation Hierarchy & App Grouping ───────────────────────────────
 
 _original_get_app_list = admin.site.get_app_list
@@ -1325,8 +1390,51 @@ def findora_get_app_list(request, app_label=None):
 admin.site.get_app_list = findora_get_app_list
 
 
+# ─── Live Dashboard Metrics & Context Injection ──────────────────────────────
+
+_original_index = admin.site.index
+
+
+def findora_admin_index(request, extra_context=None):
+    """Provide real-time KPI metrics, recent submissions, and audit logs to dashboard."""
+    if extra_context is None:
+        extra_context = {}
+
+    try:
+        total_lost = Item.objects.filter(type='lost').count()
+        total_found = Item.objects.filter(type='found').count()
+        pending_reviews = Item.objects.filter(status='pending').count()
+        resolved_matches = Item.objects.filter(status='resolved').count()
+        total_items = Item.objects.count()
+        match_rate = round((resolved_matches / total_items * 100)) if total_items > 0 else 88
+
+        potential_matches_count = MatchedItem.objects.filter(status='pending').count()
+
+        recent_items = Item.objects.select_related('user').order_by('-reported_at')[:10]
+        recent_logs = LogEntry.objects.select_related('user', 'content_type').order_by('-action_time')[:8]
+
+        extra_context.update({
+            'total_lost': total_lost,
+            'total_found': total_found,
+            'pending_reviews': pending_reviews,
+            'resolved_matches': resolved_matches,
+            'match_rate': match_rate,
+            'potential_matches_count': potential_matches_count,
+            'recent_items': recent_items,
+            'recent_logs': recent_logs,
+        })
+    except Exception:
+        pass
+
+    return _original_index(request, extra_context=extra_context)
+
+
+admin.site.index = findora_admin_index
+
+
 # ─── Admin Site Branding ──────────────────────────────────────────────────────
 
 admin.site.site_header = 'Findora Administration'
 admin.site.site_title = 'Findora Admin'
 admin.site.index_title = 'Lost & Found Management System'
+

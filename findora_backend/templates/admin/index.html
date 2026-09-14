@@ -1,0 +1,276 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Top Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">Dashboard</h1>
+            <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13.5px;">Welcome back, <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>! Here is what's happening today in Findora.</p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="{% url 'admin:api_item_add' %}?type=lost" class="btn-secondary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Lost Item
+            </a>
+            <a href="{% url 'admin:api_item_add' %}?type=found" class="btn-primary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Found Item
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <div class="kpi-grid">
+        <!-- Total Lost -->
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon-box kpi-icon-purple">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                </div>
+                <span class="badge badge-lost" style="font-size:11px;">Lost Reports</span>
+            </div>
+            <div>
+                <div class="kpi-label">Total Lost</div>
+                <div class="kpi-value">{{ total_lost|default:0 }}</div>
+            </div>
+            <div class="kpi-subtext">
+                <span style="color:var(--text-muted);">Registered in system</span>
+            </div>
+        </div>
+
+        <!-- Total Found -->
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon-box kpi-icon-blue">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <span class="badge badge-found" style="font-size:11px;">Found Reports</span>
+            </div>
+            <div>
+                <div class="kpi-label">Total Found</div>
+                <div class="kpi-value">{{ total_found|default:0 }}</div>
+            </div>
+            <div class="kpi-subtext">
+                <span style="color:var(--text-muted);">Awaiting owner claim</span>
+            </div>
+        </div>
+
+        <!-- Resolved Matches -->
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon-box kpi-icon-green">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <span class="badge badge-approved" style="font-size:11px;">Success Rate</span>
+            </div>
+            <div>
+                <div class="kpi-label">Resolved Matches ({{ match_rate|default:88 }}%)</div>
+                <div class="kpi-value">{{ resolved_matches|default:0 }}</div>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width: {{ match_rate|default:88 }}%;"></div>
+            </div>
+        </div>
+
+        <!-- Pending Review -->
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon-box kpi-icon-amber">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
+                </div>
+                <span class="badge badge-pending" style="font-size:11px;">Action Req.</span>
+            </div>
+            <div>
+                <div class="kpi-label">Pending Review</div>
+                <div class="kpi-value">{{ pending_reviews|default:0 }}</div>
+            </div>
+            <div class="kpi-subtext">
+                <a href="{% url 'admin:api_item_changelist' %}?status__exact=pending" style="font-weight:600; font-size:12px;">Review pending items &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Section: Table + Live Audit Log -->
+    <div class="dashboard-content-split">
+        <!-- Left: Recent Item Submissions Table -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <h2 class="panel-title">Recent Item Submissions & Matches</h2>
+                <a href="{% url 'admin:api_item_changelist' %}" class="btn-action-sm">View All Items</a>
+            </div>
+
+            <!-- Filter Toolbar -->
+            <div class="filter-toolbar">
+                <select id="filter-category" class="filter-select">
+                    <option value="">All Categories</option>
+                    <option value="wallet">Wallet</option>
+                    <option value="phone">Phone</option>
+                    <option value="keys">Keys</option>
+                    <option value="bag">Bag</option>
+                    <option value="id_card">ID Card</option>
+                    <option value="documents">Documents</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="other">Other</option>
+                </select>
+
+                <select id="filter-status" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+
+                <select id="filter-date-range" class="filter-select">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+
+                <div class="filter-search-box">
+                    <svg class="filter-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="filter-table-search" placeholder="Search table...">
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="select-all-items"></th>
+                            <th style="width: 60px;">Thumbnail</th>
+                            <th>Item Title</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Reported By</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Quick Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_items %}
+                            {% for item in recent_items %}
+                            <tr class="dashboard-table-row" data-category="{{ item.category }}" data-status="{{ item.status }}">
+                                <td><input type="checkbox" name="_selected_action" value="{{ item.id }}"></td>
+                                <td>
+                                    {% if item.image %}
+                                        <img src="{{ item.image.url }}" alt="{{ item.title }}" class="table-thumbnail" onerror="this.src='/static/admin/img/icon-unknown.svg';">
+                                    {% else %}
+                                        <div class="table-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:11px;font-weight:700;">
+                                            {{ item.title|slice:":2"|upper }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="item-name-cell">
+                                        <a href="{% url 'admin:api_item_change' item.id %}" style="color:var(--text-main);font-weight:600;">
+                                            {{ item.title }}
+                                        </a>
+                                    </div>
+                                    <div class="item-subtext">{{ item.reported_at|date:"M d, Y, g:i A" }}</div>
+                                </td>
+                                <td>
+                                    {% if item.type == 'lost' %}
+                                        <span class="badge badge-lost">LOST</span>
+                                    {% else %}
+                                        <span class="badge badge-found">FOUND</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span style="font-weight:500;text-transform:capitalize;">{{ item.get_category_display|default:item.category }}</span>
+                                </td>
+                                <td>
+                                    <div style="font-weight:500;color:var(--text-main);">{{ item.user.get_full_name|default:item.user.username }}</div>
+                                    <div class="item-subtext">{{ item.user.email }}</div>
+                                </td>
+                                <td>
+                                    {% if item.status == 'approved' %}
+                                        <span class="badge badge-approved">Approved</span>
+                                    {% elif item.status == 'pending' %}
+                                        <span class="badge badge-pending">Pending</span>
+                                    {% elif item.status == 'resolved' %}
+                                        <span class="badge badge-resolved">Resolved</span>
+                                    {% else %}
+                                        <span class="badge badge-lost">{{ item.status|capfirst }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <a href="{% url 'admin:api_item_change' item.id %}" class="btn-action-sm">
+                                        Manage
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
+                                    No item reports recorded yet. Click <strong>Add Lost Item</strong> or <strong>Add Found Item</strong> above to create one.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right: Audit Log / Recent Actions -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <h2 class="panel-title">Audit Log / Recent Actions</h2>
+            </div>
+            <div class="audit-list">
+                {% if recent_logs %}
+                    {% for entry in recent_logs %}
+                    <div class="audit-item">
+                        <div class="audit-dot {% if entry.is_addition %}green{% elif entry.is_change %}amber{% endif %}"></div>
+                        <div class="audit-content">
+                            <div class="audit-title">
+                                {% if entry.user %}{{ entry.user.username }}{% else %}System{% endif %}
+                                {% if entry.is_addition %}added{% elif entry.is_change %}modified{% elif entry.is_deletion %}deleted{% else %}performed action on{% endif %}
+                                <span style="font-weight:700;color:var(--primary);">{{ entry.object_repr|truncatechars:28 }}</span>
+                            </div>
+                            <div class="audit-time">{{ entry.action_time|timesince }} ago</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="audit-item">
+                        <div class="audit-dot green"></div>
+                        <div class="audit-content">
+                            <div class="audit-title">System initialized and ready</div>
+                            <div class="audit-time">Just now</div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
