@@ -113,6 +113,14 @@
             android:name=".activities.PointHistoryActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.MatchedItemsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.MatchDetailActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
 
         <activity

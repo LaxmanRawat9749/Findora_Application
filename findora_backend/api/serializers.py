@@ -19,6 +19,7 @@ from .models import (
     FinderReputation,
     Item,
     ItemImage,
+    MatchedItem,
     Notification,
     PointTransaction,
     User,
@@ -422,6 +423,22 @@ class ItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'status', 'reported_at', 'updated_at', 'is_featured', 'featured_until']
 
     def to_internal_value(self, data):
+        # Decode category_attributes if sent as JSON string (e.g. from multipart form)
+        cat_attrs = data.get('category_attributes')
+        if isinstance(cat_attrs, str) and cat_attrs.strip():
+            try:
+                import json
+                if hasattr(data, '_mutable') and not data._mutable:
+                    data = data.copy()
+                elif not isinstance(data, dict):
+                    try:
+                        data = data.copy()
+                    except Exception:
+                        pass
+                data['category_attributes'] = json.loads(cat_attrs)
+            except Exception:
+                pass
+
         # Auto-fill title & category if parent_item / linked_lost_item is supplied
         parent_id = data.get('parent_item') or data.get('parent_item_id') or data.get('linked_lost_item') or data.get('lost_item_id')
         if parent_id:
@@ -888,4 +905,24 @@ class FinderReputationSerializer(serializers.ModelSerializer):
     def get_badge_progress(self, obj):
         from .reputation_service import get_badge_progress_list
         return get_badge_progress_list(obj.user)
+
+
+class MatchedItemSerializer(serializers.ModelSerializer):
+    lost_item = ItemSerializer(read_only=True)
+    found_item = ItemSerializer(read_only=True)
+    lost_item_id = serializers.PrimaryKeyRelatedField(
+        queryset=Item.objects.filter(type='lost'), source='lost_item', write_only=True, required=False
+    )
+    found_item_id = serializers.PrimaryKeyRelatedField(
+        queryset=Item.objects.filter(type='found'), source='found_item', write_only=True, required=False
+    )
+
+    class Meta:
+        model = MatchedItem
+        fields = [
+            'id', 'lost_item', 'found_item', 'lost_item_id', 'found_item_id',
+            'match_score', 'matched_reasons', 'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['match_score', 'matched_reasons', 'created_at', 'updated_at']
+
 

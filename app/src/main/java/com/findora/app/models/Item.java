@@ -51,9 +51,21 @@ public class Item implements Serializable {
     @SerializedName("has_reported")
     private boolean hasReported;
 
+    @SerializedName("item_date")
+    private String itemDate;
+    
+    @SerializedName("category_attributes")
+    private java.util.Map<String, String> categoryAttributes;
+
     private List<ItemImage> images;
 
     public Item() {}
+
+    public String getItemDate() { return itemDate; }
+    public void setItemDate(String itemDate) { this.itemDate = itemDate; }
+
+    public java.util.Map<String, String> getCategoryAttributes() { return categoryAttributes; }
+    public void setCategoryAttributes(java.util.Map<String, String> categoryAttributes) { this.categoryAttributes = categoryAttributes; }
 
     public boolean isHasReported() { return hasReported; }
     public void setHasReported(boolean hasReported) { this.hasReported = hasReported; }

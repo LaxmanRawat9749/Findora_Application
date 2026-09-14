@@ -5,11 +5,12 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.exceptions import ValidationError
 from api.models import (
     User, Item, FinderReputation, PointTransaction, FinderRating,
-    UserBadge, Conversation, Notification, ChatMessage
+    UserBadge, Conversation, Notification, ChatMessage, MatchedItem
 )
 from api.serializers import (
     ItemSerializer, UserSerializer, PublicProfileSerializer,
-    RegisterSerializer, ConversationSerializer, ChatMessageSerializer
+    RegisterSerializer, ConversationSerializer, ChatMessageSerializer,
+    MatchedItemSerializer
 )
 from api.views import (
     ItemListCreateView, ItemDetailView, MarkItemReturnedView,
@@ -17,8 +18,10 @@ from api.views import (
     RateFinderView, RatingStatusView, MyReportsView, RegisterView,
     ConversationInitView, ChatListView, NotificationListView,
     AdminItemListView, AdminVerifyItemView,
-    ChangeUsernameView, ChangePasswordView, LoginView, HealthCheckView
+    ChangeUsernameView, ChangePasswordView, LoginView, HealthCheckView,
+    MatchedItemListView, MatchedItemDetailView
 )
+from api.utils import calculate_item_match_score, run_item_matching
 from api.reputation_service import (
     award_found_report_points, process_successful_return_reward,
     submit_finder_rating, get_or_create_reputation, get_badge_progress_list,
@@ -3658,22 +3661,209 @@ class ItemAdminReporterProfileDisplayTests(TestCase):
         self.assertEqual(self.owner_user.role, 'owner')
 
 
+class DynamicCategoryCredentialsAndMatchingTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.owner = User.objects.create_user(
+            username='match_owner', email='match_owner@example.com', password='Password123!', role='owner', is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='match_finder', email='match_finder@example.com', password='Password123!', role='finder', is_verified=True
+        )
+        self.third_party = User.objects.create_user(
+            username='match_third_party', email='match_third@example.com', password='Password123!', role='owner', is_verified=True
+        )
 
+    def test_document_matching_with_exact_number_and_name(self):
+        """Owner reports lost Citizenship, Finder reports found Citizenship -> calculates high score & creates MatchedItem."""
+        lost_doc = Item.objects.create(
+            user=self.owner,
+            type='lost',
+            title='Lost Nepali Citizenship Certificate',
+            category='documents',
+            location='Kathmandu District Office, Babarmahal',
+            category_attributes={
+                'doc_type': 'Citizenship',
+                'doc_number': '27-01-79-12345',
+                'doc_name': 'Ram Bahadur Thapa',
+                'doc_issuer': 'District Administration Office Kathmandu',
+                'item_color': 'Blue'
+            },
+            status='approved'
+        )
 
+        found_doc = Item.objects.create(
+            user=self.finder,
+            type='found',
+            title='Found Citizenship Card near Babarmahal',
+            category='documents',
+            location='Babarmahal, Kathmandu',
+            category_attributes={
+                'doc_type': 'Citizenship',
+                'doc_number': '27-01-79-12345',
+                'doc_name': 'Ram Bahadur Thapa',
+                'doc_issuer': 'Kathmandu DAO',
+                'item_color': 'Blue'
+            },
+            status='approved'
+        )
 
+        score, reasons = calculate_item_match_score(lost_doc, found_doc)
+        self.assertGreaterEqual(score, 75)
+        self.assertTrue(any('Document' in r or 'doc_number' in r or 'doc_name' in r for r in reasons))
 
+        created = run_item_matching(found_doc)
+        self.assertEqual(len(created), 1)
+        matched_record = created[0]
+        self.assertEqual(matched_record.lost_item, lost_doc)
+        self.assertEqual(matched_record.found_item, found_doc)
+        self.assertGreaterEqual(matched_record.match_score, 75)
 
+    def test_electronics_matching_with_brand_and_model(self):
+        """Owner reports lost MacBook, Finder reports found Apple Laptop -> high score & match created."""
+        lost_laptop = Item.objects.create(
+            user=self.owner,
+            type='lost',
+            title='Lost MacBook Pro 14 M2',
+            category='electronics',
+            location='Tribhuvan University Central Library',
+            category_attributes={
+                'device_brand': 'Apple',
+                'device_model': 'MacBook Pro 14',
+                'device_color': 'Space Gray',
+                'device_storage': '512GB'
+            },
+            status='approved'
+        )
 
+        found_laptop = Item.objects.create(
+            user=self.finder,
+            type='found',
+            title='Found Apple Laptop in Library',
+            category='electronics',
+            location='TU Central Library Kirtipur',
+            category_attributes={
+                'device_brand': 'Apple',
+                'device_model': 'MacBook Pro',
+                'device_color': 'Space Gray',
+                'device_storage': '512GB'
+            },
+            status='approved'
+        )
 
+        score, reasons = calculate_item_match_score(lost_laptop, found_laptop)
+        self.assertGreaterEqual(score, 65)
 
+        created = run_item_matching(found_laptop)
+        self.assertEqual(len(created), 1)
 
+    def test_different_categories_do_not_match(self):
+        """Item of category 'documents' and 'phone' must produce 0 score."""
+        lost_doc = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Passport', category='documents', status='approved'
+        )
+        found_phone = Item.objects.create(
+            user=self.finder, type='found', title='Found iPhone', category='phone', status='approved'
+        )
 
+        score, reasons = calculate_item_match_score(lost_doc, found_phone)
+        self.assertEqual(score, 0)
+        self.assertEqual(len(run_item_matching(found_phone)), 0)
 
+    def test_matches_api_list_and_detail_for_owner_and_finder(self):
+        """Owner and Finder can view their matches via /api/matches/ and /api/matches/<id>/."""
+        lost_item = Item.objects.create(
+            user=self.owner,
+            type='lost',
+            title='Lost WildHorn Leather Wallet',
+            category='wallet',
+            location='New Road Gate',
+            category_attributes={'wallet_material': 'Leather', 'wallet_color': 'Brown', 'item_brand': 'WildHorn'},
+            status='approved'
+        )
+        found_item = Item.objects.create(
+            user=self.finder,
+            type='found',
+            title='Found Brown Leather Wallet',
+            category='wallet',
+            location='New Road, Kathmandu',
+            category_attributes={'wallet_material': 'Leather', 'wallet_color': 'Brown', 'item_brand': 'WildHorn'},
+            status='approved'
+        )
 
+        matched_obj = MatchedItem.objects.create(
+            lost_item=lost_item,
+            found_item=found_item,
+            match_score=85,
+            matched_reasons=['Category match: wallet', 'Matching wallet_material: Leather', 'Matching wallet_color: Brown'],
+            status='pending'
+        )
 
+        # 1. Owner views matches list
+        list_view = MatchedItemListView.as_view()
+        req_owner = self.factory.get('/api/matches/')
+        force_authenticate(req_owner, user=self.owner)
+        res_owner = list_view(req_owner)
+        self.assertEqual(res_owner.status_code, 200)
+        self.assertEqual(len(res_owner.data), 1)
+        self.assertEqual(res_owner.data[0]['id'], matched_obj.id)
+        self.assertEqual(res_owner.data[0]['match_score'], 85)
 
+        # 2. Finder views matches list
+        req_finder = self.factory.get('/api/matches/')
+        force_authenticate(req_finder, user=self.finder)
+        res_finder = list_view(req_finder)
+        self.assertEqual(res_finder.status_code, 200)
+        self.assertEqual(len(res_finder.data), 1)
+        self.assertEqual(res_finder.data[0]['id'], matched_obj.id)
 
+        # 3. Third party views matches list -> 0 matches
+        req_third = self.factory.get('/api/matches/')
+        force_authenticate(req_third, user=self.third_party)
+        res_third = list_view(req_third)
+        self.assertEqual(res_third.status_code, 200)
+        self.assertEqual(len(res_third.data), 0)
 
+        # 4. Detail view
+        detail_view = MatchedItemDetailView.as_view()
+        req_det = self.factory.get(f'/api/matches/{matched_obj.id}/')
+        force_authenticate(req_det, user=self.owner)
+        res_det = detail_view(req_det, pk=matched_obj.id)
+        self.assertEqual(res_det.status_code, 200)
+        self.assertEqual(res_det.data['id'], matched_obj.id)
+        self.assertIn('lost_item', res_det.data)
+        self.assertIn('found_item', res_det.data)
 
+        # Third party detail view is forbidden or not found (403/404)
+        req_det_third = self.factory.get(f'/api/matches/{matched_obj.id}/')
+        force_authenticate(req_det_third, user=self.third_party)
+        res_det_third = detail_view(req_det_third, pk=matched_obj.id)
+        self.assertIn(res_det_third.status_code, [403, 404])
 
+    def test_conversation_init_from_matched_item(self):
+        """Starting chat from MatchedItem seamlessly creates or returns conversation between Owner and Finder."""
+        lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Watch', category='watch', status='approved'
+        )
+        found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found Watch', category='watch', status='approved'
+        )
+        MatchedItem.objects.create(
+            lost_item=lost_item, found_item=found_item, match_score=80, matched_reasons=['Watch category match']
+        )
+
+        init_view = ConversationInitView.as_view()
+        # Owner initiates chat using found_item ID
+        req1 = self.factory.post('/api/conversations/init/', {'item_id': found_item.id})
+        force_authenticate(req1, user=self.owner)
+        res1 = init_view(req1)
+        self.assertEqual(res1.status_code, 200)
+        conv_id = res1.data['conversation_id']
+
+        # Finder initiates chat using lost_item ID -> same conversation
+        req2 = self.factory.post('/api/conversations/init/', {'item_id': lost_item.id})
+        force_authenticate(req2, user=self.finder)
+        res2 = init_view(req2)
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.data['conversation_id'], conv_id)
 

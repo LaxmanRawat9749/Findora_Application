@@ -346,6 +346,10 @@ public class HomeActivity extends BaseActivity {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
                 return true;
+            } else if (id == R.id.nav_matches) {
+                startActivity(new Intent(this, MatchedItemsActivity.class));
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                return true;
             } else if (id == R.id.nav_report) {
                 startActivity(new Intent(this, UploadItemActivity.class));
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
@@ -361,10 +365,13 @@ public class HomeActivity extends BaseActivity {
 
     private void updateBottomNav() {
         if (binding != null && binding.bottomNav != null && binding.bottomNav.getMenu() != null) {
-            boolean isFinder = "finder".equalsIgnoreCase(baseSessionManager.getRole());
             android.view.MenuItem reportItem = binding.bottomNav.getMenu().findItem(R.id.nav_report);
             if (reportItem != null) {
-                reportItem.setVisible(!isFinder);
+                reportItem.setVisible(true);
+            }
+            android.view.MenuItem matchesItem = binding.bottomNav.getMenu().findItem(R.id.nav_matches);
+            if (matchesItem != null) {
+                matchesItem.setVisible(true);
             }
         }
     }

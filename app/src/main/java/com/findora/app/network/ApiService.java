@@ -117,6 +117,16 @@ public interface ApiService {
     @POST("admin/items/{id}/verify/")
     Call<MessageResponse> verifyItem(@Path("id") int id, @Body AdminAction action);
 
+    // ─── Matches ─────────────────────────────────────────────
+    @GET("matches/")
+    Call<List<MatchedItem>> getMatches();
+
+    @GET("matches/{id}/")
+    Call<MatchedItem> getMatchDetail(@Path("id") int id);
+
+    @PATCH("matches/{id}/")
+    Call<MatchedItem> updateMatchStatus(@Path("id") int id, @Body Map<String, String> body);
+
 
     // ─── Conversations ───────────────────────────────────────
     @GET("conversations/")

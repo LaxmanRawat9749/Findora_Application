@@ -190,6 +190,8 @@ class Item(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     reward = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    item_date = models.DateTimeField(null=True, blank=True)
+    category_attributes = models.JSONField(default=dict, blank=True)
     is_featured = models.BooleanField(default=False)
     featured_until = models.DateTimeField(null=True, blank=True)
     owner_returned_confirm = models.BooleanField(default=False)
@@ -213,6 +215,42 @@ class Item(models.Model):
 
     def __str__(self):
         return f"[{self.type.upper()}] {self.title} — {self.status}"
+
+
+class MatchedItem(models.Model):
+    """
+    Represents an automated or verified match between a reported Lost Item and Found Item.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('resolved', 'Resolved'),
+    ]
+
+    lost_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='lost_matches')
+    found_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='found_matches')
+    match_score = models.IntegerField(default=0)  # 0 to 100 percentage
+    matched_reasons = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'matched_items'
+        ordering = ['-match_score', '-created_at']
+        verbose_name = 'Matched Item'
+        verbose_name_plural = 'Matched Items'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['lost_item', 'found_item'],
+                name='unique_matched_lost_found_pair'
+            )
+        ]
+
+    def __str__(self):
+        return f"Match ({self.match_score}%): Lost #{self.lost_item_id} ↔ Found #{self.found_item_id}"
+
 
 
 class ItemImage(models.Model):

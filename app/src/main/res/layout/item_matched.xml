@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/card_border"
+    app:cardBackgroundColor="@color/card_background"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Top Row: Match Score Badge & Status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvMatchScoreBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_found"
+                android:fontFamily="sans-serif-black"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="85% MATCH"
+                android:textColor="@color/success_green"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvCategoryPill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_role_badge"
+                android:fontFamily="sans-serif-medium"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="Documents"
+                android:textColor="@color/text_gray"
+                android:textSize="11sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvMatchDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:text="Today"
+                android:textColor="@color/text_gray"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Middle Row: Lost vs Found items comparison previews -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Lost Item Preview -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="LOST ITEM"
+                    android:textColor="@color/error_red"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/tvLostTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-bold"
+                    android:maxLines="1"
+                    android:text="Lost Title"
+                    android:textColor="@color/text_dark"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvLostLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:maxLines="1"
+                    android:text="Location: Canteen"
+                    android:textColor="@color/text_gray"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- Connector Icon -->
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginHorizontal="8dp"
+                android:src="@drawable/ic_matches"
+                app:tint="@color/primary_purple" />
+
+            <!-- Found Item Preview -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="FOUND ITEM"
+                    android:textColor="@color/success_green"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/tvFoundTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-bold"
+                    android:maxLines="1"
+                    android:text="Found Title"
+                    android:textColor="@color/text_dark"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvFoundLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif"
+                    android:maxLines="1"
+                    android:text="Location: Canteen"
+                    android:textColor="@color/text_gray"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bottom Row: Primary Matched Reason summary -->
+        <TextView
+            android:id="@+id/tvMatchReasonSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_chip_unselected"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:text="Matching name on document &amp; same location"
+            android:textColor="@color/dark_purple"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

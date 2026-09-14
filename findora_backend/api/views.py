@@ -40,6 +40,7 @@ from .models import (
     FinderReputation,
     Item,
     ItemImage,
+    MatchedItem,
     Notification,
     OTPToken,
     Payment,
@@ -60,6 +61,7 @@ from .serializers import (
     FinderRatingSerializer,
     FinderReputationSerializer,
     ItemSerializer,
+    MatchedItemSerializer,
     NotificationSerializer,
     PointTransactionSerializer,
     ProfileUpdateSerializer,
@@ -72,6 +74,7 @@ from .serializers import (
 from .utils import (
     create_otp,
     get_or_create_matched_conversation,
+    run_item_matching,
     send_otp_email,
     verify_otp,
 )
@@ -767,13 +770,14 @@ class ItemListCreateView(APIView):
         if request.user.role == 'owner':
             owner_own_lost = Q(user=request.user, type='lost', status='approved')
             linked_found = Q(type='found', status='approved', parent_item__user=request.user)
+            matched_found = Q(type='found', status='approved', found_matches__lost_item__user=request.user)
             if item_type == 'lost':
                 queryset = queryset.filter(owner_own_lost)
             elif item_type == 'found':
-                queryset = queryset.filter(linked_found)
+                queryset = queryset.filter(linked_found | matched_found)
             else:
-                # All tab: Owner's own lost items + approved found reports linked to this Owner's lost items
-                queryset = queryset.filter(owner_own_lost | linked_found)
+                # All tab: Owner's own lost items + approved found reports linked/matched to this Owner's lost items
+                queryset = queryset.filter(owner_own_lost | linked_found | matched_found)
         elif request.user.role == 'finder':
             approved_found = Q(type='found', status='approved')
             approved_lost = Q(type='lost', status='approved')
@@ -920,6 +924,9 @@ class ItemListCreateView(APIView):
             if item.type == 'found':
                 award_found_report_points(request.user, item)
 
+            # Trigger automated matching engine
+            run_item_matching(item)
+
             return Response(ItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
         
         # If serializer validation caught duplicate, return 409 instead of generic 400 if it's duplicate
@@ -1045,6 +1052,8 @@ class AdminVerifyItemView(APIView):
                 message=f'Your report for "{item.title}" has been approved and is now public.',
                 related_item=item,
             )
+            # Run matching on approval
+            run_item_matching(item)
         else:
             item.status = 'rejected'
             item.save(update_fields=['status', 'updated_at'])
@@ -1210,6 +1219,92 @@ class ConversationListView(APIView):
 
         serializer = ConversationSerializer(conversations, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ItemRatingCheckView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        item_id = request.query_params.get('item_id') or request.query_params.get('item')
+        if item_id:
+            try:
+                item = Item.objects.get(id=item_id)
+            except Item.DoesNotExist:
+                return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+            is_rated = FinderRating.objects.filter(owner=request.user, item=item).exists()
+            return Response({'is_rated': is_rated}, status=status.HTTP_200_OK)
+
+        return Response({'error': 'item_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Matched Items Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MatchedItemListView(APIView):
+    """
+    GET /api/matches/ — List matched item pairs for the authenticated user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role == 'owner':
+            matches = MatchedItem.objects.filter(lost_item__user=user)
+        elif user.role == 'finder':
+            matches = MatchedItem.objects.filter(found_item__user=user)
+        else:
+            matches = MatchedItem.objects.all()
+
+        matches = matches.select_related(
+            'lost_item', 'lost_item__user', 'found_item', 'found_item__user'
+        ).prefetch_related(
+            'lost_item__images', 'found_item__images'
+        ).order_by('-match_score', '-created_at')
+
+        serializer = MatchedItemSerializer(matches, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MatchedItemDetailView(APIView):
+    """
+    GET   /api/matches/<int:pk>/ — Retrieve details for a specific match.
+    PATCH /api/matches/<int:pk>/ — Update match status (e.g. accepted, rejected).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, pk, user):
+        try:
+            match = MatchedItem.objects.select_related(
+                'lost_item', 'lost_item__user', 'found_item', 'found_item__user'
+            ).prefetch_related(
+                'lost_item__images', 'found_item__images'
+            ).get(pk=pk)
+        except MatchedItem.DoesNotExist:
+            return None
+
+        if user.role != 'admin' and match.lost_item.user != user and match.found_item.user != user:
+            return None
+        return match
+
+    def get(self, request, pk):
+        match = self.get_object(pk, request.user)
+        if not match:
+            return Response({'error': 'Matched item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = MatchedItemSerializer(match, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, pk):
+        match = self.get_object(pk, request.user)
+        if not match:
+            return Response({'error': 'Matched item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status and new_status in ['pending', 'accepted', 'rejected', 'resolved']:
+            match.status = new_status
+            match.save(update_fields=['status', 'updated_at'])
+            return Response(MatchedItemSerializer(match, context={'request': request}).data, status=status.HTTP_200_OK)
+        return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ConversationInitView(APIView):

@@ -141,6 +141,405 @@
                             android:popupBackground="@color/card_background" />
                     </com.google.android.material.card.MaterialCardView>
 
+                    <!-- Date & Time of Occurrence -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilItemDate"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        android:hint="Date &amp; Time (When lost / found)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etItemDate"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:focusable="false"
+                            android:clickable="true"
+                            android:inputType="none"
+                            android:textColor="@color/text_dark"
+                            android:textColorHint="@color/text_hint"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- ─── Dynamic Category-Specific Verification Credentials ─── -->
+                    <TextView
+                        android:id="@+id/tvCredentialsHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_large"
+                        android:text="Verification Credentials"
+                        android:textColor="@color/text_dark"
+                        android:textSize="15sp"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <TextView
+                        android:id="@+id/tvCredentialsSubheader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Key details to automatically match lost &amp; found items accurately."
+                        android:textColor="@color/text_gray"
+                        android:textSize="@dimen/text_caption" />
+
+                    <!-- 1. Documents / ID Card Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutDocFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Document Type (e.g., Citizenship, Passport, Student ID)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDocType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Name on Document / ID Holder Name">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDocHolderName"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Document / ID Number (or last 4 digits)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDocNumber"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- 2. Phone / Laptop / Electronics Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutDeviceFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Brand / Manufacturer (e.g., Apple, Samsung, Dell)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDeviceBrand"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Device Model (e.g., iPhone 13, Galaxy S23, XPS 15)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDeviceModel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Primary Color (e.g., Midnight Black, Silver, Blue)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDeviceColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Case / Wallpaper / Distinguishing Specs">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDeviceUniqueFeature"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- 3. Wallet Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutWalletFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Wallet Color (e.g., Brown, Black, Tan)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etWalletColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Material / Brand (e.g., Leather, Fabric, Bellroy)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etWalletMaterial"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Cards / Key Contents Inside Hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etWalletContents"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- 4. Bag / Backpack Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutBagFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Bag Type (e.g., Backpack, Duffle, Handbag)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBagType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Brand &amp; Color (e.g., Nike Black, Wildcraft Blue)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBagBrandColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Main Items Inside Hint (e.g., Books, Bottle)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBagContents"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- 5. Keys Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutKeyFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Key Type (e.g., Bike key with remote, House key)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etKeyType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Key Count (e.g., Single key, Bunch of 3)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etKeyCount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Keychain / Lanyard Description">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etKeychain"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- 6. Other Items Layout -->
+                    <LinearLayout
+                        android:id="@+id/layoutOtherFields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Brand / Maker (Optional)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etOtherBrand"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Color / Material">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etOtherColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_small"
+                            android:hint="Unique Distinguishing Feature">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etOtherDistinguish"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
                     <!-- Location -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"

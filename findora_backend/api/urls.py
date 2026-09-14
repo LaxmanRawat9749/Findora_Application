@@ -38,6 +38,10 @@ urlpatterns = [
     path('items/<int:pk>/mark-returned/', views.MarkItemReturnedView.as_view(), name='item-mark-returned'),
     path('items/<int:pk>/confirm-return/', views.ConfirmItemReturnView.as_view(), name='item-confirm-return'),
 
+    # ─── Matches ──────────────────────────────────────────────────────────────
+    path('matches/', views.MatchedItemListView.as_view(), name='match-list'),
+    path('matches/<int:pk>/', views.MatchedItemDetailView.as_view(), name='match-detail'),
+
     # ─── Admin ────────────────────────────────────────────────────────────────
     path('admin/items/', views.AdminItemListView.as_view(), name='admin-item-list'),
     path('admin/items/<int:pk>/verify/', views.AdminVerifyItemView.as_view(), name='admin-verify-item'),

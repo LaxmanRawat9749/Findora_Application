@@ -74,6 +74,21 @@ public class UploadItemActivity extends BaseActivity {
                 this, android.R.layout.simple_spinner_item, Constants.CATEGORY_LABELS);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerCategory.setAdapter(categoryAdapter);
+        binding.spinnerCategory.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < Constants.CATEGORIES.length) {
+                    updateCategoryFieldVisibility(Constants.CATEGORIES[position]);
+                }
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+        updateCategoryFieldVisibility(Constants.CATEGORIES[binding.spinnerCategory.getSelectedItemPosition()]);
+
+        // Date & Time Picker Setup
+        binding.etItemDate.setOnClickListener(v -> showDateTimePicker());
+        binding.tilItemDate.setEndIconOnClickListener(v -> showDateTimePicker());
 
         // Adjust Report Type and Reward field based on role
         String role = new SessionManager(this).getRole();
@@ -120,6 +135,7 @@ public class UploadItemActivity extends BaseActivity {
                 for (int i = 0; i < Constants.CATEGORIES.length; i++) {
                     if (Constants.CATEGORIES[i].equalsIgnoreCase(linkedLostItemCategory)) {
                         binding.spinnerCategory.setSelection(i);
+                        updateCategoryFieldVisibility(Constants.CATEGORIES[i]);
                         break;
                     }
                 }
@@ -339,6 +355,63 @@ public class UploadItemActivity extends BaseActivity {
             partMap.put("reward", RequestBody.create(MediaType.parse("text/plain"), rewardStr));
         }
 
+        // Collect category-specific verification attributes
+        org.json.JSONObject catJson = new org.json.JSONObject();
+        try {
+            if ("documents".equalsIgnoreCase(category) || "id_card".equalsIgnoreCase(category)) {
+                String docType = binding.etDocType.getText().toString().trim();
+                String holderName = binding.etDocHolderName.getText().toString().trim();
+                String docNumber = binding.etDocNumber.getText().toString().trim();
+                if (!docType.isEmpty()) catJson.put("document_type", docType);
+                if (!holderName.isEmpty()) catJson.put("holder_name", holderName);
+                if (!docNumber.isEmpty()) catJson.put("document_number", docNumber);
+            } else if ("phone".equalsIgnoreCase(category) || "electronics".equalsIgnoreCase(category) || "laptop".equalsIgnoreCase(category)) {
+                String brand = binding.etDeviceBrand.getText().toString().trim();
+                String model = binding.etDeviceModel.getText().toString().trim();
+                String color = binding.etDeviceColor.getText().toString().trim();
+                String unique = binding.etDeviceUniqueFeature.getText().toString().trim();
+                if (!brand.isEmpty()) catJson.put("brand", brand);
+                if (!model.isEmpty()) catJson.put("model_name", model);
+                if (!color.isEmpty()) catJson.put("color", color);
+                if (!unique.isEmpty()) catJson.put("unique_feature", unique);
+            } else if ("wallet".equalsIgnoreCase(category)) {
+                String color = binding.etWalletColor.getText().toString().trim();
+                String material = binding.etWalletMaterial.getText().toString().trim();
+                String contents = binding.etWalletContents.getText().toString().trim();
+                if (!color.isEmpty()) catJson.put("color", color);
+                if (!material.isEmpty()) catJson.put("material", material);
+                if (!contents.isEmpty()) catJson.put("contents_hint", contents);
+            } else if ("bag".equalsIgnoreCase(category)) {
+                String bagType = binding.etBagType.getText().toString().trim();
+                String brandColor = binding.etBagBrandColor.getText().toString().trim();
+                String contents = binding.etBagContents.getText().toString().trim();
+                if (!bagType.isEmpty()) catJson.put("bag_type", bagType);
+                if (!brandColor.isEmpty()) catJson.put("brand", brandColor);
+                if (!contents.isEmpty()) catJson.put("contents_hint", contents);
+            } else if ("keys".equalsIgnoreCase(category)) {
+                String keyType = binding.etKeyType.getText().toString().trim();
+                String keyCount = binding.etKeyCount.getText().toString().trim();
+                String keychain = binding.etKeychain.getText().toString().trim();
+                if (!keyType.isEmpty()) catJson.put("key_type", keyType);
+                if (!keyCount.isEmpty()) catJson.put("key_count", keyCount);
+                if (!keychain.isEmpty()) catJson.put("keychain_description", keychain);
+            } else {
+                String brand = binding.etOtherBrand.getText().toString().trim();
+                String color = binding.etOtherColor.getText().toString().trim();
+                String unique = binding.etOtherDistinguish.getText().toString().trim();
+                if (!brand.isEmpty()) catJson.put("brand", brand);
+                if (!color.isEmpty()) catJson.put("color", color);
+                if (!unique.isEmpty()) catJson.put("unique_feature", unique);
+            }
+        } catch (Exception ignored) {}
+
+        if (catJson.length() > 0) {
+            partMap.put("category_attributes", RequestBody.create(MediaType.parse("text/plain"), catJson.toString()));
+        }
+        if (selectedIsoDate != null && !selectedIsoDate.isEmpty()) {
+            partMap.put("item_date", RequestBody.create(MediaType.parse("text/plain"), selectedIsoDate));
+        }
+
         List<MultipartBody.Part> imageParts = new ArrayList<>();
         for (int i = 0; i < selectedImages.size(); i++) {
             File file = compressImage(selectedImages.get(i));
@@ -504,5 +577,56 @@ public class UploadItemActivity extends BaseActivity {
         binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         binding.btnSubmit.setEnabled(!loading);
         binding.cardAddPhoto.setEnabled(!loading);
+    }
+
+    private void updateCategoryFieldVisibility(String category) {
+        if (binding == null) return;
+        binding.layoutDocFields.setVisibility(View.GONE);
+        binding.layoutDeviceFields.setVisibility(View.GONE);
+        binding.layoutWalletFields.setVisibility(View.GONE);
+        binding.layoutBagFields.setVisibility(View.GONE);
+        binding.layoutKeyFields.setVisibility(View.GONE);
+        binding.layoutOtherFields.setVisibility(View.GONE);
+
+        if ("documents".equalsIgnoreCase(category) || "id_card".equalsIgnoreCase(category)) {
+            binding.layoutDocFields.setVisibility(View.VISIBLE);
+        } else if ("phone".equalsIgnoreCase(category) || "electronics".equalsIgnoreCase(category) || "laptop".equalsIgnoreCase(category)) {
+            binding.layoutDeviceFields.setVisibility(View.VISIBLE);
+        } else if ("wallet".equalsIgnoreCase(category)) {
+            binding.layoutWalletFields.setVisibility(View.VISIBLE);
+        } else if ("bag".equalsIgnoreCase(category)) {
+            binding.layoutBagFields.setVisibility(View.VISIBLE);
+        } else if ("keys".equalsIgnoreCase(category)) {
+            binding.layoutKeyFields.setVisibility(View.VISIBLE);
+        } else {
+            binding.layoutOtherFields.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private java.util.Calendar selectedCalendar;
+    private String selectedIsoDate = "";
+
+    private void showDateTimePicker() {
+        final java.util.Calendar c = java.util.Calendar.getInstance();
+        if (selectedCalendar != null) {
+            c.setTimeInMillis(selectedCalendar.getTimeInMillis());
+        }
+        int year = c.get(java.util.Calendar.YEAR);
+        int month = c.get(java.util.Calendar.MONTH);
+        int day = c.get(java.util.Calendar.DAY_OF_MONTH);
+
+        new android.app.DatePickerDialog(this, (view, y, m, d) -> {
+            int hour = c.get(java.util.Calendar.HOUR_OF_DAY);
+            int minute = c.get(java.util.Calendar.MINUTE);
+            new android.app.TimePickerDialog(this, (timeView, h, min) -> {
+                java.util.Calendar chosen = java.util.Calendar.getInstance();
+                chosen.set(y, m, d, h, min, 0);
+                selectedCalendar = chosen;
+                java.text.SimpleDateFormat displayFormat = new java.text.SimpleDateFormat("yyyy-MM-dd hh:mm a", java.util.Locale.getDefault());
+                java.text.SimpleDateFormat isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault());
+                binding.etItemDate.setText(displayFormat.format(chosen.getTime()));
+                selectedIsoDate = isoFormat.format(chosen.getTime());
+            }, hour, minute, false).show();
+        }, year, month, day).show();
     }
 }

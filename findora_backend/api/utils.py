@@ -323,22 +323,15 @@ def get_matched_found_items_query_for_owner(owner_user):
     """
     Constructs a Django Q filter to match found items legitimately associated with an Owner
     through the application's actual matching, conversation, claim, and notification workflow.
-
-    Business rules:
-    1. Returns found items with explicit direct interactions by this Owner:
-       - Active/existing Conversations where owner=owner_user
-       - Ownership Claims submitted by claimant=owner_user
-       - Notifications delivered to user=owner_user
-    2. Does NOT automatically link unrelated found items to every new owner who submits
-       an item in the same category or with generic title keywords.
     """
     from .models import Item
 
-    # Direct conversation, claim, or notification association
+    # Direct conversation, claim, notification, or automated match association
     direct_assoc_q = (
         Q(conversations__owner=owner_user) |
         Q(claims__claimant=owner_user) |
-        Q(notifications__user=owner_user)
+        Q(notifications__user=owner_user) |
+        Q(found_matches__lost_item__user=owner_user)
     )
 
     return direct_assoc_q
@@ -357,21 +350,234 @@ def is_found_item_matched_for_owner(found_item, owner_user):
     return Item.objects.filter(pk=found_item.pk, status='approved').filter(match_q).exists()
 
 
+def calculate_item_match_score(lost_item, found_item):
+    """
+    Computes a match score (0 - 100) and list of matching reasons between
+    a lost item and a found item based on category, dynamic credentials,
+    location, date/time, and description.
+    """
+    if lost_item.category != found_item.category:
+        return 0, []
+
+    # 1. Direct Parent Link
+    if found_item.parent_item_id == lost_item.id:
+        return 95, ["Directly linked report by finder", f"Matching category: {lost_item.get_category_display()}"]
+
+    score = 20  # Base score for matching category
+    reasons = [f"Matching category: {lost_item.get_category_display()}"]
+
+    # 2. Dynamic Category Attributes
+    lost_attrs = lost_item.category_attributes or {}
+    found_attrs = found_item.category_attributes or {}
+
+    attr_score = 0
+    lost_clean = {str(k).lower().strip(): str(v).lower().strip() for k, v in lost_attrs.items() if v}
+    found_clean = {str(k).lower().strip(): str(v).lower().strip() for k, v in found_attrs.items() if v}
+
+    # Brand match
+    lost_brand = lost_clean.get('brand', '')
+    found_brand = found_clean.get('brand', '')
+    if lost_brand and found_brand:
+        if lost_brand == found_brand:
+            attr_score += 15
+            reasons.append(f"Matching brand: {lost_attrs.get('brand')}")
+        elif lost_brand in found_brand or found_brand in lost_brand:
+            attr_score += 10
+            reasons.append(f"Similar brand: {lost_attrs.get('brand')}")
+
+    # Model match
+    lost_model = lost_clean.get('model_name') or lost_clean.get('model', '')
+    found_model = found_clean.get('model_name') or found_clean.get('model', '')
+    if lost_model and found_model:
+        if lost_model == found_model:
+            attr_score += 15
+            reasons.append(f"Matching model: {lost_attrs.get('model_name') or lost_attrs.get('model')}")
+        elif lost_model in found_model or found_model in lost_model:
+            attr_score += 10
+            reasons.append("Similar model name")
+
+    # Document Type match
+    lost_doctype = lost_clean.get('document_type', '')
+    found_doctype = found_clean.get('document_type', '')
+    if lost_doctype and found_doctype:
+        if lost_doctype == found_doctype:
+            attr_score += 15
+            reasons.append(f"Matching document type: {lost_attrs.get('document_type')}")
+
+    # Document Name / Holder Name
+    lost_name = lost_clean.get('holder_name') or lost_clean.get('name_on_doc', '')
+    found_name = found_clean.get('holder_name') or found_clean.get('name_on_doc', '')
+    if lost_name and found_name:
+        if lost_name == found_name:
+            attr_score += 25
+            reasons.append(f"Matching name on document: {lost_attrs.get('holder_name') or lost_attrs.get('name_on_doc')}")
+        elif any(part in found_name for part in lost_name.split() if len(part) > 2):
+            attr_score += 15
+            reasons.append("Partial name match on document")
+
+    # Document Number / ID
+    lost_docno = lost_clean.get('document_number') or lost_clean.get('id_number', '')
+    found_docno = found_clean.get('document_number') or found_clean.get('id_number', '')
+    if lost_docno and found_docno:
+        if lost_docno == found_docno:
+            attr_score += 25
+            reasons.append("Matching document number")
+        elif len(lost_docno) >= 4 and len(found_docno) >= 4 and lost_docno[-4:] == found_docno[-4:]:
+            attr_score += 20
+            reasons.append("Matching last 4 digits of document number")
+
+    # Color match
+    lost_color = lost_clean.get('color') or lost_clean.get('primary_color', '')
+    found_color = found_clean.get('color') or found_clean.get('primary_color', '')
+    if lost_color and found_color:
+        if lost_color == found_color:
+            attr_score += 12
+            reasons.append(f"Matching color: {lost_attrs.get('color') or lost_attrs.get('primary_color')}")
+
+    # Material match
+    lost_mat = lost_clean.get('material', '')
+    found_mat = found_clean.get('material', '')
+    if lost_mat and found_mat and lost_mat == found_mat:
+        attr_score += 10
+        reasons.append(f"Matching material: {lost_attrs.get('material')}")
+
+    # Bag Type match
+    lost_bag = lost_clean.get('bag_type', '')
+    found_bag = found_clean.get('bag_type', '')
+    if lost_bag and found_bag and lost_bag == found_bag:
+        attr_score += 15
+        reasons.append(f"Matching bag type: {lost_attrs.get('bag_type')}")
+
+    # Key Type & Count
+    lost_ktype = lost_clean.get('key_type', '')
+    found_ktype = found_clean.get('key_type', '')
+    if lost_ktype and found_ktype and lost_ktype == found_ktype:
+        attr_score += 15
+        reasons.append(f"Matching key type: {lost_attrs.get('key_type')}")
+
+    lost_kcnt = lost_clean.get('key_count', '')
+    found_kcnt = found_clean.get('key_count', '')
+    if lost_kcnt and found_kcnt and lost_kcnt == found_kcnt:
+        attr_score += 10
+        reasons.append(f"Matching key count: {lost_attrs.get('key_count')}")
+
+    # Other common attributes
+    for k in set(lost_clean.keys()).intersection(set(found_clean.keys())):
+        if k not in {'brand', 'model_name', 'model', 'document_type', 'holder_name', 'name_on_doc', 'document_number', 'id_number', 'color', 'primary_color', 'material', 'bag_type', 'key_type', 'key_count'}:
+            if lost_clean[k] == found_clean[k]:
+                attr_score += 10
+                reasons.append(f"Matching {k.replace('_', ' ')}")
+
+    score += min(attr_score, 45)
+
+    # 3. Location Proximity
+    if lost_item.location and found_item.location:
+        lost_loc = set(re.findall(r'\w+', lost_item.location.lower())) - STOP_WORDS
+        found_loc = set(re.findall(r'\w+', found_item.location.lower())) - STOP_WORDS
+        overlap = lost_loc.intersection(found_loc)
+        if overlap:
+            score += 15
+            reasons.append(f"Location proximity: {', '.join(overlap).title()}")
+
+    # 4. Date & Time
+    lost_time = lost_item.item_date or lost_item.reported_at
+    found_time = found_item.item_date or found_item.reported_at
+    if lost_time and found_time:
+        diff_days = abs((found_time - lost_time).total_seconds()) / 86400.0
+        if diff_days <= 3:
+            score += 15
+            reasons.append("Reported within 3 days")
+        elif diff_days <= 7:
+            score += 10
+            reasons.append("Reported within 1 week")
+        elif diff_days <= 14:
+            score += 5
+
+    # 5. Title & Description Keyword Overlap
+    lost_words = set(re.findall(r'\w+', (lost_item.title + " " + lost_item.description).lower())) - STOP_WORDS
+    found_words = set(re.findall(r'\w+', (found_item.title + " " + found_item.description).lower())) - STOP_WORDS
+    desc_overlap = lost_words.intersection(found_words)
+    if len(desc_overlap) >= 3:
+        score += 12
+        reasons.append(f"Shared details: {', '.join(list(desc_overlap)[:3])}")
+    elif len(desc_overlap) >= 1:
+        score += 6
+
+    final_score = min(score, 100)
+    return final_score, reasons
+
+
+def run_item_matching(item):
+    """
+    Evaluates candidate counterpart items for the given item report,
+    creates/updates MatchedItem records, and sends notifications.
+    """
+    from .models import Item, MatchedItem, Notification
+
+    if item.type == 'lost':
+        counterparts = Item.objects.filter(
+            type='found',
+            category=item.category
+        ).exclude(user=item.user)
+    else:
+        counterparts = Item.objects.filter(
+            type='lost',
+            category=item.category
+        ).exclude(user=item.user)
+
+    matches_created = []
+
+    for counterpart in counterparts:
+        if item.type == 'lost':
+            l_item = item
+            f_item = counterpart
+        else:
+            l_item = counterpart
+            f_item = item
+
+        score, reasons = calculate_item_match_score(l_item, f_item)
+
+        # Threshold to consider a valid match
+        if score >= 35 or f_item.parent_item_id == l_item.id:
+            matched_obj, created = MatchedItem.objects.update_or_create(
+                lost_item=l_item,
+                found_item=f_item,
+                defaults={
+                    'match_score': score,
+                    'matched_reasons': reasons,
+                }
+            )
+            matches_created.append(matched_obj)
+
+            # Send Notification if newly created
+            if created:
+                try:
+                    # Notify Owner
+                    Notification.objects.create(
+                        user=l_item.user,
+                        type='match',
+                        message=f"Possible match found ({score}%) for your lost '{l_item.title}'!",
+                        related_item=f_item
+                    )
+                    # Notify Finder
+                    Notification.objects.create(
+                        user=f_item.user,
+                        type='match',
+                        message=f"Your found '{f_item.title}' matches a reported lost item ({score}%)!",
+                        related_item=l_item
+                    )
+                except Exception:
+                    pass
+
+    return matches_created
+
+
 def get_or_create_matched_conversation(item, request_user):
     """
     Resolves or creates the canonical conversation between an Owner and a Finder
     for a specific item transaction.
-
-    Business rules:
-    1. A user cannot initiate a conversation with themselves on their own report.
-    2. Identifies owner_user and finder_user based on item type and participant role:
-       - If item is 'lost': owner_user = item.user, finder_user = request_user
-       - If item is 'found': owner_user = request_user, finder_user = item.user
-    3. Lookups prioritize any existing active conversation between (owner_user, finder_user)
-       for this specific item.
-    4. If no conversation exists for this item, creates exactly ONE new Conversation record.
     """
-    from .models import Conversation
+    from .models import Conversation, MatchedItem
     from django.db.models import Q, Count, Max
 
     if item.user == request_user:
@@ -385,6 +591,27 @@ def get_or_create_matched_conversation(item, request_user):
 
         if conv:
             return conv, None
+        
+        # Check if this item is part of a match with another user
+        if item.type == 'lost':
+            match = MatchedItem.objects.filter(lost_item=item).select_related('found_item__user').first()
+            if match:
+                conv, _ = Conversation.objects.get_or_create(
+                    item=item,
+                    owner=request_user,
+                    finder=match.found_item.user
+                )
+                return conv, None
+        else:
+            match = MatchedItem.objects.filter(found_item=item).select_related('lost_item__user').first()
+            if match:
+                conv, _ = Conversation.objects.get_or_create(
+                    item=item,
+                    owner=match.lost_item.user,
+                    finder=request_user
+                )
+                return conv, None
+
         return None, "No conversation started yet for this item."
 
     if item.type == 'lost':
@@ -395,8 +622,14 @@ def get_or_create_matched_conversation(item, request_user):
             owner_user = item.parent_item.user
             finder_user = item.user
         else:
-            owner_user = request_user
-            finder_user = item.user
+            # Check if matched with any lost item belonging to request_user
+            match = MatchedItem.objects.filter(found_item=item, lost_item__user=request_user).first()
+            if match:
+                owner_user = request_user
+                finder_user = item.user
+            else:
+                owner_user = request_user
+                finder_user = item.user
 
     # 1. Look for existing conversation on this exact item
     conv = Conversation.objects.filter(
@@ -425,6 +658,7 @@ def get_or_create_matched_conversation(item, request_user):
         )
 
     return conv, None
+
 
 
 

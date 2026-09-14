@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/screen_background"
+    android:orientation="vertical">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/screen_background"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/text_dark"
+        app:title="Match Comparison"
+        app:titleTextColor="@color/text_dark" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="24dp">
+
+            <!-- ─── Top Match Confidence Card ─── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_border"
+                app:cardBackgroundColor="@color/card_background">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:id="@+id/tvMatchScoreLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-black"
+                        android:text="85%"
+                        android:textColor="@color/primary_purple"
+                        android:textSize="36sp" />
+
+                    <TextView
+                        android:id="@+id/tvConfidenceLevel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="HIGH CONFIDENCE MATCH"
+                        android:textColor="@color/success_green"
+                        android:textSize="13sp" />
+
+                    <!-- Matching Reasons Container -->
+                    <LinearLayout
+                        android:id="@+id/layoutReasons"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/bg_chip_unselected"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-bold"
+                            android:text="Why this is a match:"
+                            android:textColor="@color/text_dark"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/tvReasonsList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:fontFamily="sans-serif"
+                            android:lineSpacingExtra="4dp"
+                            android:text="• Matching Category: Documents\n• Matching Name on Document: John Doe\n• Location Proximity: Campus Canteen\n• Reported within 2 days"
+                            android:textColor="@color/text_gray"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ─── Lost Item Card (Owner Report) ─── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="sans-serif-bold"
+                android:text="Lost Item Report (Owner)"
+                android:textColor="@color/error_red"
+                android:textSize="15sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="1dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_border"
+                app:cardBackgroundColor="@color/card_background">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:id="@+id/ivLostPhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="140dp"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvLostDetailTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="Lost Title"
+                        android:textColor="@color/text_dark"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tvLostDetailReporter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Reported by: OwnerName"
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvLostDetailLocationDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Location: Canteen | Date: 2026-09-14"
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvLostDetailCredentials"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_chip_unselected"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="10dp"
+                        android:text="Verification Attributes:\n• Document Type: Citizenship\n• Name on ID: John Doe"
+                        android:textColor="@color/text_dark"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvLostDetailDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Description goes here..."
+                        android:textColor="@color/text_gray"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ─── Found Item Card (Finder Report) ─── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="sans-serif-bold"
+                android:text="Found Item Report (Finder)"
+                android:textColor="@color/success_green"
+                android:textSize="15sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="1dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/card_border"
+                app:cardBackgroundColor="@color/card_background">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:id="@+id/ivFoundPhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="140dp"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvFoundDetailTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="Found Title"
+                        android:textColor="@color/text_dark"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tvFoundDetailReporter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Reported by: FinderName"
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvFoundDetailLocationDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Location: Canteen | Date: 2026-09-14"
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvFoundDetailCredentials"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_chip_unselected"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="10dp"
+                        android:text="Verification Attributes:\n• Document Type: Citizenship\n• Name on ID: John Doe"
+                        android:textColor="@color/text_dark"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvFoundDetailDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Description goes here..."
+                        android:textColor="@color/text_gray"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Action Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_01"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnChat"
+            style="@style/Widget.Findora.Button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:fontFamily="sans-serif-bold"
+            android:text="💬 Chat with Other Party"
+            app:icon="@drawable/ic_chat"
+            app:iconGravity="textStart" />
+    </LinearLayout>
+
+</LinearLayout>
