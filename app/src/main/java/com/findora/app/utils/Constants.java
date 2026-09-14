@@ -25,14 +25,16 @@ public class Constants {
     // Chat refresh interval (milliseconds)
     public static final int CHAT_REFRESH_INTERVAL = 5000;
 
-    // Item categories
+    // Item categories (Universal 13 categories)
     public static final String[] CATEGORIES = {
-        "wallet", "phone", "keys", "bag",
-        "id_card", "documents", "electronics", "other"
+        "phone", "laptop", "wallet", "bag", "keys",
+        "documents", "watch", "jewelry", "headphones",
+        "book", "clothing", "electronics", "other"
     };
 
     public static final String[] CATEGORY_LABELS = {
-        "Wallet", "Phone", "Keys", "Bag",
-        "ID Card", "Documents", "Electronics", "Other"
+        "Mobile Phone", "Laptop", "Wallet", "Bag / Backpack", "Keys",
+        "Documents / ID Card", "Watch", "Jewelry", "Earbuds / Headphones",
+        "Books / Notes", "Clothing / Apparel", "Electronics / Gadgets", "Other Item"
     };
 }

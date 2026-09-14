@@ -21,10 +21,17 @@ from .models import (
     ItemImage,
     Notification,
     PointTransaction,
+    PotentialMatch,
     User,
     UserBadge,
+    VerificationEvidence,
+    VerificationRequest,
 )
 from .reputation_service import get_unique_recovered_items_count
+from .verification_constants import (
+    CATEGORY_LABELS,
+    CATEGORY_VERIFICATION_SCHEMAS,
+)
 
 
 # ─── User Serializers ─────────────────────────────────────────────────────────
@@ -110,9 +117,7 @@ class UserSerializer(serializers.ModelSerializer):
     def get_items_recovered(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return 0
-        if not hasattr(obj, '_cached_recovered_items'):
-            obj._cached_recovered_items = get_unique_recovered_items_count(obj)
-        return obj._cached_recovered_items
+        return get_unique_recovered_items_count(obj)
 
     def get_recovered_items_count(self, obj):
         return self.get_items_recovered(obj)
@@ -196,9 +201,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     def get_recovered_items(self, obj):
         if getattr(obj, 'role', '') != 'finder':
             return 0
-        if not hasattr(obj, '_cached_recovered_items'):
-            obj._cached_recovered_items = get_unique_recovered_items_count(obj)
-        return obj._cached_recovered_items
+        return get_unique_recovered_items_count(obj)
 
     def get_items_recovered(self, obj):
         return self.get_recovered_items(obj)
@@ -537,7 +540,166 @@ class ItemSerializer(serializers.ModelSerializer):
             from django.utils import timezone
             if instance.featured_until <= timezone.now():
                 ret['is_featured'] = False
+
+        # Privacy Protection: NEVER expose private_attributes or raw identifier_hash in public / finder view
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        if not user or not user.is_authenticated or (instance.user_id != user.id and getattr(user, 'role', '') != 'admin'):
+            ret.pop('private_attributes', None)
+            ret.pop('identifier_hash', None)
         return ret
+
+
+# ─── Matching & Verification Serializers ──────────────────────────────────────
+
+class PotentialMatchSerializer(serializers.ModelSerializer):
+    """Serializer for candidate item matches discovered by Stage 1 matching engine."""
+    lost_item_title = serializers.ReadOnlyField(source='lost_item.title')
+    lost_item_category = serializers.ReadOnlyField(source='lost_item.category')
+    lost_item_image = serializers.SerializerMethodField()
+    found_item_title = serializers.ReadOnlyField(source='found_item.title')
+    found_item_category = serializers.ReadOnlyField(source='found_item.category')
+    found_item_image = serializers.SerializerMethodField()
+    found_item_location = serializers.ReadOnlyField(source='found_item.location')
+    owner_username = serializers.ReadOnlyField(source='lost_item.user.username')
+    finder_username = serializers.ReadOnlyField(source='found_item.user.username')
+
+    class Meta:
+        model = PotentialMatch
+        fields = [
+            'id', 'lost_item', 'lost_item_title', 'lost_item_category', 'lost_item_image',
+            'found_item', 'found_item_title', 'found_item_category', 'found_item_image',
+            'found_item_location', 'owner_username', 'finder_username',
+            'similarity_score', 'confidence_level', 'match_reasons',
+            'candidate_evidence', 'evidence_strength', 'status', 'created_at', 'updated_at'
+        ]
+
+    def get_lost_item_image(self, obj):
+        request = self.context.get('request')
+        if obj.lost_item and obj.lost_item.image:
+            try:
+                url = obj.lost_item.image.url
+                return request.build_absolute_uri(url) if request else url
+            except ValueError:
+                return None
+        return None
+
+    def get_found_item_image(self, obj):
+        request = self.context.get('request')
+        if obj.found_item and obj.found_item.image:
+            try:
+                url = obj.found_item.image.url
+                return request.build_absolute_uri(url) if request else url
+            except ValueError:
+                return None
+        return None
+
+
+class VerificationEvidenceSerializer(serializers.ModelSerializer):
+    """Serializer for blind answers and proof items submitted in a verification cycle."""
+    image_url = serializers.SerializerMethodField()
+    submitted_by_username = serializers.ReadOnlyField(source='submitted_by.username')
+    submitted_by_role = serializers.ReadOnlyField(source='submitted_by.role')
+
+    class Meta:
+        model = VerificationEvidence
+        fields = [
+            'id', 'verification_request', 'submitted_by', 'submitted_by_username',
+            'submitted_by_role', 'evidence_type', 'evidence_key', 'submitted_value',
+            'submitted_image', 'image_url', 'is_blind', 'match_result',
+            'discriminative_weight', 'created_at'
+        ]
+        read_only_fields = ['submitted_by', 'match_result', 'discriminative_weight', 'created_at']
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.submitted_image:
+            try:
+                url = obj.submitted_image.url
+                return request.build_absolute_uri(url) if request else url
+            except ValueError:
+                return None
+        return None
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        # Blind verification privacy: Mask answers from counterpart user until verification is concluded
+        if instance.is_blind and user and user.is_authenticated and instance.submitted_by_id != user.id and getattr(user, 'role', '') != 'admin':
+            ret['submitted_value'] = '•••• [Blind Evidence Submitted]'
+            ret['image_url'] = None
+        return ret
+
+
+class VerificationRequestSerializer(serializers.ModelSerializer):
+    """Serializer for Stage 2 Verification Requests and Sessions."""
+    lost_item_title = serializers.ReadOnlyField(source='lost_item.title')
+    lost_item_category = serializers.ReadOnlyField(source='lost_item.category')
+    found_item_title = serializers.ReadOnlyField(source='found_item.title')
+    found_item_category = serializers.ReadOnlyField(source='found_item.category')
+    found_item_location = serializers.ReadOnlyField(source='found_item.location')
+    owner_username = serializers.ReadOnlyField(source='owner.username')
+    finder_username = serializers.ReadOnlyField(source='finder.username')
+    questions_for_user = serializers.SerializerMethodField()
+    evidence_submissions = VerificationEvidenceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VerificationRequest
+        fields = [
+            'id', 'potential_match', 'lost_item', 'lost_item_title', 'lost_item_category',
+            'found_item', 'found_item_title', 'found_item_category', 'found_item_location',
+            'owner', 'owner_username', 'finder', 'finder_username',
+            'status', 'overall_confidence', 'verification_summary', 'is_contact_allowed',
+            'questions_for_user', 'evidence_submissions', 'created_at', 'updated_at', 'verified_at'
+        ]
+        read_only_fields = ['owner', 'finder', 'status', 'overall_confidence', 'verification_summary', 'is_contact_allowed', 'verified_at']
+
+    def get_questions_for_user(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        if not user or not user.is_authenticated:
+            return []
+
+        category = (obj.lost_item.category or 'other').lower().strip()
+        if category == 'id_card':
+            category = 'documents'
+        schema = CATEGORY_VERIFICATION_SCHEMAS.get(category, CATEGORY_VERIFICATION_SCHEMAS['other'])
+
+        is_owner = (user.id == obj.owner_id)
+        role = 'owner' if is_owner else 'finder'
+
+        answered_keys = set(
+            obj.evidence_submissions.filter(submitted_by=user).values_list('evidence_key', flat=True)
+        )
+
+        questions = []
+        for p in schema.get('blind_prompts', []):
+            key = p['key']
+            prompt_text = p['owner_prompt'] if is_owner else p['finder_prompt']
+            questions.append({
+                'key': key,
+                'prompt': prompt_text,
+                'is_answered': key in answered_keys,
+                'category': category,
+                'role': role,
+            })
+        return questions
+
+
+class StartVerificationSerializer(serializers.Serializer):
+    """Input serializer to initiate verification on an item pair or candidate match."""
+    lost_item_id = serializers.IntegerField(required=False)
+    found_item_id = serializers.IntegerField(required=False)
+    potential_match_id = serializers.IntegerField(required=False)
+
+
+class SubmitEvidenceSerializer(serializers.Serializer):
+    """Input serializer for submitting blind answers or proof items."""
+    evidence_key = serializers.CharField(max_length=100, required=True)
+    submitted_value = serializers.CharField(required=False, allow_blank=True, default='')
+    evidence_type = serializers.CharField(max_length=40, required=False, default='blind_qa')
+    image = serializers.ImageField(required=False, allow_null=True)
 
 
 

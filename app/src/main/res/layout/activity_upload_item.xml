@@ -141,6 +141,90 @@
                             android:popupBackground="@color/card_background" />
                     </com.google.android.material.card.MaterialCardView>
 
+                    <!-- Brand & Model Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:hint="Brand (Optional)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBrand"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:hint="Model (Optional)">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etModel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- Colors Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_medium"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:hint="Primary Color">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etPrimaryColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Findora.TextInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:hint="Secondary Color">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etSecondaryColor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapWords"
+                                android:textColor="@color/text_dark"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
                     <!-- Location -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Findora.TextInputLayout"
@@ -190,12 +274,110 @@
                             android:id="@+id/etDescription"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:minLines="5"
+                            android:minLines="4"
                             android:gravity="top|start"
                             android:textColor="@color/text_dark"
                             android:textColorHint="@color/text_hint"
                             android:inputType="textMultiLine|textCapSentences" />
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Private Owner Evidence Card (Protected - Hidden from Finders/Public) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardPrivateEvidence"
+                        style="@style/Widget.Findora.Card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_large"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_02"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/card_border">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="14dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_lock"
+                                    app:tint="@color/primary_purple" />
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_weight="1"
+                                    android:fontFamily="sans-serif-bold"
+                                    android:text="Private Owner Evidence (Hidden)"
+                                    android:textColor="@color/primary_purple"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:fontFamily="sans-serif"
+                                android:text="This private data is NEVER shown publicly or to finders. Findora uses it for blind backend verification to prove true ownership."
+                                android:textColor="@color/text_gray"
+                                android:textSize="11sp" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.Findora.TextInputLayout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:hint="Secret Scratch / Damage / Mark">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etPrivateDamage"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="textCapSentences"
+                                    android:textColor="@color/text_dark" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.Findora.TextInputLayout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:hint="Private Contents / Case / Lockscreen Motif">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etPrivateContents"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="textCapSentences"
+                                    android:textColor="@color/text_dark" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.Findora.TextInputLayout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:hint="Optional Serial / IMEI / Asset ID">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/etPrivateIdentifier"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="text"
+                                    android:textColor="@color/text_dark" />
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Item Images Section -->
                     <TextView

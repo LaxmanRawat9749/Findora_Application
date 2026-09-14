@@ -110,6 +110,59 @@ public interface ApiService {
     @POST("items/{id}/confirm-return/")
     Call<MessageResponse> confirmItemReturn(@Path("id") int id);
 
+    // ─── Matching & Ownership Verification ───────────────────
+    @GET("matches/")
+    Call<List<PotentialMatch>> getPotentialMatches();
+
+    @GET("items/{id}/potential-matches/")
+    Call<List<PotentialMatch>> getItemPotentialMatches(@Path("id") int itemId);
+
+    @POST("items/{id}/run-matching/")
+    Call<Map<String, Object>> runItemMatching(@Path("id") int itemId);
+
+    @GET("verifications/schema/")
+    Call<CategoryVerificationSchema> getCategoryVerificationSchema(@Query("category") String category);
+
+    @POST("verifications/start/")
+    Call<VerificationSession> startVerification(@Body StartVerificationRequest request);
+
+    @GET("verifications/{id}/")
+    Call<VerificationSession> getVerificationSession(@Path("id") int sessionId);
+
+    @GET("verifications/{id}/")
+    Call<VerificationSession> getVerificationDetail(@Path("id") int sessionId);
+
+    @POST("verifications/{id}/submit-evidence/")
+    Call<VerificationSession> submitVerificationEvidence(
+        @Path("id") int sessionId,
+        @Body SubmitEvidenceRequest request
+    );
+
+    @Multipart
+    @POST("verifications/{id}/submit-evidence/")
+    Call<VerificationSession> submitVerificationEvidenceWithImage(
+        @Path("id") int sessionId,
+        @Part("evidence_key") RequestBody evidenceKey,
+        @Part("submitted_value") RequestBody submittedValue,
+        @Part("evidence_type") RequestBody evidenceType,
+        @Part MultipartBody.Part image
+    );
+
+    @POST("verifications/{id}/provide-additional-proof/")
+    Call<VerificationSession> provideAdditionalProof(
+        @Path("id") int sessionId,
+        @Body java.util.Map<String, String> request
+    );
+
+    @Multipart
+    @POST("verifications/{id}/provide-additional-proof/")
+    Call<VerificationSession> provideAdditionalProofWithImage(
+        @Path("id") int sessionId,
+        @Part("proof_type") RequestBody proofType,
+        @Part("description") RequestBody description,
+        @Part MultipartBody.Part image
+    );
+
     // ─── Admin ───────────────────────────────────────────────
     @GET("admin/items/")
     Call<List<Item>> getPendingItems();

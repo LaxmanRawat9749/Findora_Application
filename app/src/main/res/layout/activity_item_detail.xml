@@ -109,6 +109,20 @@
                                 android:textSize="@dimen/text_caption"
                                 android:fontFamily="sans-serif-medium" />
 
+                            <TextView
+                                android:id="@+id/tv_verification_badge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:background="@drawable/bg_badge_purple"
+                                android:paddingHorizontal="10dp"
+                                android:paddingVertical="4dp"
+                                android:fontFamily="sans-serif-bold"
+                                android:text="UNVERIFIED"
+                                android:textColor="@color/primary_purple"
+                                android:textSize="@dimen/text_caption"
+                                android:visibility="gone" />
+
                             <Space
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
@@ -266,6 +280,72 @@
                         android:text="Detailed description..."
                         android:textColor="@color/text_gray"
                         android:textSize="@dimen/text_body" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Potential Matches Banner Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_potential_matches"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/primary_purple"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@color/surface_02"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_verified"
+                            app:tint="@color/primary_purple" />
+
+                        <TextView
+                            android:id="@+id/tv_matches_banner_title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:fontFamily="sans-serif-bold"
+                            android:text="Potential Matches Found"
+                            android:textColor="@color/primary_purple"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_matches_banner_desc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Candidates have been identified for this item. Complete strong blind verification to prove ownership."
+                        android:textColor="@color/text_gray"
+                        android:textSize="11sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_view_potential_matches"
+                        style="@style/Widget.Findora.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="10dp"
+                        android:text="View Potential Matches &amp; Verify"
+                        android:textSize="12sp"
+                        app:backgroundTint="@color/primary_purple" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

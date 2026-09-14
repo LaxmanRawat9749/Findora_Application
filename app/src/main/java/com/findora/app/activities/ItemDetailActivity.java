@@ -294,6 +294,27 @@ public class ItemDetailActivity extends BaseActivity {
         }
         setupOrUpdateImagePager(imageList);
 
+        // Verification status badge
+        String verStatus = item.getVerificationStatus();
+        binding.tvVerificationBadge.setVisibility(View.VISIBLE);
+        if ("VERIFIED_MATCH".equalsIgnoreCase(verStatus) || "verified".equalsIgnoreCase(verStatus)) {
+            binding.tvVerificationBadge.setText("✓ VERIFIED");
+            binding.tvVerificationBadge.setBackgroundResource(R.drawable.bg_badge_found);
+            binding.tvVerificationBadge.setTextColor(ContextCompat.getColor(this, R.color.success_green));
+        } else if ("UNDER_VERIFICATION".equalsIgnoreCase(verStatus) || "under_verification".equalsIgnoreCase(verStatus)) {
+            binding.tvVerificationBadge.setText("⏳ VERIFYING");
+            binding.tvVerificationBadge.setBackgroundResource(R.drawable.bg_badge_warning);
+            binding.tvVerificationBadge.setTextColor(ContextCompat.getColor(this, R.color.warning_orange));
+        } else if ("MULTIPLE_POSSIBLE_OWNERS".equalsIgnoreCase(verStatus)) {
+            binding.tvVerificationBadge.setText("⚠ MULTIPLE OWNERS");
+            binding.tvVerificationBadge.setBackgroundResource(R.drawable.bg_badge_warning);
+            binding.tvVerificationBadge.setTextColor(ContextCompat.getColor(this, R.color.warning_orange));
+        } else {
+            binding.tvVerificationBadge.setText("UNVERIFIED");
+            binding.tvVerificationBadge.setBackgroundResource(R.drawable.bg_badge_purple);
+            binding.tvVerificationBadge.setTextColor(ContextCompat.getColor(this, R.color.primary_purple));
+        }
+
         binding.layoutReturnActions.setVisibility(View.GONE);
         binding.layoutOwnerActions.setVisibility(View.GONE);
         binding.btnMarkReturned.setVisibility(View.GONE);
@@ -307,9 +328,18 @@ public class ItemDetailActivity extends BaseActivity {
         if (isResolved) {
             binding.layoutDefaultActions.setVisibility(View.GONE);
             binding.layoutFoundActions.setVisibility(View.GONE);
+            binding.cardPotentialMatches.setVisibility(View.GONE);
             binding.tvReturnedBadge.setVisibility(View.VISIBLE);
             checkRatingStatus();
         } else {
+            // Show Potential Matches banner if active
+            binding.cardPotentialMatches.setVisibility(View.VISIBLE);
+            binding.btnViewPotentialMatches.setOnClickListener(v -> {
+                Intent intent = new Intent(this, PotentialMatchesActivity.class);
+                intent.putExtra(Constants.EXTRA_ITEM_ID, item.getId());
+                startActivity(intent);
+            });
+
             // Check if user is the poster of the item
             if (item.getUser() == baseSessionManager.getUserId()) {
                 // Promote button only visible for Owner/Lost items (never for Finder/Found items)

@@ -15,27 +15,29 @@ Provides a unified, streamlined, and secure management interface:
   - Finder Ratings & Reputation: Combined feature managing Finder performance, average star ratings,
     rating counts, successful returns, total points, badges, and complete owner reviews history.
   - Payment Admin: Featured listing payments, status auditing, and transaction tracking.
-  - Chat Message Admin: Direct message inspection and chat media previews.
 
 Note: Internal technical models (PointTransaction, UserBadge, Conversation,
-Notification, OTPToken, Claim) are managed programmatically by backend services
+ChatMessage, Notification, OTPToken, Claim) are managed programmatically by backend services
 and APIs; their database models, tables, and logic remain 100% active and intact.
 """
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import (
-    ChatMessage,
     FinderRating,
     FinderReputation,
     Item,
     ItemImage,
     Notification,
     Payment,
+    PotentialMatch,
     User,
+    VerificationEvidence,
+    VerificationRequest,
 )
 
 # Custom display names for combined Finder Rating & Reputation feature
@@ -459,7 +461,7 @@ class AdminUserAdmin(FindoraUserAdmin):
     @admin.display(description='Last Login')
     def last_login_display(self, obj):
         if obj.last_login:
-            return obj.last_login.strftime('%b %d, %Y, %I:%M %p')
+            return timezone.localtime(obj.last_login).strftime('%b %d, %Y, %I:%M %p')
         return mark_safe('<span style="color:#94A3B8;">Never</span>')
 
 
@@ -1128,7 +1130,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
             u.email, u.email,
             u.phone or 'N/A',
             role_label,
-            u.created_at.strftime('%b %d, %Y') if u.created_at else '—'
+            timezone.localtime(u.created_at).strftime('%b %d, %Y') if u.created_at else '—'
         )
 
     @admin.display(description='Owner Ratings & Reviews')
@@ -1144,7 +1146,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
             item_title = r.item.title if r.item else '—'
             stars = '★' * r.rating + '☆' * (5 - r.rating)
             review_text = format_html('"{}"', r.review) if r.review else mark_safe('<span style="color:#94A3B8;font-style:italic;">No written review</span>')
-            date_str = r.created_at.strftime('%b %d, %Y, %I:%M %p')
+            date_str = timezone.localtime(r.created_at).strftime('%b %d, %Y, %I:%M %p')
 
             rows.append(format_html(
                 '<tr style="border-bottom:1px solid #E2E8F0;">'
@@ -1187,7 +1189,7 @@ class FinderReputationAdmin(admin.ModelAdmin):
 
         chips = []
         for b in badges:
-            date_str = b.earned_at.strftime('%b %d, %Y')
+            date_str = timezone.localtime(b.earned_at).strftime('%b %d, %Y')
             chips.append(format_html(
                 '<div style="background:#F0FDF4;border:1px solid #BBF7D0;padding:8px 14px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;margin-right:8px;margin-bottom:8px;">'
                 '<span style="font-size:22px;">{}</span>'
@@ -1247,70 +1249,59 @@ class PaymentAdmin(admin.ModelAdmin):
         )
 
 
-# ─── Chat Message Admin ───────────────────────────────────────────────────────
+# ─── Matching & Strong Ownership Verification Admin ─────────────────────────
 
-@admin.register(ChatMessage)
-class ChatMessageAdmin(admin.ModelAdmin):
-    """
-    Admin interface for inspecting chat messages and uploaded chat media.
-    """
-    list_display = [
-        'id', 'chat_media_preview', 'sender_link', 'conversation', 'message_type',
-        'message_snippet', 'sent_at', 'is_read',
-    ]
-    list_filter = ['message_type', 'is_read', 'sent_at']
-    search_fields = ['sender__username', 'sender__email', 'message', 'caption']
-    ordering = ['-sent_at']
-    readonly_fields = ['chat_media_display', 'sent_at']
-    list_per_page = 25
+@admin.register(PotentialMatch)
+class PotentialMatchAdmin(admin.ModelAdmin):
+    list_display = ['id', 'lost_item_link', 'found_item_link', 'similarity_display', 'confidence_level', 'evidence_strength', 'status', 'created_at']
+    list_filter = ['confidence_level', 'evidence_strength', 'status', 'created_at']
+    search_fields = ['lost_item__title', 'found_item__title', 'lost_item__user__username', 'found_item__user__username']
+    readonly_fields = ['created_at', 'updated_at']
 
-    @admin.display(description='Sender', ordering='sender__username')
-    def sender_link(self, obj):
-        if not obj.sender:
-            return '—'
-        link = get_user_admin_url(obj.sender)
+    @admin.display(description='Lost Item')
+    def lost_item_link(self, obj):
+        return format_html('<a href="/admin/api/item/{}/change/">#{} - {}</a>', obj.lost_item_id, obj.lost_item_id, obj.lost_item.title)
+
+    @admin.display(description='Found Item')
+    def found_item_link(self, obj):
+        return format_html('<a href="/admin/api/item/{}/change/">#{} - {}</a>', obj.found_item_id, obj.found_item_id, obj.found_item.title)
+
+    @admin.display(description='Similarity')
+    def similarity_display(self, obj):
+        return f"{obj.similarity_score:.0f}%"
+
+
+class VerificationEvidenceInline(admin.TabularInline):
+    model = VerificationEvidence
+    extra = 0
+    readonly_fields = ['submitted_by', 'evidence_type', 'evidence_key', 'submitted_value', 'is_blind', 'match_result', 'discriminative_weight', 'created_at']
+
+
+@admin.register(VerificationRequest)
+class VerificationRequestAdmin(admin.ModelAdmin):
+    list_display = ['id', 'lost_item', 'found_item', 'owner', 'finder', 'status_badge', 'overall_confidence', 'is_contact_allowed', 'created_at']
+    list_filter = ['status', 'is_contact_allowed', 'created_at']
+    search_fields = ['lost_item__title', 'found_item__title', 'owner__username', 'finder__username']
+    inlines = [VerificationEvidenceInline]
+    readonly_fields = ['created_at', 'updated_at', 'verified_at']
+
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colors = {
+            'verified_match': '#1D9E75',
+            'under_verification': '#3B82F6',
+            'verification_required': '#F59E0B',
+            'additional_proof_required': '#D97706',
+            'multiple_possible_owners': '#8B5CF6',
+            'verification_failed': '#EF4444',
+            'closed': '#6B7280',
+        }
+        color = colors.get(obj.status, '#3B82F6')
         return format_html(
-            '<a href="{}" style="font-weight:600;color:#4F46E5;">{}</a>',
-            link, obj.sender.get_full_name() or obj.sender.username
+            '<span style="background:{};color:white;padding:2px 8px;'
+            'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
+            color, obj.get_status_display() if hasattr(obj, 'get_status_display') else obj.status,
         )
-
-    @admin.display(description='Media')
-    def chat_media_preview(self, obj):
-        if obj.image and hasattr(obj.image, 'url'):
-            try:
-                url = obj.image.url
-                return format_html(
-                    '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full image">'
-                    '<img src="{}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid #E2E8F0;" alt="Chat Image" />'
-                    '</a>',
-                    url, url,
-                )
-            except ValueError:
-                pass
-        return mark_safe('<span style="color:#94A3B8;font-size:12px;">—</span>')
-
-    @admin.display(description='Chat Image')
-    def chat_media_display(self, obj):
-        if not obj or not obj.image:
-            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No image attached.</span>')
-        try:
-            url = obj.image.url
-            return format_html(
-                '<a href="{}" target="_blank" rel="noopener noreferrer" title="Click to view full image">'
-                '<img src="{}" style="max-width:280px;max-height:280px;border-radius:8px;border:1px solid #E2E8F0;" alt="Chat Image" />'
-                '</a>',
-                url, url,
-            )
-        except ValueError:
-            return mark_safe('<span style="color:#94A3B8;font-size:13px;">No image attached.</span>')
-
-    @admin.display(description='Message')
-    def message_snippet(self, obj):
-        if obj.message:
-            return obj.message[:60]
-        if obj.caption:
-            return f"[Image] {obj.caption[:50]}"
-        return "[Image]"
 
 
 # ─── Admin Navigation Hierarchy & App Grouping ───────────────────────────────
@@ -1330,7 +1321,7 @@ def findora_get_app_list(request, app_label=None):
         ├── Owners (Owner users only)
         └── Finders (Finder users only)
 
-    Plus Findora Management (Items, Ratings & Reputation, Payments, Chat Messages)
+    Plus Findora Management (Items, Ratings & Reputation, Payments)
     and Security/Authentication sections.
     """
     if app_label:

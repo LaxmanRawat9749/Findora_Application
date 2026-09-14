@@ -1,0 +1,505 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/screen_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/screen_background"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:navigationIconTint="@color/text_dark"
+        app:title="Ownership Verification"
+        app:titleTextColor="@color/text_dark" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="32dp">
+
+            <!-- 1. Verification Status & Confidence Banner -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardStatusBanner"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/card_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tvStatusBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_badge_purple"
+                            android:fontFamily="sans-serif-black"
+                            android:text="UNDER VERIFICATION"
+                            android:textColor="@color/primary_purple"
+                            android:textSize="12sp" />
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/tvConfidenceScore"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-bold"
+                            android:text="Score: 50%"
+                            android:textColor="@color/text_dark"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/progressBarConfidence"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:progress="50"
+                        app:indicatorColor="@color/primary_purple"
+                        app:trackColor="@color/surface_02"
+                        app:trackCornerRadius="4dp"
+                        app:trackThickness="6dp" />
+
+                    <TextView
+                        android:id="@+id/tvStatusDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Blind verification in progress. Both parties submit physical observations independently."
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 2. Matched Pair Summary Card -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/card_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="Matched Item Pair"
+                        android:textColor="@color/text_dark"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvPairCategory"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Category: Mobile Phone"
+                        android:textColor="@color/primary_purple"
+                        android:textSize="12sp" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="8dp"
+                        android:background="@color/divider" />
+
+                    <TextView
+                        android:id="@+id/tvLostItemSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif"
+                        android:text="Lost Item: Black Samsung S24"
+                        android:textColor="@color/text_dark"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvFoundItemSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Found Item: Samsung Galaxy S24"
+                        android:textColor="@color/text_dark"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 3. Unlocked Contact / Chat Action (Visible only on VERIFIED_MATCH) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardVerifiedContact"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="@color/light_green"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/success_green"
+                app:strokeWidth="1dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_check_circle"
+                            app:tint="@color/success_green" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-black"
+                                android:text="Ownership Verified!"
+                                android:textColor="@color/success_green"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif"
+                                android:text="Direct communication &amp; handover are now unlocked."
+                                android:textColor="@color/text_dark"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnOpenVerifiedChat"
+                        style="@style/Widget.Findora.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_marginTop="12dp"
+                        android:text="Start Direct Handover Chat"
+                        app:backgroundTint="@color/success_green"
+                        app:icon="@drawable/ic_chat" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 4. Blind Verification Submission Form -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBlindForm"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/card_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_lock"
+                            app:tint="@color/primary_purple" />
+
+                        <TextView
+                            android:id="@+id/tvFormTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="sans-serif-bold"
+                            android:text="Blind Verification Questions"
+                            android:textColor="@color/text_dark"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvFormSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Answer the observations below independently. Your answers are private and never shown to the other party."
+                        android:textColor="@color/text_gray"
+                        android:textSize="11sp" />
+
+                    <!-- Question 1: Visible Damage / Scratches -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilDamage"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="Unique Scratches, Marks, or Damage">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etDamage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Question 2: Internal Contents / Cards / Pocket items -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilContents"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Internal Contents / Cards / Notes">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etContents"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Question 3: Case / Wallpaper / Engravings -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilCaseLockscreen"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Case Style, Lock-screen Motif, or Engraving">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCaseLockscreen"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Question 4: Key count / Key types (if keys) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilKeyCount"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Exact Number of Keys &amp; Keychain Tag"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etKeyCount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Question 5: Optional Identifier / Serial / IMEI -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilIdentifier"
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Identifier (Optional IMEI / Serial / Tag)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etIdentifier"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tvIdentifierHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="* Identifiers are strictly optional. Finders are NOT required to unlock or power on devices."
+                        android:textColor="@color/text_hint"
+                        android:textSize="10sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSubmitEvidence"
+                        style="@style/Widget.Findora.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_marginTop="16dp"
+                        android:text="Submit Verification Evidence"
+                        app:backgroundTint="@color/primary_purple" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 5. Additional Proof Card (for Multiple Owners / Additional Proof Status) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAdditionalProof"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/warning_orange"
+                app:strokeWidth="1dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="Additional Proof Required"
+                        android:textColor="@color/warning_orange"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Multiple reports share common characteristics. Please provide definitive proof such as a secret mark, invoice details, or accessory characteristics to confirm ownership."
+                        android:textColor="@color/text_gray"
+                        android:textSize="11sp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Findora.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Definitive Ownership Proof / Receipt Info">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etAdditionalProof"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:minLines="2"
+                            android:textColor="@color/text_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSubmitAdditionalProof"
+                        style="@style/Widget.Findora.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_marginTop="12dp"
+                        android:text="Submit Additional Proof"
+                        app:backgroundTint="@color/warning_orange" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 6. Submitted Evidences Log -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardEvidenceLog"
+                style="@style/Widget.Findora.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/card_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:id="@+id/layoutEvidenceList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-bold"
+                        android:text="Submitted Evidence Records"
+                        android:textColor="@color/text_dark"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvNoEvidenceYet"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:fontFamily="sans-serif"
+                        android:text="No evidence submitted yet."
+                        android:textColor="@color/text_gray"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="16dp"
+                android:indeterminateTint="@color/primary_purple"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

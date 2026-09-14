@@ -17,6 +17,13 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
+from .verification_constants import (
+    CATEGORIES,
+    EVIDENCE_STRENGTH_CHOICES,
+    MATCH_CONFIDENCE_CHOICES,
+    VERIFICATION_STATUS_CHOICES,
+)
+
 
 class User(AbstractUser):
     """
@@ -160,15 +167,8 @@ class Item(models.Model):
         ('resolved', 'Resolved'),
         ('rejected', 'Rejected'),
     ]
-    CATEGORY_CHOICES = [
-        ('wallet', 'Wallet'),
-        ('phone', 'Phone'),
-        ('keys', 'Keys'),
-        ('bag', 'Bag'),
-        ('id_card', 'ID Card'),
-        ('documents', 'Documents'),
-        ('electronics', 'Electronics'),
-        ('other', 'Other'),
+    CATEGORY_CHOICES = CATEGORIES + [
+        ('id_card', 'ID Card'),  # Alias for backward compatibility
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='items')
@@ -183,7 +183,7 @@ class Item(models.Model):
     type = models.CharField(max_length=5, choices=TYPE_CHOICES)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     image = models.ImageField(upload_to='items/', blank=True, null=True)
     location = models.CharField(max_length=255, blank=True)
@@ -197,6 +197,20 @@ class Item(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
     reported_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # ─── Multi-Category Matching & Strong Verification Fields ─────────────────
+    brand = models.CharField(max_length=100, blank=True, default='')
+    model_name = models.CharField(max_length=100, blank=True, default='')
+    primary_color = models.CharField(max_length=50, blank=True, default='')
+    secondary_color = models.CharField(max_length=50, blank=True, default='')
+    item_date = models.DateTimeField(null=True, blank=True)
+    physical_attributes = models.JSONField(default=dict, blank=True)
+    private_attributes = models.JSONField(default=dict, blank=True)
+    has_unique_identifier = models.BooleanField(default=False)
+    identifier_type = models.CharField(max_length=50, blank=True, default='')
+    identifier_masked = models.CharField(max_length=100, blank=True, default='')
+    identifier_hash = models.CharField(max_length=128, blank=True, default='')
+    verification_status = models.CharField(max_length=30, choices=VERIFICATION_STATUS_CHOICES, default='unverified')
 
     class Meta:
         db_table = 'items'
@@ -260,6 +274,104 @@ class Claim(models.Model):
 
     def __str__(self):
         return f"Claim by {self.claimant.username} on '{self.item.title}'"
+
+
+# ─── Matching & Strong Ownership Verification Models ─────────────────────────
+
+class PotentialMatch(models.Model):
+    """
+    Stage 1: Represents an algorithmic candidate match between a Lost item and a Found item.
+    Does NOT declare ownership; acts as the candidate pair submitted to Stage 2 verification.
+    """
+    lost_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='lost_potential_matches')
+    found_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='found_potential_matches')
+    similarity_score = models.FloatField(default=0.0)
+    confidence_level = models.CharField(max_length=20, choices=MATCH_CONFIDENCE_CHOICES, default='medium')
+    match_reasons = models.JSONField(default=list, blank=True)
+    candidate_evidence = models.JSONField(default=dict, blank=True)
+    evidence_strength = models.CharField(max_length=30, choices=EVIDENCE_STRENGTH_CHOICES, default='generic_candidate')
+    status = models.CharField(max_length=30, choices=VERIFICATION_STATUS_CHOICES, default='potential_match')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'potential_matches'
+        ordering = ['-similarity_score', '-created_at']
+        verbose_name = 'Potential Match'
+        verbose_name_plural = 'Potential Matches'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['lost_item', 'found_item'],
+                name='unique_potential_match_pair',
+            )
+        ]
+
+    def __str__(self):
+        return f"Match ({self.similarity_score:.0f}%): Lost #{self.lost_item_id} ↔ Found #{self.found_item_id} [{self.status}]"
+
+
+class VerificationRequest(models.Model):
+    """
+    Stage 2: Manages the lifecycle of a strong, blind discriminative ownership verification
+    session between an Owner and a Finder for a specific candidate pair.
+    """
+    potential_match = models.ForeignKey(
+        PotentialMatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='verification_requests',
+    )
+    lost_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='lost_verification_requests')
+    found_item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='found_verification_requests')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owner_verifications')
+    finder = models.ForeignKey(User, on_delete=models.CASCADE, related_name='finder_verifications')
+    status = models.CharField(max_length=30, choices=VERIFICATION_STATUS_CHOICES, default='under_verification')
+    overall_confidence = models.FloatField(default=0.0)
+    verification_summary = models.TextField(blank=True, default='')
+    is_contact_allowed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'verification_requests'
+        ordering = ['-created_at']
+        verbose_name = 'Verification Request'
+        verbose_name_plural = 'Verification Requests'
+
+    def __str__(self):
+        return f"Verification #{self.id}: {self.owner.username} & {self.finder.username} [{self.status}]"
+
+
+class VerificationEvidence(models.Model):
+    """
+    Stores individual blind answers, photo proofs, receipts, or discriminative feature declarations
+    submitted during a verification cycle.
+    """
+    verification_request = models.ForeignKey(
+        VerificationRequest,
+        on_delete=models.CASCADE,
+        related_name='evidence_submissions',
+    )
+    submitted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submitted_evidence')
+    evidence_type = models.CharField(max_length=40)
+    evidence_key = models.CharField(max_length=100)
+    submitted_value = models.TextField(blank=True, default='')
+    submitted_image = models.ImageField(upload_to='verification_evidence/', blank=True, null=True)
+    is_blind = models.BooleanField(default=True)
+    match_result = models.CharField(max_length=20, default='pending')
+    discriminative_weight = models.FloatField(default=1.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'verification_evidence'
+        ordering = ['created_at']
+        verbose_name = 'Verification Evidence'
+        verbose_name_plural = 'Verification Evidence'
+
+    def __str__(self):
+        return f"Evidence [{self.evidence_key}] by {self.submitted_by.username} ({self.match_result})"
 
 
 class Conversation(models.Model):
@@ -327,6 +439,7 @@ class Notification(models.Model):
 
     TYPE_CHOICES = [
         ('match', 'Match Found'),
+        ('verification', 'Verification Update'),
         ('approved', 'Report Approved'),
         ('rejected', 'Report Rejected'),
         ('message', 'New Message'),

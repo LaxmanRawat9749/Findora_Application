@@ -171,8 +171,10 @@ public class UploadItemActivity extends BaseActivity {
     private void updateRewardVisibility(boolean isLost) {
         if (isLost) {
             binding.tilReward.setVisibility(View.VISIBLE);
+            binding.cardPrivateEvidence.setVisibility(View.VISIBLE);
         } else {
             binding.tilReward.setVisibility(View.GONE);
+            binding.cardPrivateEvidence.setVisibility(View.GONE);
             binding.etReward.setText("");
         }
     }
@@ -326,12 +328,46 @@ public class UploadItemActivity extends BaseActivity {
         isSubmitting = true;
         setLoading(true);
 
+        String brand = binding.etBrand.getText() != null ? binding.etBrand.getText().toString().trim() : "";
+        String model = binding.etModel.getText() != null ? binding.etModel.getText().toString().trim() : "";
+        String primaryColor = binding.etPrimaryColor.getText() != null ? binding.etPrimaryColor.getText().toString().trim() : "";
+        String secondaryColor = binding.etSecondaryColor.getText() != null ? binding.etSecondaryColor.getText().toString().trim() : "";
+        String privateDamage = binding.etPrivateDamage.getText() != null ? binding.etPrivateDamage.getText().toString().trim() : "";
+        String privateContents = binding.etPrivateContents.getText() != null ? binding.etPrivateContents.getText().toString().trim() : "";
+        String privateIdentifier = binding.etPrivateIdentifier.getText() != null ? binding.etPrivateIdentifier.getText().toString().trim() : "";
+
         Map<String, RequestBody> partMap = new HashMap<>();
         partMap.put("type", RequestBody.create(MediaType.parse("text/plain"), type));
         partMap.put("title", RequestBody.create(MediaType.parse("text/plain"), title));
         partMap.put("description", RequestBody.create(MediaType.parse("text/plain"), description));
         partMap.put("category", RequestBody.create(MediaType.parse("text/plain"), category));
         partMap.put("location", RequestBody.create(MediaType.parse("text/plain"), location));
+        if (!brand.isEmpty()) {
+            partMap.put("brand", RequestBody.create(MediaType.parse("text/plain"), brand));
+        }
+        if (!model.isEmpty()) {
+            partMap.put("model", RequestBody.create(MediaType.parse("text/plain"), model));
+        }
+        if (!primaryColor.isEmpty()) {
+            partMap.put("primary_color", RequestBody.create(MediaType.parse("text/plain"), primaryColor));
+        }
+        if (!secondaryColor.isEmpty()) {
+            partMap.put("secondary_color", RequestBody.create(MediaType.parse("text/plain"), secondaryColor));
+        }
+        if (!privateIdentifier.isEmpty()) {
+            partMap.put("identifier", RequestBody.create(MediaType.parse("text/plain"), privateIdentifier));
+        }
+
+        if ("lost".equalsIgnoreCase(type) && (!privateDamage.isEmpty() || !privateContents.isEmpty() || !privateIdentifier.isEmpty())) {
+            try {
+                org.json.JSONObject privObj = new org.json.JSONObject();
+                if (!privateDamage.isEmpty()) privObj.put("damage_scratches", privateDamage);
+                if (!privateContents.isEmpty()) privObj.put("unique_contents", privateContents);
+                if (!privateIdentifier.isEmpty()) privObj.put("identifier_masked", privateIdentifier);
+                partMap.put("private_attributes", RequestBody.create(MediaType.parse("text/plain"), privObj.toString()));
+            } catch (Exception ignored) {}
+        }
+
         if (linkedLostItemId > 0) {
             partMap.put("parent_item", RequestBody.create(MediaType.parse("text/plain"), String.valueOf(linkedLostItemId)));
         }
