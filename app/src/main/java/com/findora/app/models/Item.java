@@ -51,25 +51,6 @@ public class Item implements Serializable {
     @SerializedName("has_reported")
     private boolean hasReported;
 
-    // ─── Multi-Category Matching & Strong Verification Fields ─────────────────
-    private String brand;
-    @SerializedName("model_name")
-    private String modelName;
-    @SerializedName("primary_color")
-    private String primaryColor;
-    @SerializedName("secondary_color")
-    private String secondaryColor;
-    @SerializedName("item_date")
-    private String itemDate;
-    @SerializedName("has_unique_identifier")
-    private boolean hasUniqueIdentifier;
-    @SerializedName("identifier_type")
-    private String identifierType;
-    @SerializedName("identifier_masked")
-    private String identifierMasked;
-    @SerializedName("verification_status")
-    private String verificationStatus;
-
     private List<ItemImage> images;
 
     public Item() {}
@@ -154,31 +135,4 @@ public class Item implements Serializable {
 
     public List<ItemImage> getImages() { return images; }
     public void setImages(List<ItemImage> images) { this.images = images; }
-
-    public String getBrand() { return brand; }
-    public void setBrand(String brand) { this.brand = brand; }
-
-    public String getModelName() { return modelName; }
-    public void setModelName(String modelName) { this.modelName = modelName; }
-
-    public String getPrimaryColor() { return primaryColor; }
-    public void setPrimaryColor(String primaryColor) { this.primaryColor = primaryColor; }
-
-    public String getSecondaryColor() { return secondaryColor; }
-    public void setSecondaryColor(String secondaryColor) { this.secondaryColor = secondaryColor; }
-
-    public String getItemDate() { return itemDate; }
-    public void setItemDate(String itemDate) { this.itemDate = itemDate; }
-
-    public boolean isHasUniqueIdentifier() { return hasUniqueIdentifier; }
-    public void setHasUniqueIdentifier(boolean hasUniqueIdentifier) { this.hasUniqueIdentifier = hasUniqueIdentifier; }
-
-    public String getIdentifierType() { return identifierType; }
-    public void setIdentifierType(String identifierType) { this.identifierType = identifierType; }
-
-    public String getIdentifierMasked() { return identifierMasked; }
-    public void setIdentifierMasked(String identifierMasked) { this.identifierMasked = identifierMasked; }
-
-    public String getVerificationStatus() { return verificationStatus != null ? verificationStatus : "unverified"; }
-    public void setVerificationStatus(String verificationStatus) { this.verificationStatus = verificationStatus; }
 }

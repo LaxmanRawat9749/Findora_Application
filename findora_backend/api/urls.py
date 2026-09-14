@@ -38,16 +38,6 @@ urlpatterns = [
     path('items/<int:pk>/mark-returned/', views.MarkItemReturnedView.as_view(), name='item-mark-returned'),
     path('items/<int:pk>/confirm-return/', views.ConfirmItemReturnView.as_view(), name='item-confirm-return'),
 
-    # ─── Matching & Ownership Verification ────────────────────────────────────
-    path('matches/', views.PotentialMatchListView.as_view(), name='potential-matches-list'),
-    path('items/<int:pk>/potential-matches/', views.ItemPotentialMatchesView.as_view(), name='item-potential-matches'),
-    path('items/<int:pk>/run-matching/', views.ItemPotentialMatchesView.as_view(), name='item-run-matching'),
-    path('verifications/schema/', views.CategoryVerificationSchemaView.as_view(), name='verification-schema'),
-    path('verifications/start/', views.StartVerificationView.as_view(), name='verification-start'),
-    path('verifications/<int:pk>/', views.VerificationDetailView.as_view(), name='verification-detail'),
-    path('verifications/<int:pk>/submit-evidence/', views.SubmitVerificationEvidenceView.as_view(), name='verification-submit-evidence'),
-    path('verifications/<int:pk>/provide-proof/', views.ProvideAdditionalProofView.as_view(), name='verification-provide-proof'),
-
     # ─── Admin ────────────────────────────────────────────────────────────────
     path('admin/items/', views.AdminItemListView.as_view(), name='admin-item-list'),
     path('admin/items/<int:pk>/verify/', views.AdminVerifyItemView.as_view(), name='admin-verify-item'),

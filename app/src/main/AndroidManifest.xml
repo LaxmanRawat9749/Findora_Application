@@ -113,14 +113,6 @@
             android:name=".activities.PointHistoryActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-        <activity
-            android:name=".activities.PotentialMatchesActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".activities.VerificationActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
 
 
         <activity

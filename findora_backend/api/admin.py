@@ -34,10 +34,7 @@ from .models import (
     ItemImage,
     Notification,
     Payment,
-    PotentialMatch,
     User,
-    VerificationEvidence,
-    VerificationRequest,
 )
 
 # Custom display names for combined Finder Rating & Reputation feature
@@ -1246,61 +1243,6 @@ class PaymentAdmin(admin.ModelAdmin):
             '<span style="background:{};color:white;padding:2px 8px;'
             'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
             color, obj.status,
-        )
-
-
-# ─── Matching & Strong Ownership Verification Admin ─────────────────────────
-
-@admin.register(PotentialMatch)
-class PotentialMatchAdmin(admin.ModelAdmin):
-    list_display = ['id', 'lost_item_link', 'found_item_link', 'similarity_display', 'confidence_level', 'evidence_strength', 'status', 'created_at']
-    list_filter = ['confidence_level', 'evidence_strength', 'status', 'created_at']
-    search_fields = ['lost_item__title', 'found_item__title', 'lost_item__user__username', 'found_item__user__username']
-    readonly_fields = ['created_at', 'updated_at']
-
-    @admin.display(description='Lost Item')
-    def lost_item_link(self, obj):
-        return format_html('<a href="/admin/api/item/{}/change/">#{} - {}</a>', obj.lost_item_id, obj.lost_item_id, obj.lost_item.title)
-
-    @admin.display(description='Found Item')
-    def found_item_link(self, obj):
-        return format_html('<a href="/admin/api/item/{}/change/">#{} - {}</a>', obj.found_item_id, obj.found_item_id, obj.found_item.title)
-
-    @admin.display(description='Similarity')
-    def similarity_display(self, obj):
-        return f"{obj.similarity_score:.0f}%"
-
-
-class VerificationEvidenceInline(admin.TabularInline):
-    model = VerificationEvidence
-    extra = 0
-    readonly_fields = ['submitted_by', 'evidence_type', 'evidence_key', 'submitted_value', 'is_blind', 'match_result', 'discriminative_weight', 'created_at']
-
-
-@admin.register(VerificationRequest)
-class VerificationRequestAdmin(admin.ModelAdmin):
-    list_display = ['id', 'lost_item', 'found_item', 'owner', 'finder', 'status_badge', 'overall_confidence', 'is_contact_allowed', 'created_at']
-    list_filter = ['status', 'is_contact_allowed', 'created_at']
-    search_fields = ['lost_item__title', 'found_item__title', 'owner__username', 'finder__username']
-    inlines = [VerificationEvidenceInline]
-    readonly_fields = ['created_at', 'updated_at', 'verified_at']
-
-    @admin.display(description='Status')
-    def status_badge(self, obj):
-        colors = {
-            'verified_match': '#1D9E75',
-            'under_verification': '#3B82F6',
-            'verification_required': '#F59E0B',
-            'additional_proof_required': '#D97706',
-            'multiple_possible_owners': '#8B5CF6',
-            'verification_failed': '#EF4444',
-            'closed': '#6B7280',
-        }
-        color = colors.get(obj.status, '#3B82F6')
-        return format_html(
-            '<span style="background:{};color:white;padding:2px 8px;'
-            'border-radius:4px;font-size:11px;font-weight:600">{}</span>',
-            color, obj.get_status_display() if hasattr(obj, 'get_status_display') else obj.status,
         )
 
 

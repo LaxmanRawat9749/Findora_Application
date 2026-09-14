@@ -13,8 +13,6 @@ Implements all business logic for:
   Reputation      : profile, points history, rating
 """
 
-import hashlib
-import json
 import logging
 import time
 import re
@@ -46,11 +44,8 @@ from .models import (
     OTPToken,
     Payment,
     PointTransaction,
-    PotentialMatch,
     User,
     UserBadge,
-    VerificationEvidence,
-    VerificationRequest,
 )
 from .permissions import IsAdminRole, IsOwnerOrReadOnly, IsVerifiedUser
 from .reputation_service import (
@@ -67,17 +62,12 @@ from .serializers import (
     ItemSerializer,
     NotificationSerializer,
     PointTransactionSerializer,
-    PotentialMatchSerializer,
     ProfileUpdateSerializer,
     PublicProfileSerializer,
     RateFinderRequestSerializer,
     RegisterSerializer,
-    StartVerificationSerializer,
-    SubmitEvidenceSerializer,
     UserBadgeSerializer,
     UserSerializer,
-    VerificationEvidenceSerializer,
-    VerificationRequestSerializer,
 )
 from .utils import (
     create_otp,
@@ -85,35 +75,8 @@ from .utils import (
     send_otp_email,
     verify_otp,
 )
-from .verification_constants import (
-    CATEGORY_LABELS,
-    CATEGORY_VERIFICATION_SCHEMAS,
-)
-from .verification_engine import (
-    evaluate_verification_session,
-    get_category_schema_for_item,
-    run_candidate_matching_for_item,
-)
 
 logger = logging.getLogger(__name__)
-
-
-def _hash_identifier(raw_id):
-    """Generate SHA-256 hash for secure matching without exposing raw identifier."""
-    if not raw_id:
-        return ''
-    clean = re.sub(r'[\s\-:]', '', str(raw_id)).lower()
-    return hashlib.sha256(clean.encode('utf-8')).hexdigest()
-
-
-def _mask_identifier(raw_id):
-    """Generate masked representation (e.g. ******1234) for safe display."""
-    if not raw_id:
-        return ''
-    raw_str = str(raw_id).strip()
-    if len(raw_str) <= 4:
-        return '*' * len(raw_str)
-    return '*' * (len(raw_str) - 4) + raw_str[-4:]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -936,51 +899,6 @@ class ItemListCreateView(APIView):
                 save_kwargs['title'] = parent_lost_item.title
                 save_kwargs['category'] = parent_lost_item.category
                 save_kwargs['type'] = 'found'
-
-            # Parse optional normalized fields
-            brand = request_data.get('brand')
-            if brand: save_kwargs['brand'] = str(brand).strip()
-            model_name = request_data.get('model_name')
-            if model_name: save_kwargs['model_name'] = str(model_name).strip()
-            primary_color = request_data.get('primary_color')
-            if primary_color: save_kwargs['primary_color'] = str(primary_color).strip()
-            secondary_color = request_data.get('secondary_color')
-            if secondary_color: save_kwargs['secondary_color'] = str(secondary_color).strip()
-            item_date = request_data.get('item_date')
-            if item_date: save_kwargs['item_date'] = item_date
-
-            # Parse physical attributes JSON
-            phys_attrs = request_data.get('physical_attributes')
-            if phys_attrs:
-                if isinstance(phys_attrs, str):
-                    try: phys_attrs = json.loads(phys_attrs)
-                    except Exception: phys_attrs = {'notes': phys_attrs}
-                if isinstance(phys_attrs, dict):
-                    save_kwargs['physical_attributes'] = phys_attrs
-
-            # Parse private owner evidence JSON (Stored privately, never exposed to Finders)
-            priv_attrs = request_data.get('private_attributes')
-            if priv_attrs:
-                if isinstance(priv_attrs, str):
-                    try: priv_attrs = json.loads(priv_attrs)
-                    except Exception: priv_attrs = {'notes': priv_attrs}
-                if isinstance(priv_attrs, dict):
-                    save_kwargs['private_attributes'] = priv_attrs
-
-            # Parse optional identifier (Serial / IMEI / Service Tag)
-            raw_identifier = (
-                request_data.get('identifier')
-                or request_data.get('serial_number')
-                or request_data.get('imei')
-                or request_data.get('service_tag')
-                or request_data.get('asset_id')
-            )
-            if raw_identifier:
-                save_kwargs['has_unique_identifier'] = True
-                save_kwargs['identifier_type'] = request_data.get('identifier_type', 'serial_or_imei')
-                save_kwargs['identifier_masked'] = _mask_identifier(raw_identifier)
-                save_kwargs['identifier_hash'] = _hash_identifier(raw_identifier)
-
             try:
                 item = serializer.save(**save_kwargs)
             except IntegrityError:
@@ -1001,31 +919,6 @@ class ItemListCreateView(APIView):
             # Award points for reporting a found item
             if item.type == 'found':
                 award_found_report_points(request.user, item)
-
-            # If Finder reported directly on an Owner Lost item, establish candidate match and verification
-            if parent_lost_item:
-                pm, _ = PotentialMatch.objects.get_or_create(
-                    lost_item=parent_lost_item,
-                    found_item=item,
-                    defaults={
-                        'similarity_score': 95.0,
-                        'confidence_level': 'high',
-                        'match_reasons': ['Direct Finder report on Owner Lost item'],
-                        'evidence_strength': 'distinctive_features',
-                        'status': 'under_verification',
-                    }
-                )
-                ver_req, _ = VerificationRequest.objects.get_or_create(
-                    lost_item=parent_lost_item,
-                    found_item=item,
-                    defaults={
-                        'potential_match': pm,
-                        'owner': parent_lost_item.user,
-                        'finder': item.user,
-                        'status': 'under_verification',
-                    }
-                )
-                evaluate_verification_session(ver_req)
 
             return Response(ItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
         
@@ -1152,8 +1045,6 @@ class AdminVerifyItemView(APIView):
                 message=f'Your report for "{item.title}" has been approved and is now public.',
                 related_item=item,
             )
-            # Run Stage 1 Candidate Matching Engine asynchronously upon approval
-            threading.Thread(target=run_candidate_matching_for_item, args=(item,), daemon=True).start()
         else:
             item.status = 'rejected'
             item.save(update_fields=['status', 'updated_at'])
@@ -1771,270 +1662,3 @@ class RatingStatusView(APIView):
             'has_rated': existing_rating is not None,
             'rating': FinderRatingSerializer(existing_rating).data if existing_rating else None,
         }, status=status.HTTP_200_OK)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Stage 1 Matching & Stage 2 Strong Ownership Verification Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-class CategoryVerificationSchemaView(APIView):
-    """
-    GET /api/verifications/schema/?category=phone
-    Returns category-tailored blind verification questions and suggested proof types.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        category = request.query_params.get('category', '').strip().lower()
-        if category:
-            schema = get_category_schema_for_item(category)
-            return Response(schema, status=status.HTTP_200_OK)
-        return Response(CATEGORY_VERIFICATION_SCHEMAS, status=status.HTTP_200_OK)
-
-
-class PotentialMatchListView(APIView):
-    """
-    GET /api/matches/ — List candidate item matches discovered by Stage 1 matching engine.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        if request.user.role == 'owner':
-            matches = PotentialMatch.objects.filter(
-                lost_item__user=request.user,
-                lost_item__status='approved'
-            ).select_related('lost_item', 'found_item', 'lost_item__user', 'found_item__user')
-        elif request.user.role == 'finder':
-            matches = PotentialMatch.objects.filter(
-                found_item__user=request.user,
-                found_item__status='approved'
-            ).select_related('lost_item', 'found_item', 'lost_item__user', 'found_item__user')
-        else:
-            matches = PotentialMatch.objects.all().select_related('lost_item', 'found_item', 'lost_item__user', 'found_item__user')
-
-        status_filter = request.query_params.get('status', '').strip()
-        if status_filter:
-            matches = matches.filter(status=status_filter)
-
-        matches = matches.order_by('-similarity_score', '-created_at')
-        serializer = PotentialMatchSerializer(matches, many=True, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class ItemPotentialMatchesView(APIView):
-    """
-    GET  /api/items/{id}/potential-matches/ — List candidate matches for a specific item.
-    POST /api/items/{id}/run-matching/ — Trigger candidate matching engine on demand.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, pk):
-        try:
-            item = Item.objects.get(pk=pk)
-        except Item.DoesNotExist:
-            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if item.type == 'lost':
-            matches = PotentialMatch.objects.filter(lost_item=item)
-        else:
-            matches = PotentialMatch.objects.filter(found_item=item)
-
-        matches = matches.select_related('lost_item', 'found_item', 'lost_item__user', 'found_item__user').order_by('-similarity_score')
-        serializer = PotentialMatchSerializer(matches, many=True, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request, pk):
-        try:
-            item = Item.objects.get(pk=pk)
-        except Item.DoesNotExist:
-            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        created_matches = run_candidate_matching_for_item(item)
-        serializer = PotentialMatchSerializer(created_matches, many=True, context={'request': request})
-        return Response({
-            'message': f'Candidate matching completed. Found {len(created_matches)} potential matches.',
-            'matches': serializer.data
-        }, status=status.HTTP_200_OK)
-
-
-class StartVerificationView(APIView):
-    """
-    POST /api/verifications/start/ — Initiate Stage 2 strong ownership verification cycle.
-    Body: { "potential_match_id": 123 } or { "lost_item_id": 1, "found_item_id": 2 }
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        serializer = StartVerificationSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        pm_id = serializer.validated_data.get('potential_match_id')
-        lost_id = serializer.validated_data.get('lost_item_id')
-        found_id = serializer.validated_data.get('found_item_id')
-
-        potential_match = None
-        if pm_id:
-            try:
-                potential_match = PotentialMatch.objects.select_related('lost_item', 'found_item').get(pk=pm_id)
-                lost_item = potential_match.lost_item
-                found_item = potential_match.found_item
-            except PotentialMatch.DoesNotExist:
-                return Response({'error': 'Potential match not found.'}, status=status.HTTP_404_NOT_FOUND)
-        elif lost_id and found_id:
-            try:
-                lost_item = Item.objects.get(pk=lost_id, type='lost')
-                found_item = Item.objects.get(pk=found_id, type='found')
-                potential_match = PotentialMatch.objects.filter(lost_item=lost_item, found_item=found_item).first()
-            except Item.DoesNotExist:
-                return Response({'error': 'Specified Lost or Found item does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            return Response({'error': 'Either potential_match_id or (lost_item_id, found_item_id) is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if request.user.role != 'admin' and request.user.id not in [lost_item.user_id, found_item.user_id]:
-            return Response({'error': 'You do not have permission to verify these items.'}, status=status.HTTP_403_FORBIDDEN)
-
-        ver_req, created = VerificationRequest.objects.get_or_create(
-            lost_item=lost_item,
-            found_item=found_item,
-            defaults={
-                'potential_match': potential_match,
-                'owner': lost_item.user,
-                'finder': found_item.user,
-                'status': 'under_verification',
-            }
-        )
-
-        if potential_match and potential_match.status == 'potential_match':
-            potential_match.status = 'under_verification'
-            potential_match.save(update_fields=['status'])
-
-        counterpart = found_item.user if request.user.id == lost_item.user_id else lost_item.user
-        if created:
-            Notification.objects.create(
-                user=counterpart,
-                type='verification',
-                related_item=lost_item if request.user.id == found_item.user_id else found_item,
-                message=f"{request.user.username} initiated ownership verification for '{lost_item.title}'. Please answer verification questions."
-            )
-
-        evaluate_verification_session(ver_req)
-
-        return Response(
-            VerificationRequestSerializer(ver_req, context={'request': request}).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        )
-
-
-class VerificationDetailView(APIView):
-    """
-    GET /api/verifications/{id}/ — Retrieve verification session status, summary, and questions.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, pk):
-        try:
-            ver_req = VerificationRequest.objects.select_related(
-                'lost_item', 'found_item', 'owner', 'finder', 'potential_match'
-            ).prefetch_related('evidence_submissions', 'evidence_submissions__submitted_by').get(pk=pk)
-        except VerificationRequest.DoesNotExist:
-            return Response({'error': 'Verification session not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if request.user.role != 'admin' and request.user.id not in [ver_req.owner_id, ver_req.finder_id]:
-            return Response({'error': 'You do not have permission to view this verification.'}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = VerificationRequestSerializer(ver_req, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class SubmitVerificationEvidenceView(APIView):
-    """
-    POST /api/verifications/{id}/submit-evidence/ — Submit a blind answer or evidence piece.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def post(self, request, pk):
-        try:
-            ver_req = VerificationRequest.objects.select_related(
-                'lost_item', 'found_item', 'owner', 'finder'
-            ).get(pk=pk)
-        except VerificationRequest.DoesNotExist:
-            return Response({'error': 'Verification session not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if request.user.id not in [ver_req.owner_id, ver_req.finder_id] and request.user.role != 'admin':
-            return Response({'error': 'You are not a participant in this verification session.'}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = SubmitEvidenceSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        evidence_key = serializer.validated_data['evidence_key']
-        submitted_val = serializer.validated_data.get('submitted_value', '')
-        evidence_type = serializer.validated_data.get('evidence_type', 'blind_qa')
-        image = serializer.validated_data.get('image') or request.FILES.get('image')
-
-        evidence, _ = VerificationEvidence.objects.update_or_create(
-            verification_request=ver_req,
-            submitted_by=request.user,
-            evidence_key=evidence_key,
-            defaults={
-                'submitted_value': submitted_val,
-                'evidence_type': evidence_type,
-                'submitted_image': image if image else None,
-                'is_blind': True,
-                'match_result': 'pending',
-            }
-        )
-
-        evaluate_verification_session(ver_req)
-
-        return Response(
-            VerificationRequestSerializer(ver_req, context={'request': request}).data,
-            status=status.HTTP_200_OK
-        )
-
-
-class ProvideAdditionalProofView(APIView):
-    """
-    POST /api/verifications/{id}/provide-proof/ — Upload invoice, previous photo, or serial proof.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def post(self, request, pk):
-        try:
-            ver_req = VerificationRequest.objects.select_related(
-                'lost_item', 'found_item', 'owner', 'finder'
-            ).get(pk=pk)
-        except VerificationRequest.DoesNotExist:
-            return Response({'error': 'Verification session not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if request.user.id != ver_req.owner_id and request.user.role != 'admin':
-            return Response({'error': 'Only the owner can submit additional ownership proof.'}, status=status.HTTP_403_FORBIDDEN)
-
-        proof_type = request.data.get('proof_type', 'purchase_receipt')
-        description = request.data.get('description', '')
-        image = request.FILES.get('image')
-
-        if not image and not description:
-            return Response({'error': 'Please provide a proof image or detailed proof description.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        VerificationEvidence.objects.create(
-            verification_request=ver_req,
-            submitted_by=request.user,
-            evidence_type=proof_type,
-            evidence_key=f"additional_proof_{int(time.time())}",
-            submitted_value=description,
-            submitted_image=image,
-            is_blind=False,
-            match_result='matched',
-            discriminative_weight=30.0,
-        )
-
-        evaluate_verification_session(ver_req)
-
-        return Response(
-            VerificationRequestSerializer(ver_req, context={'request': request}).data,
-            status=status.HTTP_200_OK
-        )
