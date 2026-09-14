@@ -446,18 +446,7 @@ public class UploadItemActivity extends BaseActivity {
                     Toast.makeText(UploadItemActivity.this, "Item reported successfully!", Toast.LENGTH_LONG).show();
                     finish();
                 } else if (response.code() == 409) {
-                    String errorMsg = "You have already reported this item.";
-                    try {
-                        if (response.errorBody() != null) {
-                            String errJson = response.errorBody().string();
-                            org.json.JSONObject obj = new org.json.JSONObject(errJson);
-                            if (obj.has("error")) {
-                                errorMsg = obj.getString("error");
-                            } else if (obj.has("detail")) {
-                                errorMsg = obj.getString("detail");
-                            }
-                        }
-                    } catch (Exception ignored) {}
+                    String errorMsg = extractErrorMessage(response, "You have already reported this item.");
                     if (linkedLostItemId > 0) {
                         Item parentItem = com.findora.app.cache.FindoraCache.getInstance(UploadItemActivity.this).getCachedItemDetail(linkedLostItemId);
                         if (parentItem != null) {
@@ -468,16 +457,8 @@ public class UploadItemActivity extends BaseActivity {
                     Toast.makeText(UploadItemActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                     finish();
                 } else {
-                    String errorMsg = "Failed to submit report.";
-                    try {
-                        if (response.errorBody() != null) {
-                            String errJson = response.errorBody().string();
-                            org.json.JSONObject obj = new org.json.JSONObject(errJson);
-                            if (obj.has("error")) errorMsg = obj.getString("error");
-                            else if (obj.has("detail")) errorMsg = obj.getString("detail");
-                        }
-                    } catch (Exception ignored) {}
-                    Toast.makeText(UploadItemActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    String errorMsg = extractErrorMessage(response, "Failed to submit report. Please check your inputs.");
+                    Toast.makeText(UploadItemActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                 }
             }
 
@@ -488,6 +469,39 @@ public class UploadItemActivity extends BaseActivity {
                 Toast.makeText(UploadItemActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private String extractErrorMessage(Response<?> response, String fallback) {
+        try {
+            if (response.errorBody() != null) {
+                String errJson = response.errorBody().string();
+                if (errJson != null && !errJson.trim().isEmpty()) {
+                    org.json.JSONObject obj = new org.json.JSONObject(errJson);
+                    if (obj.has("error")) return obj.getString("error");
+                    if (obj.has("detail")) return obj.getString("detail");
+                    if (obj.has("message")) return obj.getString("message");
+
+                    StringBuilder sb = new StringBuilder();
+                    java.util.Iterator<String> keys = obj.keys();
+                    while (keys.hasNext()) {
+                        String key = keys.next();
+                        Object val = obj.get(key);
+                        if (val instanceof org.json.JSONArray) {
+                            org.json.JSONArray arr = (org.json.JSONArray) val;
+                            for (int i = 0; i < arr.length(); i++) {
+                                if (sb.length() > 0) sb.append("\n");
+                                sb.append(arr.optString(i));
+                            }
+                        } else if (val instanceof String) {
+                            if (sb.length() > 0) sb.append("\n");
+                            sb.append((String) val);
+                        }
+                    }
+                    if (sb.length() > 0) return sb.toString();
+                }
+            }
+        } catch (Exception ignored) {}
+        return fallback;
     }
 
     private File compressImage(Uri uri) {

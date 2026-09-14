@@ -401,6 +401,29 @@ class ItemImageSerializer(serializers.ModelSerializer):
         return None
 
 
+class FlexibleJSONField(serializers.JSONField):
+    def to_internal_value(self, data):
+        if isinstance(data, (dict, list)):
+            return data
+        if isinstance(data, str):
+            data = data.strip()
+            if not data or data == 'null':
+                return {}
+            try:
+                import json
+                return json.loads(data)
+            except Exception:
+                import ast
+                try:
+                    res = ast.literal_eval(data)
+                    if isinstance(res, (dict, list)):
+                        return res
+                except Exception:
+                    pass
+                self.fail('invalid')
+        return data
+
+
 class ItemSerializer(serializers.ModelSerializer):
     """
     Full item serializer.
@@ -416,6 +439,8 @@ class ItemSerializer(serializers.ModelSerializer):
     parent_item_title = serializers.SerializerMethodField()
     has_reported = serializers.SerializerMethodField()
     images = ItemImageSerializer(many=True, read_only=True)
+    category_attributes = FlexibleJSONField(required=False, default=dict)
+    item_date = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = Item
@@ -423,22 +448,6 @@ class ItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'status', 'reported_at', 'updated_at', 'is_featured', 'featured_until']
 
     def to_internal_value(self, data):
-        # Decode category_attributes if sent as JSON string (e.g. from multipart form)
-        cat_attrs = data.get('category_attributes')
-        if isinstance(cat_attrs, str) and cat_attrs.strip():
-            try:
-                import json
-                if hasattr(data, '_mutable') and not data._mutable:
-                    data = data.copy()
-                elif not isinstance(data, dict):
-                    try:
-                        data = data.copy()
-                    except Exception:
-                        pass
-                data['category_attributes'] = json.loads(cat_attrs)
-            except Exception:
-                pass
-
         # Auto-fill title & category if parent_item / linked_lost_item is supplied
         parent_id = data.get('parent_item') or data.get('parent_item_id') or data.get('linked_lost_item') or data.get('lost_item_id')
         if parent_id:
