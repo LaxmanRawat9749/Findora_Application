@@ -29,6 +29,8 @@ public class PromoteItemActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityPromoteItemBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

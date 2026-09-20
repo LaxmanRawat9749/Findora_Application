@@ -62,6 +62,8 @@ public class UploadItemActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityUploadItemBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

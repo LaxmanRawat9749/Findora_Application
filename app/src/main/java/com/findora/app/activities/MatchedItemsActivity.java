@@ -26,6 +26,8 @@ public class MatchedItemsActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityMatchedItemsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

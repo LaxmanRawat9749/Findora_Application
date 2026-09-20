@@ -115,13 +115,15 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateNext() {
-        android.util.Log.i("AuthAudit", "SplashActivity started -> Fresh app launch detected");
-        android.util.Log.i("AuthAudit", "Navigation decision: Force LoginActivity on fresh launch");
-        
-        // Double-ensure any stale session is wiped before showing Login
-        sessionManager.logout();
-        
-        Intent intent = new Intent(this, LoginActivity.class);
+        Intent intent;
+        if (sessionManager.isSessionValid()) {
+            android.util.Log.i("SplashActivity", "Active session found for user=" + sessionManager.getUsername() + " -> Navigating to HomeActivity");
+            intent = new Intent(this, HomeActivity.class);
+        } else {
+            android.util.Log.i("SplashActivity", "No active session found -> Navigating to LoginActivity");
+            sessionManager.logout();
+            intent = new Intent(this, LoginActivity.class);
+        }
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         overridePendingTransition(R.anim.fade_in_slow, R.anim.fade_out_slow);

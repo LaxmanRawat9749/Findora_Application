@@ -34,6 +34,8 @@ public class MyReportsActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityMyReportsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

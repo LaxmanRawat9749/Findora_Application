@@ -29,6 +29,8 @@ public class MatchDetailActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityMatchDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

@@ -24,6 +24,8 @@ public class PointHistoryActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityPointHistoryBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

@@ -20,6 +20,7 @@ import threading
 from io import BytesIO
 from PIL import Image, ImageOps
 
+from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.contrib.auth import authenticate
 from django.db import IntegrityError
@@ -112,14 +113,15 @@ class RegisterView(APIView):
         otp = create_otp(user, 'email_verify')
         send_otp_email(user, otp.otp_code, 'email_verify')
 
-        return Response(
-            {
-                'success': True,
-                'message': 'Registration successful. Please check your email for OTP.',
-                'email': user.email,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        res_data = {
+            'success': True,
+            'message': 'Registration successful. Please check your email for OTP.',
+            'email': user.email,
+        }
+        if settings.DEBUG:
+            res_data['debug_otp'] = otp.otp_code
+
+        return Response(res_data, status=status.HTTP_201_CREATED)
 
 
 class VerifyOTPView(APIView):
@@ -193,10 +195,11 @@ class ResendOTPView(APIView):
         otp = create_otp(user, purpose)
         send_otp_email(user, otp.otp_code, purpose)
 
-        return Response(
-            {'message': 'OTP resent successfully.'},
-            status=status.HTTP_200_OK,
-        )
+        res_data = {'message': 'OTP resent successfully.'}
+        if settings.DEBUG:
+            res_data['debug_otp'] = otp.otp_code
+
+        return Response(res_data, status=status.HTTP_200_OK)
 
 
 class HealthCheckView(APIView):
@@ -287,14 +290,15 @@ class LoginView(APIView):
             otp = create_otp(user, 'email_verify')
             send_otp_email(user, otp.otp_code, 'email_verify')
 
-            return Response(
-                {
-                    'error': 'Please verify your email before logging in. A new OTP has been sent to your email.',
-                    'email': user.email,
-                    'action': 'verify',
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            res_data = {
+                'error': 'Please verify your email before logging in. A new OTP has been sent to your email.',
+                'email': user.email,
+                'action': 'verify',
+            }
+            if settings.DEBUG:
+                res_data['debug_otp'] = otp.otp_code
+
+            return Response(res_data, status=status.HTTP_403_FORBIDDEN)
 
         # Step 5: Success — reset counter, issue tokens
         user.reset_failed_attempts()
@@ -372,10 +376,11 @@ class ForgotPasswordView(APIView):
         otp = create_otp(user, 'password_reset')
         send_otp_email(user, otp.otp_code, 'password_reset')
 
-        return Response(
-            {'message': 'Password reset OTP sent to your email.'},
-            status=status.HTTP_200_OK,
-        )
+        res_data = {'message': 'Password reset OTP sent to your email.'}
+        if settings.DEBUG:
+            res_data['debug_otp'] = otp.otp_code
+
+        return Response(res_data, status=status.HTTP_200_OK)
 
 
 class ResetPasswordView(APIView):

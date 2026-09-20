@@ -21,31 +21,33 @@ public class BaseActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        // We log the current activity attempting to start
-        Log.i(TAG, "Current Activity starting: " + this.getClass().getSimpleName());
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        super.onCreate(savedInstanceState);
 
         baseSessionManager = new SessionManager(this);
 
+        Log.i(TAG, "Current Activity starting: " + this.getClass().getSimpleName());
         Log.i(TAG, "SessionManager.isLoggedIn(): " + baseSessionManager.isLoggedIn());
-        Log.i(TAG, "Token value (truncated): " + getTruncatedToken(baseSessionManager.getToken()));
-        Log.i(TAG, "Username: " + baseSessionManager.getUsername());
-        Log.i(TAG, "SharedPreferences values - LastActivity: " + baseSessionManager.getLastActivity());
 
-        // Perform the strict validation check BEFORE super.onCreate() and setContentView()
+        // Perform strict validation check on activity launch
         if (!baseSessionManager.checkAndRequireSession(this)) {
-            Log.w(TAG, "Authentication bypassed or invalid session detected in " + this.getClass().getSimpleName());
-            Log.w(TAG, "Navigation decision: Redirecting to LoginActivity and finishing.");
-            
-            // The activity is finishing; do not proceed with the lifecycle.
-            super.onCreate(savedInstanceState);
+            Log.w(TAG, "Unauthorized access detected in " + this.getClass().getSimpleName() + " -> Redirecting to LoginActivity");
             finish();
             return;
         }
 
-        Log.i(TAG, "Navigation decision: Session valid. Proceeding with " + this.getClass().getSimpleName());
-        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        super.onCreate(savedInstanceState);
         getWindow().setBackgroundDrawableResource(com.findora.app.R.color.screen_background);
+        applySeamlessTransition();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (baseSessionManager != null && !baseSessionManager.checkAndRequireSession(this)) {
+            Log.w(TAG, "Session expired or invalid on resume in " + this.getClass().getSimpleName() + " -> Redirecting to LoginActivity");
+            finish();
+            return;
+        }
         applySeamlessTransition();
     }
 

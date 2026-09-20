@@ -27,6 +27,8 @@ public class ConversationListActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityConversationListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

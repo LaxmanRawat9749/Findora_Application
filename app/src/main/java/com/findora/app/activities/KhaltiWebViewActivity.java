@@ -24,6 +24,8 @@ public class KhaltiWebViewActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isFinishing()) return;
+
         binding = ActivityKhaltiWebviewBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

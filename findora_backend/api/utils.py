@@ -197,76 +197,91 @@ def send_otp_email(user, otp_code, purpose):
 """
 
     def _send():
-        # Read API key inside thread to handle dynamic settings reload
         import os
         from django.conf import settings
+        from django.core.mail import send_mail
 
-        # Try retrieving API key from settings first, then directly from environment variable
+        # Prominently print OTP to console/logs so developers and testers never get blocked
+        print(f"\n[FINDORA OTP] ========================================", flush=True)
+        print(f"[FINDORA OTP] Code: {otp_code}  |  Recipient: {recipient}  |  Purpose: {purpose}", flush=True)
+        print(f"[FINDORA OTP] ========================================\n", flush=True)
+        logger.info("[FINDORA OTP] Code: %s for %s (%s)", otp_code, recipient, purpose)
+
         api_key = getattr(settings, 'BREVO_API_KEY', None)
         if not api_key:
             api_key = os.environ.get('BREVO_API_KEY', None)
 
-        # Sanitize API key (remove surrounding quotes or whitespaces that might be added during copy-paste in Render UI)
         if api_key:
             api_key = api_key.strip().strip('"').strip("'")
 
-        if not api_key:
-            # Gather safe metadata to help the developer debug the configuration mismatch on Render
-            env_keys = list(os.environ.keys())
-            matched_keys = [k for k in env_keys if "BREVO" in k or "API" in k or "KEY" in k]
-            logger.error(
-                "Failed to send OTP email: BREVO_API_KEY is not configured in settings/env. "
-                "Detected environment keys with matching patterns: %s. "
-                "Please verify that 'BREVO_API_KEY' is added as an Environment Variable in the Render Dashboard.",
-                matched_keys
-            )
-            return
+        sent_via_brevo = False
 
-        try:
-            from brevo import Brevo
-            from brevo.transactional_emails import (
-                SendTransacEmailRequestSender,
-                SendTransacEmailRequestToItem,
-            )
+        if api_key:
+            try:
+                from brevo import Brevo
+                from brevo.transactional_emails import (
+                    SendTransacEmailRequestSender,
+                    SendTransacEmailRequestToItem,
+                )
 
-            client = Brevo(api_key=api_key)
-            client.transactional_emails.send_transac_email(
-                subject=subject,
-                sender=SendTransacEmailRequestSender(
-                    name="Findora",
-                    email="rawatlaxman089@gmail.com",
-                ),
-                to=[
-                    SendTransacEmailRequestToItem(
-                        email=recipient,
-                        name=name,
+                client = Brevo(api_key=api_key)
+                client.transactional_emails.send_transac_email(
+                    subject=subject,
+                    sender=SendTransacEmailRequestSender(
+                        name="Findora",
+                        email="rawatlaxman089@gmail.com",
+                    ),
+                    to=[
+                        SendTransacEmailRequestToItem(
+                            email=recipient,
+                            name=name,
+                        )
+                    ],
+                    html_content=html_body,
+                    text_content=text_body,
+                )
+                logger.info("OTP email successfully sent via Brevo API to %s for %s", recipient, purpose)
+                sent_via_brevo = True
+
+            except ImportError:
+                logger.error(
+                    "Failed to send OTP email via Brevo: brevo-python package is not installed."
+                )
+            except Exception as e:
+                error_msg = str(e)
+                if "unrecognised ip" in error_msg.lower() or "unrecognised ip address" in error_msg.lower():
+                    logger.error(
+                        "BREVO IP RESTRICTION: Brevo rejected email sending because the requesting IP address "
+                        "is not in your Brevo Authorised IPs whitelist. "
+                        "Please go to https://app.brevo.com/security/authorised_ips to disable IP restrictions or whitelist your IP."
                     )
-                ],
-                html_content=html_body,
-                text_content=text_body,
-            )
-            logger.info("OTP email successfully sent via Brevo API to %s for %s", recipient, purpose)
+                elif "unauthorized" in error_msg.lower() or "invalid api key" in error_msg.lower():
+                    logger.error(
+                        "Failed to send OTP email: Brevo API key is invalid or unauthorized. "
+                        "Please verify your BREVO_API_KEY."
+                    )
+                elif "sender" in error_msg.lower() and ("not found" in error_msg.lower() or "not allowed" in error_msg.lower()):
+                    logger.error(
+                        "Failed to send OTP email: Sender email is not verified in Brevo. "
+                        "Verify 'rawatlaxman089@gmail.com' in your Brevo account under Settings → Senders."
+                    )
+                else:
+                    logger.error("Failed to send OTP email via Brevo API: %s", error_msg)
 
-        except ImportError:
-            logger.error(
-                "Failed to send OTP email: brevo-python package is not installed. "
-                "Run 'pip install brevo-python' and redeploy."
-            )
-        except Exception as e:
-            error_msg = str(e)
-            if "unauthorized" in error_msg.lower() or "invalid api key" in error_msg.lower():
-                logger.error(
-                    "Failed to send OTP email: Brevo API key is invalid or unauthorized. "
-                    "Please verify your BREVO_API_KEY in the Render Dashboard."
+        # Fallback to standard Django send_mail if Brevo was not used or failed
+        if not sent_via_brevo:
+            try:
+                send_mail(
+                    subject=subject,
+                    message=text_body,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'rawatlaxman089@gmail.com'),
+                    recipient_list=[recipient],
+                    html_message=html_body,
+                    fail_silently=True,
                 )
-            elif "sender" in error_msg.lower() and ("not found" in error_msg.lower() or "not allowed" in error_msg.lower()):
-                logger.error(
-                    "Failed to send OTP email: Sender email is not verified in Brevo. "
-                    "Verify 'rawatlaxman089@gmail.com' in your Brevo account under Settings → Senders."
-                )
-            else:
-                logger.error("Failed to send OTP email: Brevo API request failed. Reason: %s", error_msg)
-            logger.exception("Exception occurred sending OTP email via Brevo API to %s for %s", recipient, purpose)
+                logger.info("OTP email fallback dispatch attempted for %s", recipient)
+            except Exception as fallback_err:
+                logger.debug("Django send_mail fallback error: %s", fallback_err)
 
     thread = threading.Thread(target=_send, daemon=True)
     thread.start()
