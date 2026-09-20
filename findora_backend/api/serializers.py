@@ -8,6 +8,7 @@ read-only / write-only fields appropriately.
 
 import re
 
+from django.db.models import Q
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
@@ -286,6 +287,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             'username', 'email', 'password', 'confirm_password',
             'first_name', 'last_name', 'phone', 'role',
         ]
+        extra_kwargs = {
+            'username': {'validators': []},
+            'email': {'validators': []},
+        }
 
     def validate_email(self, value):
         if value:
@@ -327,10 +332,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         email_exists = False
 
         if username:
-            username_exists = User.objects.filter(username__iexact=username).exists()
+            username_exists = User.objects.filter(username__iexact=username, is_verified=True).exists()
 
         if email:
-            email_exists = User.objects.filter(email__iexact=email.lower().strip()).exists()
+            email_exists = User.objects.filter(email__iexact=email.lower().strip(), is_verified=True).exists()
 
         if username_exists and email_exists:
             errors['username'] = ['Username already exists.']
@@ -354,9 +359,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        username = validated_data['username']
+        email = validated_data['email'].lower().strip()
+
+        # Clean up any existing unverified user with the same username or email
+        User.objects.filter(
+            Q(username__iexact=username) | Q(email__iexact=email),
+            is_verified=False,
+        ).delete()
+
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
+            username=username,
+            email=email,
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),

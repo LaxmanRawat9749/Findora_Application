@@ -9,11 +9,14 @@ class Command(BaseCommand):
         User = get_user_model()
 
         if not User.objects.filter(username="admin").exists():
-            User.objects.create_superuser(
+            admin_user = User.objects.create_superuser(
                 username="admin",
                 email="admin@findora.com",
                 password="admin123"
             )
+            admin_user.role = 'admin'
+            admin_user.is_verified = True
+            admin_user.save(update_fields=['role', 'is_verified'])
 
             self.stdout.write(
                 self.style.SUCCESS("Admin created successfully")

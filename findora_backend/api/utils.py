@@ -43,6 +43,7 @@ def create_otp(user, purpose):
         purpose=purpose,
         expires_at=timezone.now() + timezone.timedelta(minutes=10),
     )
+    logger.info("Created OTP for user %s (email=%s, purpose=%s): %s", user.username, user.email, purpose, otp_code)
     return otp
 
 

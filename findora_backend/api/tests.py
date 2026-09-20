@@ -3867,3 +3867,128 @@ class DynamicCategoryCredentialsAndMatchingTests(TestCase):
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res2.data['conversation_id'], conv_id)
 
+
+class UnverifiedUserRegistrationAndLoginTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('api.views.send_otp_email')
+    def test_re_register_over_unverified_account_succeeds(self, mock_send_email):
+        """Registering with the same username/email as an unverified user succeeds and replaces the record."""
+        # Initial unverified registration
+        unverified = User.objects.create_user(
+            username='stuck_owner',
+            email='stuck@example.com',
+            password='OldPassword123!',
+            role='owner',
+            is_verified=False
+        )
+
+        view = RegisterView.as_view()
+        req = self.factory.post('/api/register/', {
+            'username': 'stuck_owner',
+            'email': 'stuck@example.com',
+            'password': 'NewPassword123!',
+            'confirm_password': 'NewPassword123!',
+            'first_name': 'Updated',
+            'last_name': 'Owner',
+            'phone': '9811111111',
+            'role': 'owner'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 201)
+        self.assertTrue(res.data['success'])
+
+        user = User.objects.get(username='stuck_owner')
+        self.assertEqual(user.first_name, 'Updated')
+        self.assertTrue(user.check_password('NewPassword123!'))
+        self.assertFalse(user.is_verified)
+        self.assertEqual(user.role, 'owner')
+        mock_send_email.assert_called()
+
+    @patch('api.views.send_otp_email')
+    def test_register_over_verified_account_fails(self, mock_send_email):
+        """Registering with the same username as an already verified user is rejected with 400."""
+        User.objects.create_user(
+            username='verified_owner',
+            email='verified@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True
+        )
+
+        view = RegisterView.as_view()
+        req = self.factory.post('/api/register/', {
+            'username': 'verified_owner',
+            'email': 'new_email@example.com',
+            'password': 'Password123!',
+            'confirm_password': 'Password123!',
+            'role': 'owner'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('username', res.data)
+
+    def test_login_unverified_user_wrong_password_returns_401(self):
+        """Login with wrong password on an unverified user returns 401 and does not reveal OTP gate."""
+        User.objects.create_user(
+            username='pending_user',
+            email='pending@example.com',
+            password='CorrectPassword123!',
+            role='owner',
+            is_verified=False
+        )
+
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'pending_user',
+            'password': 'WrongPassword123!'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 401)
+        self.assertIn('Invalid username or password', res.data['error'])
+
+    @patch('api.views.send_otp_email')
+    def test_login_unverified_user_correct_password_dispatches_otp_and_returns_403_verify(self, mock_send_email):
+        """Login with correct password on an unverified user dispatches a fresh OTP and returns 403 action='verify'."""
+        user = User.objects.create_user(
+            username='pending_owner',
+            email='pending_owner@example.com',
+            password='CorrectPassword123!',
+            role='owner',
+            is_verified=False
+        )
+
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'pending_owner',
+            'password': 'CorrectPassword123!'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.data['action'], 'verify')
+        self.assertEqual(res.data['email'], 'pending_owner@example.com')
+        mock_send_email.assert_called_once()
+
+    def test_login_verified_user_correct_password_succeeds(self):
+        """Login with correct password on a verified owner user succeeds and returns JWT tokens."""
+        User.objects.create_user(
+            username='active_owner',
+            email='active_owner@example.com',
+            password='CorrectPassword123!',
+            role='owner',
+            is_verified=True
+        )
+
+        view = LoginView.as_view()
+        req = self.factory.post('/api/login/', {
+            'username': 'active_owner',
+            'password': 'CorrectPassword123!'
+        })
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('access', res.data)
+        self.assertIn('refresh', res.data)
+        self.assertEqual(res.data['user']['role'], 'owner')
+
+

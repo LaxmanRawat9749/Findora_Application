@@ -249,21 +249,7 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # Step 2: Email verification gate
-        if not user.is_verified:
-            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
-            logger.warning("Login failed | reason=unverified_email | username=%r | elapsed=%.1f ms",
-                           username, elapsed_ms)
-            return Response(
-                {
-                    'error': 'Please verify your email before logging in.',
-                    'email': user.email,
-                    'action': 'verify',
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # Step 3: Account lock gate
+        # Step 2: Account lock gate
         if user.is_account_locked():
             time_left = max(1, int((user.locked_until - timezone.now()).total_seconds() / 60))
             elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
@@ -274,7 +260,7 @@ class LoginView(APIView):
                 status=status.HTTP_423_LOCKED,
             )
 
-        # Step 4: Direct password verification (avoids redundant duplicate DB query from authenticate())
+        # Step 3: Direct password verification
         if not user.check_password(password):
             user.increment_failed_attempts()
             remaining = max(0, 5 - user.failed_login_attempts)
@@ -289,6 +275,25 @@ class LoginView(APIView):
             return Response(
                 {'error': f'Invalid username or password. {remaining} attempt(s) left.'},
                 status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Step 4: Email verification gate (only for non-superusers with valid password)
+        if not user.is_verified and not user.is_superuser:
+            elapsed_ms = (time.perf_counter_ns() - start_ns) / 1_000_000
+            logger.warning("Login unverified | username=%r | sending new OTP | elapsed=%.1f ms",
+                           username, elapsed_ms)
+
+            # Generate and dispatch a fresh OTP so the user receives a valid code immediately
+            otp = create_otp(user, 'email_verify')
+            send_otp_email(user, otp.otp_code, 'email_verify')
+
+            return Response(
+                {
+                    'error': 'Please verify your email before logging in. A new OTP has been sent to your email.',
+                    'email': user.email,
+                    'action': 'verify',
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Step 5: Success — reset counter, issue tokens
