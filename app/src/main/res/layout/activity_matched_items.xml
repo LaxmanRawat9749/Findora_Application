@@ -16,35 +16,6 @@
         app:title="Matched Items"
         app:titleTextColor="@color/text_dark" />
 
-    <!-- Info Banner -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/bg_chip_unselected"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_matches"
-            app:tint="@color/primary_purple" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
-            android:fontFamily="sans-serif"
-            android:text="Automated matches found between reported lost and found items based on verification credentials &amp; location."
-            android:textColor="@color/text_dark"
-            android:textSize="12sp" />
-    </LinearLayout>
-
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -59,6 +30,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
+                android:paddingTop="8dp"
                 android:paddingBottom="24dp" />
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
@@ -83,9 +55,9 @@
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:alpha="0.4"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:alpha="0.3"
                 android:src="@drawable/ic_matches"
                 app:tint="@color/primary_purple" />
 
@@ -96,14 +68,15 @@
                 android:fontFamily="sans-serif-bold"
                 android:text="No Matches Found Yet"
                 android:textColor="@color/text_dark"
-                android:textSize="18sp" />
+                android:textSize="17sp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:gravity="center"
-                android:text="When an independently reported item matches your lost or found report, it will appear here automatically."
+                android:lineSpacingExtra="2dp"
+                android:text="When a counterpart item matches your report, it will appear here automatically."
                 android:textColor="@color/text_gray"
                 android:textSize="13sp" />
         </LinearLayout>

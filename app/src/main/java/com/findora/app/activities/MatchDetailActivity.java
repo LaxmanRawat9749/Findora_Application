@@ -79,10 +79,12 @@ public class MatchDetailActivity extends BaseActivity {
         if (score >= 75) {
             binding.tvConfidenceLevel.setText("HIGH CONFIDENCE MATCH");
             binding.tvConfidenceLevel.setTextColor(ContextCompat.getColor(this, R.color.success_green));
-            binding.tvMatchScoreLarge.setTextColor(ContextCompat.getColor(this, R.color.success_green));
+            binding.tvConfidenceLevel.setBackgroundResource(R.drawable.bg_badge_found);
+            binding.tvMatchScoreLarge.setTextColor(ContextCompat.getColor(this, R.color.primary_purple));
         } else {
             binding.tvConfidenceLevel.setText("POTENTIAL MATCH");
             binding.tvConfidenceLevel.setTextColor(ContextCompat.getColor(this, R.color.warning_orange));
+            binding.tvConfidenceLevel.setBackgroundResource(R.drawable.bg_badge_warning);
             binding.tvMatchScoreLarge.setTextColor(ContextCompat.getColor(this, R.color.warning_orange));
         }
 
@@ -90,7 +92,7 @@ public class MatchDetailActivity extends BaseActivity {
         if (match.getMatchedReasons() != null && !match.getMatchedReasons().isEmpty()) {
             StringBuilder sb = new StringBuilder();
             for (String reason : match.getMatchedReasons()) {
-                sb.append("✓ ").append(reason).append("\n");
+                sb.append("✓  ").append(reason).append("\n");
             }
             binding.tvReasonsList.setText(sb.toString().trim());
             binding.layoutReasons.setVisibility(View.VISIBLE);
@@ -146,7 +148,7 @@ public class MatchDetailActivity extends BaseActivity {
         String targetName = isOwner 
                 ? (found != null && found.getUserName() != null ? found.getUserName() : "Finder")
                 : (lost != null && lost.getUserName() != null ? lost.getUserName() : "Owner");
-        binding.btnChat.setText("💬 Chat with " + targetName);
+        binding.btnChat.setText("Message " + targetName);
 
         binding.btnChat.setOnClickListener(v -> initiateChat(match));
     }

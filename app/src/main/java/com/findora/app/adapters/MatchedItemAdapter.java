@@ -62,7 +62,7 @@ public class MatchedItemAdapter extends RecyclerView.Adapter<MatchedItemAdapter.
 
         void bind(MatchedItem match) {
             int score = match.getMatchScore();
-            binding.tvMatchScoreBadge.setText(score + "% MATCH");
+            binding.tvMatchScoreBadge.setText(score + "% Match");
 
             if (score >= 75) {
                 binding.tvMatchScoreBadge.setTextColor(ContextCompat.getColor(context, R.color.success_green));

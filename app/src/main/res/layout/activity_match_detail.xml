@@ -14,7 +14,7 @@
         android:background="@color/screen_background"
         app:navigationIcon="?attr/homeAsUpIndicator"
         app:navigationIconTint="@color/text_dark"
-        app:title="Match Comparison"
+        app:title="Match Details"
         app:titleTextColor="@color/text_dark" />
 
     <ScrollView
@@ -34,9 +34,9 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
+                app:cardElevation="1dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/card_border"
                 app:cardBackgroundColor="@color/card_background">
@@ -55,17 +55,21 @@
                         android:fontFamily="sans-serif-black"
                         android:text="85%"
                         android:textColor="@color/primary_purple"
-                        android:textSize="36sp" />
+                        android:textSize="38sp" />
 
                     <TextView
                         android:id="@+id/tvConfidenceLevel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
+                        android:background="@drawable/bg_badge_found"
                         android:fontFamily="sans-serif-bold"
+                        android:letterSpacing="0.03"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="4dp"
                         android:text="HIGH CONFIDENCE MATCH"
                         android:textColor="@color/success_green"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <!-- Matching Reasons Container -->
                     <LinearLayout
@@ -75,25 +79,25 @@
                         android:layout_marginTop="16dp"
                         android:background="@drawable/bg_chip_unselected"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="14dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:fontFamily="sans-serif-bold"
-                            android:text="Why this is a match:"
+                            android:text="Match Highlights"
                             android:textColor="@color/text_dark"
-                            android:textSize="12sp" />
+                            android:textSize="13sp" />
 
                         <TextView
                             android:id="@+id/tvReasonsList"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="8dp"
                             android:fontFamily="sans-serif"
                             android:lineSpacingExtra="4dp"
                             android:text="• Matching Category: Documents\n• Matching Name on Document: John Doe\n• Location Proximity: Campus Canteen\n• Reported within 2 days"
-                            android:textColor="@color/text_gray"
+                            android:textColor="@color/text_dark"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -105,9 +109,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:fontFamily="sans-serif-bold"
-                android:text="Lost Item Report (Owner)"
+                android:letterSpacing="0.02"
+                android:text="Lost Item Report"
                 android:textColor="@color/error_red"
-                android:textSize="15sp" />
+                android:textSize="14sp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -129,6 +134,7 @@
                         android:id="@+id/ivLostPhoto"
                         android:layout_width="match_parent"
                         android:layout_height="140dp"
+                        android:layout_marginBottom="12dp"
                         android:scaleType="centerCrop"
                         android:visibility="gone" />
 
@@ -146,7 +152,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="Reported by: OwnerName"
+                        android:text="Reported by: Owner"
                         android:textColor="@color/text_gray"
                         android:textSize="12sp" />
 
@@ -188,9 +194,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:fontFamily="sans-serif-bold"
-                android:text="Found Item Report (Finder)"
+                android:letterSpacing="0.02"
+                android:text="Found Item Report"
                 android:textColor="@color/success_green"
-                android:textSize="15sp" />
+                android:textSize="14sp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -212,6 +219,7 @@
                         android:id="@+id/ivFoundPhoto"
                         android:layout_width="match_parent"
                         android:layout_height="140dp"
+                        android:layout_marginBottom="12dp"
                         android:scaleType="centerCrop"
                         android:visibility="gone" />
 
@@ -229,7 +237,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="Reported by: FinderName"
+                        android:text="Reported by: Finder"
                         android:textColor="@color/text_gray"
                         android:textSize="12sp" />
 
@@ -283,7 +291,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:fontFamily="sans-serif-bold"
-            android:text="💬 Chat with Other Party"
+            android:text="Message Reporter"
             app:icon="@drawable/ic_chat"
             app:iconGravity="textStart" />
     </LinearLayout>
