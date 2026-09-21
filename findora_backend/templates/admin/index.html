@@ -89,6 +89,9 @@
             <div class="progress-track">
                 <div class="progress-fill" style="width: {{ match_rate|default:88 }}%;"></div>
             </div>
+            <div class="kpi-subtext">
+                <a href="{% url 'admin:api_matcheditem_changelist' %}?status__exact=resolved" style="font-weight:600; font-size:12px; color:var(--primary);">View resolved matches &rarr;</a>
+            </div>
         </div>
 
         <!-- Pending Review -->

@@ -38,6 +38,7 @@ from .models import (
     Payment,
     User,
 )
+from .reputation_service import process_successful_return_reward
 
 # Custom display names for combined Finder Rating & Reputation feature
 FinderReputation._meta.verbose_name = 'Finder Rating & Reputation'
@@ -960,10 +961,60 @@ class ItemAdmin(admin.ModelAdmin):
             )
         self.message_user(request, f'{updated} item(s) rejected.')
 
-    @admin.action(description='Mark selected items as resolved')
+    @admin.action(description='Mark selected items as resolved (and sync linked reports/matches)')
     def mark_resolved(self, request, queryset):
-        updated = queryset.update(status='resolved')
-        self.message_user(request, f'{updated} item(s) marked as resolved.')
+        now = timezone.now()
+        updated = queryset.update(
+            status='resolved', resolved_at=now, owner_returned_confirm=True, finder_returned_confirm=True
+        )
+        for item in queryset:
+            # Sync counterpart parent / linked reports
+            if item.parent_item:
+                item.parent_item.status = 'resolved'
+                item.parent_item.resolved_at = now
+                item.parent_item.owner_returned_confirm = True
+                item.parent_item.finder_returned_confirm = True
+                item.parent_item.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+            Item.objects.filter(parent_item=item).update(
+                status='resolved', resolved_at=now, owner_returned_confirm=True, finder_returned_confirm=True
+            )
+            # Sync MatchedItem records
+            MatchedItem.objects.filter(Q(lost_item=item) | Q(found_item=item)).update(status='resolved')
+
+            # Reward points
+            if item.type == 'found':
+                owner = item.parent_item.user if item.parent_item else None
+                process_successful_return_reward(finder=item.user, owner=owner, item=item)
+            elif item.type == 'lost':
+                for f_rep in Item.objects.filter(parent_item=item, type='found'):
+                    process_successful_return_reward(finder=f_rep.user, owner=item.user, item=f_rep)
+
+        self.message_user(request, f'{updated} item(s) and their linked matches marked as resolved.')
+
+    def save_model(self, request, obj, form, change):
+        if obj.status == 'resolved' and not obj.resolved_at:
+            obj.resolved_at = timezone.now()
+            obj.owner_returned_confirm = True
+            obj.finder_returned_confirm = True
+        super().save_model(request, obj, form, change)
+        if obj.status == 'resolved':
+            now = obj.resolved_at or timezone.now()
+            if obj.parent_item:
+                obj.parent_item.status = 'resolved'
+                obj.parent_item.resolved_at = now
+                obj.parent_item.owner_returned_confirm = True
+                obj.parent_item.finder_returned_confirm = True
+                obj.parent_item.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+            Item.objects.filter(parent_item=obj).update(
+                status='resolved', resolved_at=now, owner_returned_confirm=True, finder_returned_confirm=True
+            )
+            MatchedItem.objects.filter(Q(lost_item=obj) | Q(found_item=obj)).update(status='resolved')
+            if obj.type == 'found':
+                owner = obj.parent_item.user if obj.parent_item else None
+                process_successful_return_reward(finder=obj.user, owner=owner, item=obj)
+            elif obj.type == 'lost':
+                for f_rep in Item.objects.filter(parent_item=obj, type='found'):
+                    process_successful_return_reward(finder=f_rep.user, owner=obj.user, item=f_rep)
 
 
 # ─── Finder Ratings & Reputation Admin ────────────────────────────────────────
@@ -1253,11 +1304,80 @@ class PaymentAdmin(admin.ModelAdmin):
 @admin.register(MatchedItem)
 class MatchedItemAdmin(admin.ModelAdmin):
     """Admin interface for potential AI and user matches between Lost and Found items."""
-    list_display = ['match_overview', 'lost_item_link', 'found_item_link', 'match_score_badge', 'status_badge', 'created_at']
-    list_filter = ['status', 'created_at']
-    search_fields = ['lost_item__title', 'found_item__title', 'lost_item__description', 'found_item__description']
+    list_display = ['match_overview', 'lost_item_link', 'found_item_link', 'match_score_badge', 'status_badge', 'created_at', 'updated_at']
+    list_filter = ['status', 'created_at', 'updated_at']
+    search_fields = [
+        'lost_item__title', 'found_item__title',
+        'lost_item__description', 'found_item__description',
+        'lost_item__user__username', 'found_item__user__username',
+        'lost_item__user__email', 'found_item__user__email',
+    ]
     ordering = ['-match_score', '-created_at']
     readonly_fields = ['created_at', 'updated_at', 'matched_reasons_display']
+    actions = ['mark_as_resolved', 'mark_as_accepted', 'mark_as_rejected']
+
+    @admin.action(description='Mark selected matches as Resolved (and resolve counterpart items)')
+    def mark_as_resolved(self, request, queryset):
+        now = timezone.now()
+        count = 0
+        for match in queryset:
+            match.status = 'resolved'
+            match.save(update_fields=['status', 'updated_at'])
+
+            lost = match.lost_item
+            if lost and lost.status != 'resolved':
+                lost.status = 'resolved'
+                lost.resolved_at = now
+                lost.owner_returned_confirm = True
+                lost.finder_returned_confirm = True
+                lost.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+
+            found = match.found_item
+            if found and found.status != 'resolved':
+                found.status = 'resolved'
+                found.resolved_at = now
+                found.owner_returned_confirm = True
+                found.finder_returned_confirm = True
+                found.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+
+            if found and lost:
+                process_successful_return_reward(finder=found.user, owner=lost.user, item=found)
+            count += 1
+
+        self.message_user(request, f'{count} match(es) and counterpart items marked as resolved.')
+
+    @admin.action(description='Mark selected matches as Accepted')
+    def mark_as_accepted(self, request, queryset):
+        updated = queryset.update(status='accepted')
+        self.message_user(request, f'{updated} match(es) marked as accepted.')
+
+    @admin.action(description='Mark selected matches as Rejected')
+    def mark_as_rejected(self, request, queryset):
+        updated = queryset.update(status='rejected')
+        self.message_user(request, f'{updated} match(es) marked as rejected.')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.status == 'resolved':
+            now = timezone.now()
+            lost = obj.lost_item
+            if lost and lost.status != 'resolved':
+                lost.status = 'resolved'
+                lost.resolved_at = now
+                lost.owner_returned_confirm = True
+                lost.finder_returned_confirm = True
+                lost.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+
+            found = obj.found_item
+            if found and found.status != 'resolved':
+                found.status = 'resolved'
+                found.resolved_at = now
+                found.owner_returned_confirm = True
+                found.finder_returned_confirm = True
+                found.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+
+            if found and lost:
+                process_successful_return_reward(finder=found.user, owner=lost.user, item=found)
 
     @admin.display(description='Match Overview')
     def match_overview(self, obj):
@@ -1404,9 +1524,13 @@ def findora_admin_index(request, extra_context=None):
         total_lost = Item.objects.filter(type='lost').count()
         total_found = Item.objects.filter(type='found').count()
         pending_reviews = Item.objects.filter(status='pending').count()
-        resolved_matches = Item.objects.filter(status='resolved').count()
+        
+        resolved_items_count = Item.objects.filter(status='resolved').count()
+        resolved_matches_count = MatchedItem.objects.filter(status='resolved').count()
+        resolved_matches = resolved_matches_count if resolved_matches_count > 0 else resolved_items_count
+
         total_items = Item.objects.count()
-        match_rate = round((resolved_matches / total_items * 100)) if total_items > 0 else 88
+        match_rate = round((resolved_items_count / total_items * 100)) if total_items > 0 else 0
 
         potential_matches_count = MatchedItem.objects.filter(status='pending').count()
 
@@ -1418,6 +1542,8 @@ def findora_admin_index(request, extra_context=None):
             'total_found': total_found,
             'pending_reviews': pending_reviews,
             'resolved_matches': resolved_matches,
+            'resolved_matches_count': resolved_matches_count,
+            'resolved_items_count': resolved_items_count,
             'match_rate': match_rate,
             'potential_matches_count': potential_matches_count,
             'recent_items': recent_items,

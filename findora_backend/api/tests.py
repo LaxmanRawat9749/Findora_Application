@@ -3992,3 +3992,190 @@ class UnverifiedUserRegistrationAndLoginTests(TestCase):
         self.assertEqual(res.data['user']['role'], 'owner')
 
 
+class ResolvedMatchesAdminWorkflowTests(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.admin_user = User.objects.create_superuser(
+            username='admin_boss',
+            email='admin@findora.com',
+            password='AdminPassword123!'
+        )
+        self.owner = User.objects.create_user(
+            username='sam_owner',
+            email='sam@example.com',
+            password='Password123!',
+            role='owner',
+            is_verified=True
+        )
+        self.finder = User.objects.create_user(
+            username='rita_finder',
+            email='rita@example.com',
+            password='Password123!',
+            role='finder',
+            is_verified=True
+        )
+
+    def test_matched_item_admin_mark_as_resolved_action(self):
+        """MatchedItemAdmin mark_as_resolved action updates match, lost_item, found_item, and awards points."""
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import MatchedItemAdmin
+        from django.contrib.messages.storage.fallback import FallbackStorage
+
+        lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Brown Wallet', category='wallet', status='approved'
+        )
+        found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found Brown Wallet', category='wallet', status='approved'
+        )
+        match = MatchedItem.objects.create(
+            lost_item=lost_item, found_item=found_item, match_score=90, status='pending'
+        )
+
+        admin_site = AdminSite()
+        matched_admin = MatchedItemAdmin(MatchedItem, admin_site)
+
+        req = self.factory.post('/admin/api/matcheditem/')
+        req.user = self.admin_user
+        setattr(req, 'session', {})
+        setattr(req, '_messages', FallbackStorage(req))
+
+        matched_admin.mark_as_resolved(req, MatchedItem.objects.filter(id=match.id))
+
+        match.refresh_from_db()
+        lost_item.refresh_from_db()
+        found_item.refresh_from_db()
+
+        self.assertEqual(match.status, 'resolved')
+        self.assertEqual(lost_item.status, 'resolved')
+        self.assertTrue(lost_item.owner_returned_confirm)
+        self.assertTrue(lost_item.finder_returned_confirm)
+        self.assertIsNotNone(lost_item.resolved_at)
+
+        self.assertEqual(found_item.status, 'resolved')
+        self.assertTrue(found_item.owner_returned_confirm)
+        self.assertTrue(found_item.finder_returned_confirm)
+        self.assertIsNotNone(found_item.resolved_at)
+
+        rep = FinderReputation.objects.get(user=self.finder)
+        self.assertEqual(rep.successful_returns, 1)
+        self.assertGreater(rep.total_points, 0)
+
+    def test_matched_item_admin_save_model_resolved(self):
+        """Saving MatchedItem with status='resolved' in Django Admin cascades to counterpart items."""
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import MatchedItemAdmin
+
+        lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost iPhone 13', category='phone', status='approved'
+        )
+        found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found iPhone 13 Pro', category='phone', status='approved'
+        )
+        match = MatchedItem.objects.create(
+            lost_item=lost_item, found_item=found_item, match_score=85, status='pending'
+        )
+
+        admin_site = AdminSite()
+        matched_admin = MatchedItemAdmin(MatchedItem, admin_site)
+
+        req = self.factory.post(f'/admin/api/matcheditem/{match.id}/change/')
+        req.user = self.admin_user
+
+        match.status = 'resolved'
+        matched_admin.save_model(req, match, None, change=True)
+
+        lost_item.refresh_from_db()
+        found_item.refresh_from_db()
+
+        self.assertEqual(lost_item.status, 'resolved')
+        self.assertEqual(found_item.status, 'resolved')
+        self.assertTrue(lost_item.owner_returned_confirm)
+        self.assertTrue(found_item.owner_returned_confirm)
+
+    def test_item_admin_mark_resolved_action_syncs_matched_items(self):
+        """ItemAdmin mark_resolved action resolves linked MatchedItem records and counterpart reports."""
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import ItemAdmin
+        from django.contrib.messages.storage.fallback import FallbackStorage
+
+        lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Keys', category='keys', status='approved'
+        )
+        found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found Keys with Keychain', category='keys',
+            status='approved', parent_item=lost_item
+        )
+        match = MatchedItem.objects.create(
+            lost_item=lost_item, found_item=found_item, match_score=92, status='pending'
+        )
+
+        admin_site = AdminSite()
+        item_admin = ItemAdmin(Item, admin_site)
+
+        req = self.factory.post('/admin/api/item/')
+        req.user = self.admin_user
+        setattr(req, 'session', {})
+        setattr(req, '_messages', FallbackStorage(req))
+
+        item_admin.mark_resolved(req, Item.objects.filter(id=lost_item.id))
+
+        match.refresh_from_db()
+        lost_item.refresh_from_db()
+        found_item.refresh_from_db()
+
+        self.assertEqual(lost_item.status, 'resolved')
+        self.assertEqual(found_item.status, 'resolved')
+        self.assertEqual(match.status, 'resolved')
+
+    def test_confirm_item_return_view_syncs_matched_items(self):
+        """ConfirmItemReturnView endpoint resolves counterpart items and sets linked MatchedItem status to resolved."""
+        lost_item = Item.objects.create(
+            user=self.owner, type='lost', title='Lost Gold Ring', category='jewelry',
+            status='approved', owner_returned_confirm=True, finder_returned_confirm=False
+        )
+        found_item = Item.objects.create(
+            user=self.finder, type='found', title='Found Gold Ring', category='jewelry',
+            status='approved', parent_item=lost_item, owner_returned_confirm=True, finder_returned_confirm=False
+        )
+        match = MatchedItem.objects.create(
+            lost_item=lost_item, found_item=found_item, match_score=95, status='pending'
+        )
+
+        view = ConfirmItemReturnView.as_view()
+        req = self.factory.post(f'/api/items/{found_item.id}/confirm-return/')
+        force_authenticate(req, user=self.owner)
+
+        res = view(req, pk=found_item.id)
+        self.assertEqual(res.status_code, 200)
+
+        match.refresh_from_db()
+        lost_item.refresh_from_db()
+        found_item.refresh_from_db()
+
+        self.assertEqual(match.status, 'resolved')
+        self.assertEqual(lost_item.status, 'resolved')
+        self.assertEqual(found_item.status, 'resolved')
+
+    def test_admin_sidebar_stats_context_processor(self):
+        """admin_sidebar_stats context processor provides correct lost, found, pending, and resolved match counts."""
+        from api.context_processors import admin_sidebar_stats
+
+        Item.objects.create(user=self.owner, type='lost', title='L1', status='approved')
+        Item.objects.create(user=self.owner, type='lost', title='L2', status='pending')
+        Item.objects.create(user=self.finder, type='found', title='F1', status='approved')
+        
+        lost3 = Item.objects.create(user=self.owner, type='lost', title='L3', status='resolved')
+        found3 = Item.objects.create(user=self.finder, type='found', title='F3', status='resolved')
+        MatchedItem.objects.create(lost_item=lost3, found_item=found3, match_score=88, status='resolved')
+
+        req = self.factory.get('/admin/api/matcheditem/')
+        stats = admin_sidebar_stats(req)
+
+        self.assertEqual(stats['total_lost'], 3)
+        self.assertEqual(stats['total_found'], 2)
+        self.assertEqual(stats['pending_reviews'], 1)
+        self.assertEqual(stats['resolved_matches_count'], 1)
+        self.assertEqual(stats['potential_matches_count'], 0)
+
+
+

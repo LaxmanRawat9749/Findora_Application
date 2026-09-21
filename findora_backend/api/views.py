@@ -1143,6 +1143,19 @@ class ConfirmItemReturnView(APIView):
         item.resolved_at = timezone.now()
         item.save(update_fields=['finder_returned_confirm', 'status', 'resolved_at', 'updated_at'])
 
+        # Sync linked parent/child reports and MatchedItem status
+        now = item.resolved_at
+        if item.parent_item:
+            item.parent_item.status = 'resolved'
+            item.parent_item.resolved_at = now
+            item.parent_item.owner_returned_confirm = True
+            item.parent_item.finder_returned_confirm = True
+            item.parent_item.save(update_fields=['status', 'resolved_at', 'owner_returned_confirm', 'finder_returned_confirm', 'updated_at'])
+        Item.objects.filter(parent_item=item).update(
+            status='resolved', resolved_at=now, owner_returned_confirm=True, finder_returned_confirm=True
+        )
+        MatchedItem.objects.filter(Q(lost_item=item) | Q(found_item=item)).update(status='resolved')
+
         # Determine finder and owner for reputation points and rating
         if item.type == 'lost':
             finder_user = request.user
