@@ -15,6 +15,7 @@ import com.findora.app.models.MatchedItem;
 import com.findora.app.network.ApiService;
 import com.findora.app.network.RetrofitClient;
 import com.findora.app.utils.Constants;
+import com.findora.app.utils.GlideImageHelper;
 import java.util.Map;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -115,11 +116,18 @@ public class MatchDetailActivity extends BaseActivity {
 
             formatAttributes(binding.tvLostDetailCredentials, lost.getCategoryAttributes());
 
-            if (lost.getImageUrl() != null && !lost.getImageUrl().isEmpty()) {
+            final String lostImageUrl = lost.getImageUrl();
+            if (lostImageUrl != null && !lostImageUrl.trim().isEmpty()) {
                 binding.ivLostPhoto.setVisibility(View.VISIBLE);
-                Glide.with(this).load(lost.getImageUrl()).into(binding.ivLostPhoto);
+                GlideImageHelper.loadItemDetail(this, lostImageUrl, binding.ivLostPhoto);
+                binding.ivLostPhoto.setOnClickListener(v -> {
+                    Intent intent = new Intent(MatchDetailActivity.this, FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, lostImageUrl);
+                    startActivity(intent);
+                });
             } else {
                 binding.ivLostPhoto.setVisibility(View.GONE);
+                binding.ivLostPhoto.setOnClickListener(null);
             }
         }
 
@@ -135,11 +143,18 @@ public class MatchDetailActivity extends BaseActivity {
 
             formatAttributes(binding.tvFoundDetailCredentials, found.getCategoryAttributes());
 
-            if (found.getImageUrl() != null && !found.getImageUrl().isEmpty()) {
+            final String foundImageUrl = found.getImageUrl();
+            if (foundImageUrl != null && !foundImageUrl.trim().isEmpty()) {
                 binding.ivFoundPhoto.setVisibility(View.VISIBLE);
-                Glide.with(this).load(found.getImageUrl()).into(binding.ivFoundPhoto);
+                GlideImageHelper.loadItemDetail(this, foundImageUrl, binding.ivFoundPhoto);
+                binding.ivFoundPhoto.setOnClickListener(v -> {
+                    Intent intent = new Intent(MatchDetailActivity.this, FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_URL, foundImageUrl);
+                    startActivity(intent);
+                });
             } else {
                 binding.ivFoundPhoto.setVisibility(View.GONE);
+                binding.ivFoundPhoto.setOnClickListener(null);
             }
         }
 

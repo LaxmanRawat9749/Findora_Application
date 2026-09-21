@@ -133,8 +133,13 @@
                     <ImageView
                         android:id="@+id/ivLostPhoto"
                         android:layout_width="match_parent"
-                        android:layout_height="140dp"
+                        android:layout_height="160dp"
                         android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_chip_unselected"
+                        android:clickable="true"
+                        android:contentDescription="Lost item photo - Tap to view full screen"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
                         android:scaleType="centerCrop"
                         android:visibility="gone" />
 
@@ -218,8 +223,13 @@
                     <ImageView
                         android:id="@+id/ivFoundPhoto"
                         android:layout_width="match_parent"
-                        android:layout_height="140dp"
+                        android:layout_height="160dp"
                         android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_chip_unselected"
+                        android:clickable="true"
+                        android:contentDescription="Found item photo - Tap to view full screen"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
                         android:scaleType="centerCrop"
                         android:visibility="gone" />
 
