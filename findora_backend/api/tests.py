@@ -4178,5 +4178,31 @@ class ResolvedMatchesAdminWorkflowTests(TestCase):
         self.assertEqual(stats['resolved_matches_count'], 1)
         self.assertEqual(stats['potential_matches_count'], 0)
 
+    def test_finder_reputation_admin_changelist_view_with_ratings(self):
+        """FinderReputationAdmin changelist renders without ValueError on rated finders."""
+        from django.contrib.admin.sites import AdminSite
+        from api.admin import FinderReputationAdmin
+
+        rep, _ = FinderReputation.objects.get_or_create(user=self.finder)
+        rep.rating_count = 3
+        rep.average_rating = 4.8
+        rep.total_points = 250
+        rep.successful_returns = 2
+        rep.save()
+
+        admin_site = AdminSite()
+        rep_admin = FinderReputationAdmin(FinderReputation, admin_site)
+
+        # Verify average_rating_display method returns formatted html without throwing ValueError
+        rating_html = rep_admin.average_rating_display(rep)
+        self.assertIn('4.8', str(rating_html))
+        self.assertIn('⭐', str(rating_html))
+
+        # Test changelist GET request with Django test client
+        self.client.force_login(self.admin_user)
+        response = self.client.get('/admin/api/finderreputation/')
+        self.assertEqual(response.status_code, 200)
+
+
 
 

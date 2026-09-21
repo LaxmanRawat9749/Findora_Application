@@ -1120,11 +1120,12 @@ class FinderReputationAdmin(admin.ModelAdmin):
     def average_rating_display(self, obj):
         if obj.rating_count > 0:
             stars = '★' * int(round(obj.average_rating)) + '☆' * (5 - int(round(obj.average_rating)))
+            avg_str = f"{float(obj.average_rating):.1f}"
             return format_html(
                 '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;'
-                'border-radius:4px;font-weight:700">⭐ {:.1f}</span> '
+                'border-radius:4px;font-weight:700">⭐ {}</span> '
                 '<span style="color:#D97706;font-size:11px;">{}</span>',
-                obj.average_rating, stars
+                avg_str, stars
             )
         return mark_safe(
             '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:4px">New / Unrated</span>'
