@@ -1,7 +1,13 @@
 package com.findora.app.utils;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
+import android.net.Uri;
 import android.widget.ImageView;
+import android.widget.Toast;
+
+import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -9,8 +15,15 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.findora.app.R;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Centralized Glide helper for smart memory and persistent disk caching.
@@ -196,5 +209,100 @@ public final class GlideImageHelper {
                 .dontAnimate()
                 .error(R.drawable.ic_image)
                 .into(target);
+    }
+
+    private static final ExecutorService CLIPBOARD_EXECUTOR = Executors.newSingleThreadExecutor();
+
+    /**
+     * Retrieves cached image file and copies it as a content URI to Android Clipboard.
+     * Also supports copying the optional caption.
+     */
+    public static void copyImageToClipboard(Context context, String imageUrl, String caption) {
+        if (context == null) return;
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            if (caption != null && !caption.trim().isEmpty()) {
+                ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    ClipData clip = ClipData.newPlainText("Caption", caption);
+                    clipboard.setPrimaryClip(clip);
+                    Toast.makeText(context, "Caption copied", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(context, "No image to copy", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
+        Toast.makeText(context, "Copying image...", Toast.LENGTH_SHORT).show();
+
+        CLIPBOARD_EXECUTOR.execute(() -> {
+            try {
+                Object model = getGlideModel(imageUrl);
+                File srcFile = Glide.with(context.getApplicationContext())
+                        .asFile()
+                        .load(model)
+                        .submit()
+                        .get();
+
+                if (srcFile == null || !srcFile.exists()) {
+                    throw new Exception("Source image file not found");
+                }
+
+                File copyDir = new File(context.getCacheDir(), "copied_images");
+                if (!copyDir.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    copyDir.mkdirs();
+                }
+
+                File destFile = new File(copyDir, "chat_img_" + System.currentTimeMillis() + ".jpg");
+                try (InputStream in = new FileInputStream(srcFile);
+                     OutputStream out = new FileOutputStream(destFile)) {
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    while ((len = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+                    out.flush();
+                }
+
+                Uri contentUri = FileProvider.getUriForFile(
+                        context,
+                        context.getPackageName() + ".fileprovider",
+                        destFile
+                );
+
+                android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                mainHandler.post(() -> {
+                    try {
+                        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            ClipData clip = ClipData.newUri(context.getContentResolver(), "Chat Image", contentUri);
+                            if (caption != null && !caption.trim().isEmpty()) {
+                                clip.addItem(new ClipData.Item(caption));
+                            }
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(context, "Image copied to clipboard", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(context, "Failed to copy image to clipboard", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                mainHandler.post(() -> {
+                    if (caption != null && !caption.trim().isEmpty()) {
+                        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            ClipData clip = ClipData.newPlainText("Caption", caption);
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(context, "Caption copied", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(context, "Failed to copy image", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 }

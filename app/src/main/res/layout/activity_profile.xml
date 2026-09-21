@@ -154,6 +154,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/spacing_medium"
+                android:visibility="gone"
                 app:cardElevation="1dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/card_border"
@@ -398,7 +399,8 @@
                             android:foreground="?attr/selectableItemBackground"
                             android:gravity="center_horizontal"
                             android:orientation="vertical"
-                            android:padding="8dp">
+                            android:padding="8dp"
+                            android:visibility="gone">
 
                             <TextView
                                 android:id="@+id/tvFoundReportsCount"
@@ -432,7 +434,8 @@
                             android:foreground="?attr/selectableItemBackground"
                             android:gravity="center_horizontal"
                             android:orientation="vertical"
-                            android:padding="8dp">
+                            android:padding="8dp"
+                            android:visibility="gone">
 
                             <TextView
                                 android:id="@+id/tvItemsRecoveredCount"

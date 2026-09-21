@@ -777,10 +777,12 @@ public class ChatActivity extends BaseActivity {
         View bottomSheetView = getLayoutInflater().inflate(R.layout.layout_chat_bottom_sheet, null);
         dialog.setContentView(bottomSheetView);
 
-        View btnCopy = bottomSheetView.findViewById(R.id.btnCopy);
+        android.widget.TextView btnCopy = bottomSheetView.findViewById(R.id.btnCopy);
         View btnEdit = bottomSheetView.findViewById(R.id.btnEdit);
         View btnDeleteMe = bottomSheetView.findViewById(R.id.btnDeleteMe);
         View btnDeleteEveryone = bottomSheetView.findViewById(R.id.btnDeleteEveryone);
+
+        boolean isImage = "image".equals(message.getMessageType());
 
         if (message.isDeletedForEveryone()) {
             btnCopy.setVisibility(View.GONE);
@@ -788,14 +790,23 @@ public class ChatActivity extends BaseActivity {
             btnDeleteEveryone.setVisibility(View.GONE);
         } else {
             btnCopy.setVisibility(View.VISIBLE);
+            if (isImage) {
+                btnCopy.setText("Copy Image");
+            } else {
+                btnCopy.setText("Copy Message");
+            }
+
             btnCopy.setOnClickListener(v -> {
                 dialog.dismiss();
-                String textToCopy = "image".equals(message.getMessageType()) ? message.getCaption() : message.getMessage();
-                if (textToCopy == null) textToCopy = "";
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clip = ClipData.newPlainText("Message", textToCopy);
-                if (clipboard != null) clipboard.setPrimaryClip(clip);
-                Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+                if (isImage) {
+                    com.findora.app.utils.GlideImageHelper.copyImageToClipboard(ChatActivity.this, message.getImageUrl(), message.getCaption());
+                } else {
+                    String textToCopy = message.getMessage() != null ? message.getMessage() : "";
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = ClipData.newPlainText("Message", textToCopy);
+                    if (clipboard != null) clipboard.setPrimaryClip(clip);
+                    Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show();
+                }
             });
 
             if (message.getSender() == baseSessionManager.getUserId()) {

@@ -226,10 +226,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:gravity="center"
                 android:weightSum="3">
 
                 <!-- Lost -->
                 <LinearLayout
+                    android:id="@+id/layoutLostStat"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -255,11 +257,13 @@
 
                 <!-- Found -->
                 <LinearLayout
+                    android:id="@+id/layoutFoundStat"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="center"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
                     <TextView
                         android:id="@+id/tvFoundCount"
@@ -280,11 +284,13 @@
 
                 <!-- Recovered -->
                 <LinearLayout
+                    android:id="@+id/layoutRecoveredStat"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="center"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
                     <TextView
                         android:id="@+id/tvRecoveredCount"

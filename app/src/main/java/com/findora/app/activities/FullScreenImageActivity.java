@@ -18,13 +18,20 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
         ZoomableImageView ivFullScreen = findViewById(R.id.ivFullScreen);
         ImageView ivClose = findViewById(R.id.ivClose);
+        ImageView ivCopy = findViewById(R.id.ivCopy);
 
         ivClose.setOnClickListener(v -> finish());
 
         String imageUrl = getIntent().getStringExtra(EXTRA_IMAGE_URL);
         if (imageUrl != null) {
             com.findora.app.utils.GlideImageHelper.loadFullScreenImage(this, imageUrl, ivFullScreen);
+            if (ivCopy != null) {
+                ivCopy.setOnClickListener(v -> com.findora.app.utils.GlideImageHelper.copyImageToClipboard(this, imageUrl, null));
+            }
+        } else {
+            if (ivCopy != null) {
+                ivCopy.setVisibility(android.view.View.GONE);
+            }
         }
-
     }
 }

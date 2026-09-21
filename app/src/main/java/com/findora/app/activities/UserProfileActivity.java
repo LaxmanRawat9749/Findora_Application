@@ -103,12 +103,15 @@ public class UserProfileActivity extends BaseActivity {
             binding.tvMemberSince.setText("Member since " + createdAt.substring(0, 10));
         }
 
-        binding.tvLostCount.setText(String.valueOf(profile.getLostReports()));
-        binding.tvFoundCount.setText(String.valueOf(profile.getFoundReports()));
-        binding.tvRecoveredCount.setText(String.valueOf(profile.getRecoveredItems()));
-
-        // Bind Reputation & Points ONLY for Finders
+        // Role-segregated stats and reputation
         if ("finder".equalsIgnoreCase(profile.getRole())) {
+            binding.layoutLostStat.setVisibility(View.GONE);
+            binding.layoutFoundStat.setVisibility(View.VISIBLE);
+            binding.layoutRecoveredStat.setVisibility(View.VISIBLE);
+
+            binding.tvFoundCount.setText(String.valueOf(profile.getFoundReports()));
+            binding.tvRecoveredCount.setText(String.valueOf(profile.getRecoveredItems()));
+
             binding.cvReputationInfo.setVisibility(View.VISIBLE);
             binding.tvUserReputation.setText(profile.getReputationDisplay());
             binding.tvUserReturns.setText(String.valueOf(profile.getSuccessfulReturns()));
@@ -120,6 +123,13 @@ public class UserProfileActivity extends BaseActivity {
                 binding.tvUserBadgeChip.setVisibility(View.GONE);
             }
         } else {
+            // Owner Profile: ONLY show Lost Reports; remove/hide Found and Recovered
+            binding.layoutLostStat.setVisibility(View.VISIBLE);
+            binding.layoutFoundStat.setVisibility(View.GONE);
+            binding.layoutRecoveredStat.setVisibility(View.GONE);
+
+            binding.tvLostCount.setText(String.valueOf(profile.getLostReports()));
+
             binding.cvReputationInfo.setVisibility(View.GONE);
             binding.tvUserBadgeChip.setVisibility(View.GONE);
         }
