@@ -2980,7 +2980,8 @@ class FinderRecoveredItemsCountTests(TestCase):
         )
         process_successful_return_reward(self.finder, self.owner, item2)
 
-        user_serializer2 = UserSerializer(self.finder)
+        finder_fresh = User.objects.get(id=self.finder.id)
+        user_serializer2 = UserSerializer(finder_fresh)
         self.assertEqual(user_serializer2.data['successful_returns'], 2)
         self.assertEqual(user_serializer2.data['items_recovered'], 2)
 
