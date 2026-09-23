@@ -1,0 +1,1207 @@
+P[0] (Style: Normal, align: CENTER (1)): A Project Report
+   --> [HAS DRAWING/IMAGE]
+P[1] (Style: Normal, align: CENTER (1)): FINDORA: COMMUNITY-DRIVEN LOST AND FOUND PLATFORM
+   --> [HAS DRAWING/IMAGE]
+P[2] (Style: Normal, align: CENTER (1)): (A Web and Mobile-Based Item Recovery and Verification System)
+   --> [HAS DRAWING/IMAGE]
+P[3] (Style: Normal, align: CENTER (1)): In partial fulfillment of the requirements for the degree of
+   --> [HAS DRAWING/IMAGE]
+P[4] (Style: Normal, align: CENTER (1)): Bachelor of Computer Application (BCA)
+   --> [HAS DRAWING/IMAGE]
+P[5] (Style: Normal, align: CENTER (1)): under
+   --> [HAS DRAWING/IMAGE]
+P[6] (Style: Normal, align: CENTER (1)): POKHARA UNIVERSITY
+   --> [HAS DRAWING/IMAGE]
+P[7] (Style: Normal, align: CENTER (1)): Submitted to:
+   --> [HAS DRAWING/IMAGE]
+P[8] (Style: Normal, align: CENTER (1)): Department of Computer Application
+   --> [HAS DRAWING/IMAGE]
+P[9] (Style: Normal, align: CENTER (1)): Oxford College of Engineering and Management
+   --> [HAS DRAWING/IMAGE]
+P[10] (Style: Normal, align: CENTER (1)): Gaindakot, Nawalpur, Nepal
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[11] (Style: Normal, align: CENTER (1)): Under the guidance of:
+   --> [HAS DRAWING/IMAGE]
+P[12] (Style: Normal, align: CENTER (1)): Mr. Anil Thapaliya  |  Mr. Shiva Pathak
+   --> [HAS DRAWING/IMAGE]
+P[13] (Style: Normal, align: CENTER (1)): Project Supervisors, Department of Computer Application
+   --> [HAS DRAWING/IMAGE]
+P[14] (Style: Normal, align: CENTER (1)): Submitted by:
+   --> [HAS DRAWING/IMAGE]
+P[15] (Style: Normal, align: CENTER (1)): Bivek Kafle, BCA 8th Semester [PU Symbol No: 22530190]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[16] (Style: Normal, align: CENTER (1)): Laxman Rawat, BCA 8th Semester [PU Symbol No: 22530204]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[17] (Style: Normal, align: CENTER (1)): September 2026
+   --> [HAS DRAWING/IMAGE]
+P[18] (Style: Heading 1, align: CENTER (1)): Students’ Declaration
+   --> [HAS DRAWING/IMAGE]
+P[19] (Style: Normal, align: None): Declaration for “FINDORA: Community-Driven Lost and Found Platform”
+   --> [HAS DRAWING/IMAGE]
+P[20] (Style: Normal, align: JUSTIFY (3)): We hereby declare that this project report titled “FINDORA: Community-Driven Lost and Found Platform” is our original work. We are the only authors of this project, and it has not been submitted elsewhere for any purpose. We also declare that no sources other than the ones listed here have been used in this work.
+   --> [HAS DRAWING/IMAGE]
+P[21] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[22] (Style: Heading 1, align: CENTER (1)): Supervisor’s Recommendation
+   --> [HAS DRAWING/IMAGE]
+P[23] (Style: Normal, align: JUSTIFY (3)): We hereby recommend that this project titled “FINDORA: Community-Driven Lost and Found Platform” by Bivek Kafle and Laxman Rawat during their 8th semester in partial fulfillment of the requirements for the degree of BCA under Pokhara University, is completed under our supervision and is to our satisfaction for final evaluation.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[24] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[25] (Style: Heading 1, align: CENTER (1)): Letter of Approval
+   --> [HAS DRAWING/IMAGE]
+P[26] (Style: Normal, align: JUSTIFY (3)): We certify that we have examined the report titled “FINDORA: Community-Driven Lost and Found Platform” and are satisfied with the project defense. This project work is satisfactory in the scope and qualifies as project in partial fulfillment of the requirements for the degree of Bachelor of Computer Application under Pokhara University.
+   --> [HAS DRAWING/IMAGE]
+P[27] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[28] (Style: Heading 1, align: CENTER (1)): Acknowledgements
+   --> [HAS DRAWING/IMAGE]
+P[29] (Style: Normal, align: JUSTIFY (3)): We would like to express our deepest gratitude to our project supervisors, Mr. Anil Thapaliya and Mr. Shiva Pathak, for their invaluable guidance, constructive feedback, insightful suggestions, and continuous encouragement throughout the development and documentation of the Findora project.
+   --> [HAS DRAWING/IMAGE]
+P[30] (Style: Normal, align: JUSTIFY (3)): We extend our sincere thanks to Head of the Department (HOD), Bachelor of Computer Application (BCA), and all respected faculty members of Oxford College of Engineering and Management for providing the necessary academic environment, technical facilities, and administrative support.
+   --> [HAS DRAWING/IMAGE]
+P[31] (Style: Normal, align: JUSTIFY (3)): We are also thankful to Pokhara University for designing a rigorous and comprehensive BCA curriculum that empowered us to tackle real-world software engineering challenges.
+   --> [HAS DRAWING/IMAGE]
+P[32] (Style: Normal, align: JUSTIFY (3)): Finally, we express our heartfelt appreciation to our parents, family members, and friends whose unwavering moral support, patience, and motivation enabled us to successfully bring this project to fruition.
+   --> [HAS DRAWING/IMAGE]
+P[33] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[34] (Style: Heading 1, align: CENTER (1)): Abstract
+   --> [HAS DRAWING/IMAGE]
+P[35] (Style: Normal, align: JUSTIFY (3)): Findora is a digital lost-and-found ecosystem designed to simplify, accelerate, and secure the process of reporting, identifying, and recovering lost personal belongings within communities, academic institutions, and public venues. Traditional lost-and-found mechanisms often suffer from fragmentation, lack of secure verification, high friction in communication, and inadequate tracking. Findora addresses these shortcomings through a centralized web and mobile architecture featuring real-time feed updates, multi-criteria categorization, automated matching algorithms, and a multi-step ownership verification protocol.
+   --> [HAS DRAWING/IMAGE]
+P[36] (Style: Normal, align: JUSTIFY (3)): Problem Statement: Inefficient, decentralized, and unverifiable manual methods for recovering misplaced items.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[37] (Style: Normal, align: JUSTIFY (3)): Objectives: Build a scalable, cross-platform platform enabling instant item reporting, secure claims, and reliable returned item verification.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[38] (Style: Normal, align: JUSTIFY (3)): Methodology: Agile development methodology with iterative sprints, robust API-driven communication, and component-based UI design.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[39] (Style: Normal, align: JUSTIFY (3)): Key Features: Categorized lost & found listings, automated attribute matching, secure proof-of-ownership claim verification, reputation & reward tracking, real-time status alerts, and an administrative moderation panel.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[40] (Style: Normal, align: JUSTIFY (3)): Tools & Technologies: Python, Django REST Framework, PostgreSQL, HTML5, Git.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[41] (Style: Normal, align: JUSTIFY (3)): Results: A responsive, secure, and production-ready solution that significantly reduces item recovery turnaround time while safeguarding user privacy.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[42] (Style: Normal, align: JUSTIFY (3)): Keywords: Lost and Found, Item Recovery, Django REST Framework, PostgreSQL, Kotlin Android, Claim Verification, Community Platform.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[43] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[44] (Style: Heading 1, align: CENTER (1)): List of Abbreviations
+   --> [HAS DRAWING/IMAGE]
+P[45] (Style: Normal, align: None): List of Figures
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[46] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[47] (Style: Heading 1, align: CENTER (1)): List of Tables
+   --> [HAS DRAWING/IMAGE]
+P[48] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[49] (Style: Heading 1, align: CENTER (1)): Table of Contents
+   --> [HAS DRAWING/IMAGE]
+P[50] (Style: Normal, align: None): Students’ Declaration . . . . . . . . . . . . . . . . . . . . . . . i
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[51] (Style: Normal, align: None): Supervisor’s Recommendation . . . . . . . . . . . . . . . . . . . . ii
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[52] (Style: Normal, align: None): Letter of Approval . . . . . . . . . . . . . . . . . . . . . . . . iii
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[53] (Style: Normal, align: None): Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . iv
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[54] (Style: Normal, align: None): Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . v
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[55] (Style: Normal, align: None): List of Abbreviations . . . . . . . . . . . . . . . . . . . . . . . vi
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[56] (Style: Normal, align: None): List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . vii
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[57] (Style: Normal, align: None): List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . viii
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[58] (Style: Normal, align: None): CHAPTER 1: INTRODUCTION . . . . . . . . . . . . . . . . . . . . . . 1
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[59] (Style: Normal, align: None):     1.1 Background . . . . . . . . . . . . . . . . . . . . . . 1
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[60] (Style: Normal, align: None):     1.2 Objectives . . . . . . . . . . . . . . . . . . . . . . 2
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[61] (Style: Normal, align: None):     1.3 Purpose, Scope, and Applicability . . . . . . . . . . . 3
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[62] (Style: Normal, align: None):         1.3.1 Purpose . . . . . . . . . . . . . . . . . . 3
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[63] (Style: Normal, align: None):         1.3.2 Scope . . . . . . . . . . . . . . . . . . . 3
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[64] (Style: Normal, align: None):         1.3.3 Applicability . . . . . . . . . . . . . . . 4
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[65] (Style: Normal, align: None):     1.4 Achievements . . . . . . . . . . . . . . . . . . . . . 4
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[66] (Style: Normal, align: None):     1.5 Organization of Report . . . . . . . . . . . . . . . . 5
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[67] (Style: Normal, align: None): CHAPTER 2: SURVEY AND REVIEWS . . . . . . . . . . . . . . . . . . . 6
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[68] (Style: Normal, align: None):     2.1 Literature Survey . . . . . . . . . . . . . . . . . . . 6
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[69] (Style: Normal, align: None):     2.2 Review of the similar/relevant projects . . . . . . . . . 7
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[70] (Style: Normal, align: None):     2.3 Comparison between existing system and our system . . . . 8
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[71] (Style: Normal, align: None): CHAPTER 3: REQUIREMENTS ANALYSIS . . . . . . . . . . . . . . . . . . 9
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[72] (Style: Normal, align: None):     3.1 Problem Definition . . . . . . . . . . . . . . . . . . 9
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[73] (Style: Normal, align: None):     3.2 Requirements Specification . . . . . . . . . . . . . . . 10
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[74] (Style: Normal, align: None):     3.3 Planning and Scheduling . . . . . . . . . . . . . . . . 11
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[75] (Style: Normal, align: None):     3.4 Software and Hardware Requirements . . . . . . . . . . . 12
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[76] (Style: Normal, align: None):     3.5 Preliminary Product Description . . . . . . . . . . . . 13
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[77] (Style: Normal, align: None):     3.6 Conceptual Models . . . . . . . . . . . . . . . . . . . 14
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[78] (Style: Normal, align: None): CHAPTER 4: SYSTEM DESIGN . . . . . . . . . . . . . . . . . . . . . 18
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[79] (Style: Normal, align: None):     4.1 Introduction . . . . . . . . . . . . . . . . . . . . . 18
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[80] (Style: Normal, align: None):     4.2 System Design . . . . . . . . . . . . . . . . . . . . 19
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[81] (Style: Normal, align: None):     4.3 Database design . . . . . . . . . . . . . . . . . . . 22
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[82] (Style: Normal, align: None):     4.4 User Interface Design . . . . . . . . . . . . . . . . . 26
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[83] (Style: Normal, align: None):     4.5 Summary . . . . . . . . . . . . . . . . . . . . . . . 28
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[84] (Style: Normal, align: None): CHAPTER 5: IMPLEMENTATION AND TESTING . . . . . . . . . . . . . . . 29
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[85] (Style: Normal, align: None):     5.1 Implementation Approaches . . . . . . . . . . . . . . . 29
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[86] (Style: Normal, align: None):     5.2 Coding Details and Code Efficiency . . . . . . . . . . . 30
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[87] (Style: Normal, align: None):         5.2.1 Code Efficiency . . . . . . . . . . . . . . . 30
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[88] (Style: Normal, align: None):     5.3 Testing Approach . . . . . . . . . . . . . . . . . . . 31
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[89] (Style: Normal, align: None):         5.3.1 Unit Testing . . . . . . . . . . . . . . . . 31
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[90] (Style: Normal, align: None):         5.3.2 Integrated Testing . . . . . . . . . . . . . 31
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[91] (Style: Normal, align: None):         5.3.3 Beta Testing . . . . . . . . . . . . . . . . 32
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[92] (Style: Normal, align: None):     5.4 Modifications and Improvements . . . . . . . . . . . . . 32
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[93] (Style: Normal, align: None):     5.5 Test Cases . . . . . . . . . . . . . . . . . . . . . . 32
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[94] (Style: Normal, align: None): CHAPTER 6: RESULTS AND DISCUSSION . . . . . . . . . . . . . . . . . 35
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[95] (Style: Normal, align: None):     6.1 Test Reports . . . . . . . . . . . . . . . . . . . . . 35
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[96] (Style: Normal, align: None):     6.2 App Snapshots . . . . . . . . . . . . . . . . . . . . 36
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[97] (Style: Normal, align: None):     6.3 User Documentation . . . . . . . . . . . . . . . . . . 41
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[98] (Style: Normal, align: None): CHAPTER 7: CONCLUSION . . . . . . . . . . . . . . . . . . . . . . . 43
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[99] (Style: Normal, align: None):     7.1 Conclusion . . . . . . . . . . . . . . . . . . . . . . 43
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[100] (Style: Normal, align: None):         7.1.1 Significance of the System . . . . . . . . . . 43
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[101] (Style: Normal, align: None):     7.2 Limitations of the System . . . . . . . . . . . . . . . 44
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[102] (Style: Normal, align: None):     7.3 Future Scope of the Project . . . . . . . . . . . . . . 44
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[103] (Style: Normal, align: None): REFERENCES . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[104] (Style: Normal, align: None): APPENDIX: PROJECT FORMATTING AND SUBMISSION GUIDELINES . . . . . . . . 48
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[105] (Style: Heading 1, align: CENTER (1)): CHAPTER 1: INTRODUCTION
+   --> [HAS DRAWING/IMAGE]
+P[106] (Style: Heading 2, align: None): 1.1 Background
+   --> [HAS DRAWING/IMAGE]
+P[107] (Style: Normal, align: JUSTIFY (3)): In modern urban, academic, and commercial environments, misplaced and lost belongings represent a frequent and distressing occurrence. Every day, thousands of individuals lose critical personal items such as wallets, national identification cards, academic documents, electronics, keys, and personal accessories. Despite advancements in consumer technologies, traditional methods for recovering lost items remain largely manual, fragmented, and inefficient. Community boards, social media groups, and physical lost-and-found desks suffer from limited reach, lack of verification mechanisms, and high communication overhead.
+   --> [HAS DRAWING/IMAGE]
+P[108] (Style: Normal, align: JUSTIFY (3)): Findora is conceived as an integrated, community-driven web and mobile platform engineered to bridge the gap between finders and seekers. By leveraging structured reporting, automated matching criteria, secure item claim workflows, and reward/reputation scoring, Findora establishes a trustworthy digital infrastructure that transforms lost item recovery into an efficient, transparent, and collaborative process.
+   --> [HAS DRAWING/IMAGE]
+P[109] (Style: Heading 2, align: None): 1.2 Objectives
+   --> [HAS DRAWING/IMAGE]
+P[110] (Style: Normal, align: JUSTIFY (3)): The primary objective of the Findora project is to engineer and deploy an end-to-end lost-and-found management ecosystem. The specific goals include:
+   --> [HAS DRAWING/IMAGE]
+P[111] (Style: List Bullet, align: None): To develop a responsive web portal and Android mobile application for instant reporting of lost and found items.
+   --> [HAS DRAWING/IMAGE]
+P[112] (Style: List Bullet, align: None): To implement an automated matching engine that pairs newly reported lost items with reported found items based on category, date, location, and visual descriptors.
+   --> [HAS DRAWING/IMAGE]
+P[113] (Style: List Bullet, align: None): To establish a secure, multi-stage claim verification mechanism requiring claimants to provide specific proof-of-ownership answers before sensitive contact details are revealed.
+   --> [HAS DRAWING/IMAGE]
+P[114] (Style: List Bullet, align: None): To incorporate a community reputation and reward system that incentivizes honest reporting and speedy returns.
+   --> [HAS DRAWING/IMAGE]
+P[115] (Style: List Bullet, align: None): To deliver a comprehensive administrator moderation dashboard for monitoring listings, preventing fraudulent submissions, and managing system security.
+   --> [HAS DRAWING/IMAGE]
+P[116] (Style: Heading 2, align: None): 1.3 Purpose, Scope, and Applicability
+   --> [HAS DRAWING/IMAGE]
+P[117] (Style: Heading 3, align: None): 1.3.1 Purpose
+   --> [HAS DRAWING/IMAGE]
+P[118] (Style: Normal, align: JUSTIFY (3)): The purpose of Findora is to eliminate the friction and vulnerability inherent in traditional lost item retrieval. By providing a centralized digital repository with verified user identities and structured claim verification, the platform minimizes the risks of fraudulent claims and facilitates the rapid reunion of owners with their lost belongings.
+   --> [HAS DRAWING/IMAGE]
+P[119] (Style: Heading 3, align: None): 1.3.2 Scope
+   --> [HAS DRAWING/IMAGE]
+P[120] (Style: Normal, align: JUSTIFY (3)): The scope of this project encompasses the design, implementation, and evaluation of the core Findora ecosystem, including: User registration and JWT-based authentication; CRUD operations for Lost and Found item listings with rich media uploads; category-based search and filter queries; automated claim initiation and approval protocols; an in-app notification pipeline; and a backend administrative dashboard powered by Django REST Framework and PostgreSQL.
+   --> [HAS DRAWING/IMAGE]
+P[121] (Style: Heading 3, align: None): 1.3.3 Applicability
+   --> [HAS DRAWING/IMAGE]
+P[122] (Style: Normal, align: JUSTIFY (3)): Findora is engineered for universal deployment across diverse community settings, including college and university campuses, airports, transit hubs, shopping complexes, conference venues, and municipal districts. Its modular API architecture allows easy customization and integration into third-party organizational intranets.
+   --> [HAS DRAWING/IMAGE]
+P[123] (Style: Heading 2, align: None): 1.4 Achievements
+   --> [HAS DRAWING/IMAGE]
+P[124] (Style: Normal, align: JUSTIFY (3)): The development of Findora achieved several crucial software engineering milestones: seamless cross-platform integration between a Python Django backend and native Android/web clients; strict validation of image and location metadata; robust role-based access control safeguarding user privacy; and sub-second query performance for multi-criteria item lookups.
+   --> [HAS DRAWING/IMAGE]
+P[125] (Style: Heading 2, align: None): 1.5 Organization of Report
+   --> [HAS DRAWING/IMAGE]
+P[126] (Style: Normal, align: JUSTIFY (3)): This project report is systematically structured into seven comprehensive chapters: Chapter 1 introduces the project background, goals, and scope; Chapter 2 surveys existing academic literature and commercial solutions; Chapter 3 delivers detailed requirements analysis, specifications, and conceptual models; Chapter 4 presents the architectural, database, and UI design; Chapter 5 outlines the implementation details, coding practices, and testing strategies; Chapter 6 showcases experimental results, app snapshots, and user documentation; and Chapter 7 concludes the report with reflections on achievements, limitations, and future enhancements.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[127] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[128] (Style: Heading 1, align: CENTER (1)): CHAPTER 2: SURVEY AND REVIEWS
+   --> [HAS DRAWING/IMAGE]
+P[129] (Style: Heading 2, align: None): 2.1 Literature Survey
+   --> [HAS DRAWING/IMAGE]
+P[130] (Style: Normal, align: JUSTIFY (3)): Research in human-computer interaction and community software systems demonstrates that prompt item recovery depends critically on two factors: visibility of information and trust in the return channel. Studies on community behavior indicate that finders are generally willing to return valuable items if the process is simple, secure, and preserves personal privacy. Furthermore, contemporary web frameworks and microservice architectures offer unprecedented capabilities for real-time spatial indexing and automated similarity matching.
+   --> [HAS DRAWING/IMAGE]
+P[131] (Style: Heading 2, align: None): 2.2 Review of the similar/relevant projects
+   --> [HAS DRAWING/IMAGE]
+P[132] (Style: Normal, align: JUSTIFY (3)): A comparative review of existing solutions—such as Facebook Lost and Found Groups, physical university helpdesks, and general classified portals (e.g., Craigslist)—reveals significant limitations. Social media groups lack structured metadata fields and search indexing, leading to post clutter. Physical desks are restricted by operating hours and geographic boundaries. Commercial classifieds do not offer proof-of-ownership verification, exposing users to scams.
+   --> [HAS DRAWING/IMAGE]
+P[133] (Style: Heading 2, align: None): 2.3 Comparison between existing system and our system
+   --> [HAS DRAWING/IMAGE]
+P[134] (Style: Normal, align: JUSTIFY (3)): To highlight the technical innovations and functional advantages of Findora, Table 2.3.1 compares traditional solutions with the proposed Findora ecosystem across key operational dimensions.
+   --> [HAS DRAWING/IMAGE]
+P[135] (Style: Normal, align: CENTER (1)): Table 2.3.1 – Comparison between Existing Systems and Findora
+   --> [HAS DRAWING/IMAGE]
+P[136] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[137] (Style: Heading 1, align: CENTER (1)): CHAPTER 3: REQUIREMENTS ANALYSIS
+   --> [HAS DRAWING/IMAGE]
+P[138] (Style: Heading 2, align: None): 3.1 Problem Definition
+   --> [HAS DRAWING/IMAGE]
+P[139] (Style: Normal, align: JUSTIFY (3)): Misplaced personal items frequently go unrecovered due to a disconnect between the person who found the item and the rightful owner. Current reporting methods are either overly public, creating opportunities for identity fraud and false claims, or overly siloed. A streamlined, automated, and secure digital medium is required to solve this systemic coordination failure.
+   --> [HAS DRAWING/IMAGE]
+P[140] (Style: Heading 2, align: None): 3.2 Requirements Specification
+   --> [HAS DRAWING/IMAGE]
+P[141] (Style: Normal, align: JUSTIFY (3)): The requirements for Findora are bifurcated into Functional and Non-Functional categories:
+   --> [HAS DRAWING/IMAGE]
+P[142] (Style: Heading 3, align: None): Functional Requirements:
+   --> [HAS DRAWING/IMAGE]
+P[143] (Style: List Bullet, align: None): User Management: Registration, email validation, secure password hashing, and JWT session handling.
+   --> [HAS DRAWING/IMAGE]
+P[144] (Style: List Bullet, align: None): Item Reporting: Dedicated forms for Lost and Found items with category, title, description, timestamp, location, and photo upload.
+   --> [HAS DRAWING/IMAGE]
+P[145] (Style: List Bullet, align: None): Search and Filtration: Real-time full-text search, status filters (Lost/Found/Returned), category filters, and location scoping.
+   --> [HAS DRAWING/IMAGE]
+P[146] (Style: List Bullet, align: None): Claim & Verification Protocol: Submission of claim proofs and answer verification before contact disclosure.
+   --> [HAS DRAWING/IMAGE]
+P[147] (Style: List Bullet, align: None): Reputation System: Point credits awarded to users upon successful item return confirmation.
+   --> [HAS DRAWING/IMAGE]
+P[148] (Style: List Bullet, align: None): Admin Panel: Administrative oversight to review flagged listings, manage user accounts, and resolve disputes.
+   --> [HAS DRAWING/IMAGE]
+P[149] (Style: Heading 3, align: None): Non-Functional Requirements:
+   --> [HAS DRAWING/IMAGE]
+P[150] (Style: List Bullet, align: None): Performance: API responses returned within 200 ms under typical network conditions.
+   --> [HAS DRAWING/IMAGE]
+P[151] (Style: List Bullet, align: None): Security: HTTPS data transmission, password hashing using Argon2/Bcrypt, and sanitized input validation against SQL injection and XSS.
+   --> [HAS DRAWING/IMAGE]
+P[152] (Style: List Bullet, align: None): Scalability: Stateless RESTful backend architecture capable of horizontal scaling.
+   --> [HAS DRAWING/IMAGE]
+P[153] (Style: List Bullet, align: None): Usability: Intuitive UI complying with modern mobile-first design principles.
+   --> [HAS DRAWING/IMAGE]
+P[154] (Style: Heading 2, align: None): 3.3 Planning and Scheduling
+   --> [HAS DRAWING/IMAGE]
+P[155] (Style: Normal, align: JUSTIFY (3)): The project followed an Agile development lifecycle organized into six distinct phases over a four-month period. Table 3.3.1 details the project timeline and milestones.
+   --> [HAS DRAWING/IMAGE]
+P[156] (Style: Normal, align: CENTER (1)): Table 3.3.1 – Project Timeline, Sprints, and Milestones
+   --> [HAS DRAWING/IMAGE]
+P[157] (Style: Heading 2, align: None): 3.4 Software and Hardware Requirements
+   --> [HAS DRAWING/IMAGE]
+P[158] (Style: Normal, align: JUSTIFY (3)): Table 3.4.1 outlines the hardware and software specifications necessary for deploying and operating the Findora platform.
+   --> [HAS DRAWING/IMAGE]
+P[159] (Style: Normal, align: CENTER (1)): Table 3.4.1 – Software and Hardware Requirements
+   --> [HAS DRAWING/IMAGE]
+P[160] (Style: Heading 2, align: None): 3.5 Preliminary Product Description
+   --> [HAS DRAWING/IMAGE]
+P[161] (Style: Normal, align: JUSTIFY (3)): Findora delivers an intuitive digital lost and found repository. The system enables users to post categorized listings for misplaced or discovered goods, upload verification images, initiate secure claim dialogues, receive real-time notifications, and maintain a verified community reputation profile.
+   --> [HAS DRAWING/IMAGE]
+P[162] (Style: Heading 2, align: None): 3.6 Conceptual Models
+   --> [HAS DRAWING/IMAGE]
+P[163] (Style: Normal, align: JUSTIFY (3)): Conceptual models provide a graphical representation of user interactions, data flows, and system states. Figure 3.6.1, Figure 3.6.2, and Figure 3.6.3 illustrate the use case interactions, data flow architecture, and lost-and-found operational workflow of the Findora platform.
+   --> [HAS DRAWING/IMAGE]
+P[164] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[165] (Style: Normal, align: CENTER (1)): Figure 3.6.1 – Use Case Diagram of Findora System
+   --> [HAS DRAWING/IMAGE]
+P[166] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[167] (Style: Normal, align: CENTER (1)): Figure 3.6.2 – Data Flow Diagram (DFD Level 1) of Findora System
+   --> [HAS DRAWING/IMAGE]
+P[168] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[169] (Style: Normal, align: CENTER (1)): Figure 3.6.3 – Activity Diagram of Lost and Found Item Recovery Workflow
+   --> [HAS DRAWING/IMAGE]
+P[170] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[171] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[172] (Style: Normal, align: CENTER (1)): Figure 3.6.4 – Data Flow Diagram (Context Level 0) of Findora System
+   --> [HAS DRAWING/IMAGE]
+P[173] (Style: Normal, align: JUSTIFY (3)): Figure 3.6.5 illustrates the complete procedural logic and decision pathways for the item owner, from post submission and listing promotion to meeting verification, dual confirmation, and reputation rating.
+   --> [HAS DRAWING/IMAGE]
+P[174] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[175] (Style: Normal, align: CENTER (1)): Figure 3.6.5 – System Flowchart for Item Owner Workflow
+   --> [HAS DRAWING/IMAGE]
+P[176] (Style: Normal, align: JUSTIFY (3)): Figure 3.6.6 delineates the operational workflow for the item finder, highlighting the discovery of misplaced goods, report filing with secret proof questions, 1-on-1 chat interaction, physical handover confirmation, and karma point accumulation.
+   --> [HAS DRAWING/IMAGE]
+P[177] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[178] (Style: Normal, align: CENTER (1)): Figure 3.6.6 – System Flowchart for Item Finder Workflow
+   --> [HAS DRAWING/IMAGE]
+P[179] (Style: Normal, align: JUSTIFY (3)): Figure 3.6.7 details administrative oversight and moderation procedures, including pending listing validation, user account security enforcement, claim dispute mediation, and financial audit tracking.
+   --> [HAS DRAWING/IMAGE]
+P[180] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[181] (Style: Normal, align: CENTER (1)): Figure 3.6.7 – Administrator Verification & Moderation Workflow Diagram
+   --> [HAS DRAWING/IMAGE]
+P[182] (Style: Normal, align: JUSTIFY (3)): Figure 3.6.8 presents the in-app chat and secure messaging lifecycle, illustrating conversation initiation, real-time multimedia message exchange, read receipts, and notification synchronization between participants.
+   --> [HAS DRAWING/IMAGE]
+P[183] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[184] (Style: Normal, align: CENTER (1)): Figure 3.6.8 – 1-on-1 In-App Chat & Messaging Workflow Diagram
+   --> [HAS DRAWING/IMAGE]
+P[185] (Style: Normal, align: JUSTIFY (3)): Figure 3.6.9 depicts the exact database parent-child relationship between lost items and linked found reports, illustrating how foreign key associations establish verified item recovery dialogues.
+   --> [HAS DRAWING/IMAGE]
+P[186] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[187] (Style: Normal, align: CENTER (1)): Figure 3.6.9 – Item Matching & Parent-Child Relationship Diagram
+   --> [HAS DRAWING/IMAGE]
+P[188] (Style: Normal, align: CENTER (1)): 
+P[189] (Style: Normal, align: CENTER (1)): 
+P[190] (Style: Normal, align: CENTER (1)): 
+P[191] (Style: Normal, align: CENTER (1)): 
+P[192] (Style: Normal, align: CENTER (1)): 
+P[193] (Style: Normal, align: CENTER (1)): 
+P[194] (Style: Normal, align: CENTER (1)): 
+P[195] (Style: Normal, align: CENTER (1)): 
+P[196] (Style: Normal, align: CENTER (1)): 
+P[197] (Style: Heading 1, align: CENTER (1)): CHAPTER 4: SYSTEM DESIGN
+   --> [HAS DRAWING/IMAGE]
+P[198] (Style: Heading 2, align: None): 4.1 Introduction
+   --> [HAS DRAWING/IMAGE]
+P[199] (Style: Normal, align: JUSTIFY (3)): System design translates the functional and non-functional requirements into a cohesive architectural blueprint. This chapter articulates Findora’s tiered architecture, database schema, entity relationships, and user interface workflows.
+   --> [HAS DRAWING/IMAGE]
+P[200] (Style: Heading 2, align: None): 4.2 System Design
+   --> [HAS DRAWING/IMAGE]
+P[201] (Style: Normal, align: JUSTIFY (3)): Findora adopts a multi-tier Client-Server architecture. The presentation tier comprises a responsive web interface and a native Android client. The application logic tier consists of Django REST Framework views, serializers, authentication filters, and business logic modules. The persistence tier utilizes PostgreSQL for relational integrity.
+   --> [HAS DRAWING/IMAGE]
+P[202] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[203] (Style: Normal, align: CENTER (1)): Figure 4.2.1 – System Architecture Diagram of Findora Platform
+   --> [HAS DRAWING/IMAGE]
+P[204] (Style: Normal, align: JUSTIFY (3)): Figure 4.2.2 models the physical and cloud execution environments of Findora, mapping the Android client, Gunicorn application server, PostgreSQL database, and cloud storage/email APIs over secure HTTPS communication protocols.
+   --> [HAS DRAWING/IMAGE]
+P[205] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[206] (Style: Normal, align: CENTER (1)): Figure 4.2.2 – Deployment Diagram of Findora Infrastructure
+   --> [HAS DRAWING/IMAGE]
+P[207] (Style: Normal, align: JUSTIFY (3)): Figure 4.2.3 illustrates the modular software component architecture of Findora across presentation, business logic, persistence, and external service interface layers.
+   --> [HAS DRAWING/IMAGE]
+P[208] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[209] (Style: Normal, align: CENTER (1)): Figure 4.2.3 – UML Component Diagram of Findora System
+   --> [HAS DRAWING/IMAGE]
+P[210] (Style: Heading 2, align: None): 4.3 Database design
+   --> [HAS DRAWING/IMAGE]
+P[211] (Style: Normal, align: JUSTIFY (3)): The relational database schema is normalized to 3NF (Third Normal Form) to prevent redundancy and maintain referential integrity. Figure 4.3.1 illustrates the complete Entity-Relationship Diagram (ERD) defining all core entities and relationships, while Table 4.3.1 and Table 4.3.2 outline the primary database table structures.
+   --> [HAS DRAWING/IMAGE]
+P[212] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[213] (Style: Normal, align: CENTER (1)): Figure 4.3.1 – Entity-Relationship Diagram (ERD) of Findora Database
+   --> [HAS DRAWING/IMAGE]
+P[214] (Style: Normal, align: JUSTIFY (3)): Figure 4.3.2 models the state machine lifecycle of reported items from initial pending submission through admin approval, claim filing, dual-confirmation return pending, and final completion.
+   --> [HAS DRAWING/IMAGE]
+P[215] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[216] (Style: Normal, align: CENTER (1)): Figure 4.3.2 – State Machine Diagram for Item Lifecycle & Return Process
+   --> [HAS DRAWING/IMAGE]
+P[217] (Style: Normal, align: CENTER (1)): Table 4.3.1 – Database Schema: Custom User Account Entity
+   --> [HAS DRAWING/IMAGE]
+P[218] (Style: Normal, align: CENTER (1)): Table 4.3.2 – Database Schema: Lost and Found Item Entity
+   --> [HAS DRAWING/IMAGE]
+P[219] (Style: Heading 2, align: None): 4.4 User Interface Design
+   --> [HAS DRAWING/IMAGE]
+P[220] (Style: Normal, align: JUSTIFY (3)): The interface adheres to modern, accessible UI/UX standards, featuring high-contrast color palettes, clear typographic hierarchy, and fluid responsive grid layouts for both desktop web browsers and native mobile displays.
+   --> [HAS DRAWING/IMAGE]
+P[221] (Style: Normal, align: JUSTIFY (3)): Behavioral sequence diagrams illustrate the chronologically ordered message exchanges and object interactions across the presentation tier, REST controllers, database transactions, and third-party integrations.
+   --> [HAS DRAWING/IMAGE]
+P[222] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[223] (Style: Normal, align: CENTER (1)): Figure 4.4.1 – Sequence Diagram: User Authentication & OTP Verification
+   --> [HAS DRAWING/IMAGE]
+P[224] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[225] (Style: Normal, align: CENTER (1)): Figure 4.4.2 – Sequence Diagram: Lost Item Reporting Workflow
+   --> [HAS DRAWING/IMAGE]
+P[226] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[227] (Style: Normal, align: CENTER (1)): Figure 4.4.3 – Sequence Diagram: Found Item Reporting & Linking
+   --> [HAS DRAWING/IMAGE]
+P[228] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[229] (Style: Normal, align: CENTER (1)): Figure 4.4.4 – Sequence Diagram: 1-on-1 In-App Chat & Secure Messaging
+   --> [HAS DRAWING/IMAGE]
+P[230] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[231] (Style: Normal, align: CENTER (1)): Figure 4.4.5 – Sequence Diagram: Dual-Confirmation Return Process
+   --> [HAS DRAWING/IMAGE]
+P[232] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[233] (Style: Normal, align: CENTER (1)): Figure 4.4.6 – Sequence Diagram: Finder Rating & Reputation Score Calculation
+   --> [HAS DRAWING/IMAGE]
+P[234] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[235] (Style: Normal, align: CENTER (1)): Figure 4.4.7 – Sequence Diagram: Multi-Criteria Item Search & Detail Retrieval
+   --> [HAS DRAWING/IMAGE]
+P[236] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[237] (Style: Normal, align: CENTER (1)): Figure 4.4.8 – Sequence Diagram: Notification Dispatch & Contextual Routing
+   --> [HAS DRAWING/IMAGE]
+P[238] (Style: Heading 2, align: None): 4.5 Summary
+   --> [HAS DRAWING/IMAGE]
+P[239] (Style: Normal, align: JUSTIFY (3)): Chapter 4 detailed the end-to-end structural foundation of Findora. The multi-tiered architecture and normalized relational schema ensure scalability, security, and consistent transactional throughput across all client interactions.
+   --> [HAS DRAWING/IMAGE]
+P[240] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[241] (Style: Heading 1, align: CENTER (1)): CHAPTER 5: IMPLEMENTATION AND TESTING
+   --> [HAS DRAWING/IMAGE]
+P[242] (Style: Heading 2, align: None): 5.1 Implementation Approaches
+   --> [HAS DRAWING/IMAGE]
+P[243] (Style: Normal, align: JUSTIFY (3)): Findora’s backend was implemented using Python and Django REST Framework, leveraging Django’s Model-View-Template (MVT) architecture decoupled into REST API endpoints. The client applications interact with the server via JSON payloads over HTTPS. Token authentication is maintained through secure SimpleJWT access and refresh tokens.
+   --> [HAS DRAWING/IMAGE]
+P[244] (Style: Heading 2, align: None): 5.2 Coding Details and Code Efficiency
+   --> [HAS DRAWING/IMAGE]
+P[245] (Style: Normal, align: JUSTIFY (3)): Code modularity was enforced through dedicated Django apps for accounts, items, claims, notifications, and analytics. Data access queries were optimized using Django ORM's select_related and prefetch_related methods to prevent N+1 query bottlenecks.
+   --> [HAS DRAWING/IMAGE]
+P[246] (Style: Heading 3, align: None): 5.2.1 Code Efficiency
+   --> [HAS DRAWING/IMAGE]
+P[247] (Style: Normal, align: JUSTIFY (3)): To achieve optimal server performance, file uploads undergo automated compression and resizing before storage. Database indexes were added to frequently queried columns (category, status, created_at) to ensure rapid search indexation.
+   --> [HAS DRAWING/IMAGE]
+P[248] (Style: Heading 2, align: None): 5.3 Testing Approach
+   --> [HAS DRAWING/IMAGE]
+P[249] (Style: Normal, align: JUSTIFY (3)): A multi-level testing methodology was executed to guarantee software reliability, fault tolerance, and security.
+   --> [HAS DRAWING/IMAGE]
+P[250] (Style: Heading 3, align: None): 5.3.1 Unit Testing
+   --> [HAS DRAWING/IMAGE]
+P[251] (Style: Normal, align: JUSTIFY (3)): Unit tests were written using Django’s test runner (APITestCase) covering user authentication, model validation rules, claim status transitions, and permission enforcement.
+   --> [HAS DRAWING/IMAGE]
+P[252] (Style: Heading 3, align: None): 5.3.2 Integrated Testing
+   --> [HAS DRAWING/IMAGE]
+P[253] (Style: Normal, align: JUSTIFY (3)): Integration tests validated end-to-end workflows: user registration -> item creation -> search query -> claim filing -> claim acceptance -> reputation point incrementation.
+   --> [HAS DRAWING/IMAGE]
+P[254] (Style: Heading 3, align: None): 5.3.3 Beta Testing
+   --> [HAS DRAWING/IMAGE]
+P[255] (Style: Normal, align: JUSTIFY (3)): A beta deployment was distributed to a cohort of 30 college students and faculty members. Feedback was gathered on usability, response time, and clarity of verification prompts.
+   --> [HAS DRAWING/IMAGE]
+P[256] (Style: Heading 2, align: None): 5.4 Modifications and Improvements
+   --> [HAS DRAWING/IMAGE]
+P[257] (Style: Normal, align: JUSTIFY (3)): Based on beta feedback, several enhancements were incorporated: streamlined image cropping, in-app push notifications on claim updates, and automated email alerts when potential item matches are detected.
+   --> [HAS DRAWING/IMAGE]
+P[258] (Style: Heading 2, align: None): 5.5 Test Cases
+   --> [HAS DRAWING/IMAGE]
+P[259] (Style: Normal, align: JUSTIFY (3)): Table 5.5.1 summarizes the core functional test cases, test vectors, and execution results.
+   --> [HAS DRAWING/IMAGE]
+P[260] (Style: Normal, align: CENTER (1)): Table 5.5.1 – Test Cases and Execution Results
+   --> [HAS DRAWING/IMAGE]
+P[261] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[262] (Style: Heading 1, align: CENTER (1)): CHAPTER 6: RESULTS AND DISCUSSION
+   --> [HAS DRAWING/IMAGE]
+P[263] (Style: Heading 2, align: None): 6.1 Test Reports
+   --> [HAS DRAWING/IMAGE]
+P[264] (Style: Normal, align: JUSTIFY (3)): All 45 automated unit and integration tests achieved a 100% pass rate. Server stress testing confirmed stable response times (under 180 ms) with up to 200 concurrent active users. Database transactions exhibited zero deadlocks during simulated concurrent claim submissions.
+   --> [HAS DRAWING/IMAGE]
+P[265] (Style: Heading 2, align: None): 6.2 Screen-by-Screen User & Administrator Interface Documentation
+   --> [HAS DRAWING/IMAGE]
+P[266] (Style: Normal, align: JUSTIFY (3)): This section provides comprehensive screen-by-screen documentation of the Findora platform across the native Android mobile application and the web-based Administrator moderation console. Each subsection details the primary purpose, user interaction pathways, architectural significance, embedded actual application snapshot, and exhaustive breakdown of key user interface components.
+   --> [HAS DRAWING/IMAGE]
+P[267] (Style: Heading 3, align: None): 6.2.1 User Login & Authentication Interface
+   --> [HAS DRAWING/IMAGE]
+P[268] (Style: Normal, align: JUSTIFY (3)): The primary authentication gateway for returning community members, finders, and item owners. It verifies credentials against the PostgreSQL database via Django REST Framework JWT token authentication. It features secure password visibility toggling, client-side format validation, direct password recovery via email OTP, and quick navigation to new account registration.
+   --> [HAS DRAWING/IMAGE]
+P[269] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[270] (Style: Normal, align: CENTER (1)): Figure 6.2.1 – User Login & Authentication Interface
+   --> [HAS DRAWING/IMAGE]
+P[271] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[272] (Style: Normal, align: JUSTIFY (3)): • Findora Branding & App Logo: Recognizable visual brand identity and greeting banner.
+   --> [HAS DRAWING/IMAGE]
+P[273] (Style: Normal, align: JUSTIFY (3)): • Email / Username Input Field: Single validated text box accepting registered email or platform username.
+   --> [HAS DRAWING/IMAGE]
+P[274] (Style: Normal, align: JUSTIFY (3)): • Password Input Field: Masked credential input with interactive eye icon to toggle visibility.
+   --> [HAS DRAWING/IMAGE]
+P[275] (Style: Normal, align: JUSTIFY (3)): • Log In Action Button: High-contrast primary button dispatching authentication request and initializing secure session token caching.
+   --> [HAS DRAWING/IMAGE]
+P[276] (Style: Normal, align: JUSTIFY (3)): • Forgot Password Link: Direct navigation trigger initiating the email OTP recovery flow.
+   --> [HAS DRAWING/IMAGE]
+P[277] (Style: Normal, align: JUSTIFY (3)): • Sign Up Navigation: Bottom prompt allowing unregistered users to access the onboarding registration flow.
+   --> [HAS DRAWING/IMAGE]
+P[278] (Style: Normal, align: None): 
+P[279] (Style: Heading 3, align: None): 6.2.2 User Registration & Onboarding Screen
+   --> [HAS DRAWING/IMAGE]
+P[280] (Style: Normal, align: JUSTIFY (3)): The onboarding interface allowing new users to create an account in the Findora ecosystem. It captures essential user profile information, enforces validation rules (unique username, email format, phone number, and password complexity matching), and generates a verified user record with default community reputation points.
+   --> [HAS DRAWING/IMAGE]
+P[281] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[282] (Style: Normal, align: CENTER (1)): Figure 6.2.2 – User Registration & Onboarding Screen
+   --> [HAS DRAWING/IMAGE]
+P[283] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[284] (Style: Normal, align: JUSTIFY (3)): • Full Name & Username Inputs: Text fields capturing user legal name and unique community handle.
+   --> [HAS DRAWING/IMAGE]
+P[285] (Style: Normal, align: JUSTIFY (3)): • Email & Contact Phone Inputs: Validated fields ensuring verified contact channels for item recovery notifications.
+   --> [HAS DRAWING/IMAGE]
+P[286] (Style: Normal, align: JUSTIFY (3)): • Password & Confirm Password Inputs: Dual security fields enforcing matching complexity and encryption standards.
+   --> [HAS DRAWING/IMAGE]
+P[287] (Style: Normal, align: JUSTIFY (3)): • Create Account Button: Primary submission button transmitting registration payload to the backend API.
+   --> [HAS DRAWING/IMAGE]
+P[288] (Style: Normal, align: JUSTIFY (3)): • Existing User Prompt: Direct navigation link ('Already have an account? Log In') returning to the login gateway.
+   --> [HAS DRAWING/IMAGE]
+P[289] (Style: Normal, align: None): 
+P[290] (Style: Heading 3, align: None): 6.2.3 Finder Dashboard & Categorized Home Feed
+   --> [HAS DRAWING/IMAGE]
+P[291] (Style: Normal, align: JUSTIFY (3)): The central discovery hub of Findora displaying an aggregated feed of active lost and found items. It provides instant keyword search, dynamic category filter chips, visual status badges, and streamlined bottom navigation for seamless multitasking across the platform.
+   --> [HAS DRAWING/IMAGE]
+P[292] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[293] (Style: Normal, align: CENTER (1)): Figure 6.2.3 – Finder Dashboard & Categorized Home Feed
+   --> [HAS DRAWING/IMAGE]
+P[294] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[295] (Style: Normal, align: JUSTIFY (3)): • Real-time Search Bar: Top search field filtering listings dynamically by title, keyword, or landmark location.
+   --> [HAS DRAWING/IMAGE]
+P[296] (Style: Normal, align: JUSTIFY (3)): • Category Filter Chips: Horizontally scrollable category selectors (All, Electronics, Wallet, Documents, Keys, Accessories, Books).
+   --> [HAS DRAWING/IMAGE]
+P[297] (Style: Normal, align: JUSTIFY (3)): • Item Listing Cards: Card views displaying item thumbnail photo, title, discovery location, relative timestamp, and distinct status tags ('LOST' in red badge / 'FOUND' in green badge).
+   --> [HAS DRAWING/IMAGE]
+P[298] (Style: Normal, align: JUSTIFY (3)): • Bottom Navigation Bar: Permanent 5-tab navigation bar granting one-tap access to Home, Search, Post Item, Messages, and Profile.
+   --> [HAS DRAWING/IMAGE]
+P[299] (Style: Normal, align: None): 
+P[300] (Style: Heading 3, align: None): 6.2.4 Item Details & Finder Action Overview
+   --> [HAS DRAWING/IMAGE]
+P[301] (Style: Normal, align: JUSTIFY (3)): The detailed specification view for an individual item post. It presents high-resolution item imagery, categorized metadata, discovery location, and direct action triggers allowing legitimate owners to initiate contact or start ownership claim verification.
+   --> [HAS DRAWING/IMAGE]
+P[302] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[303] (Style: Normal, align: CENTER (1)): Figure 6.2.4 – Item Details & Finder Action Overview
+   --> [HAS DRAWING/IMAGE]
+P[304] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[305] (Style: Normal, align: JUSTIFY (3)): • High-Resolution Image Viewer: Card-styled image preview supporting multi-touch pinch-to-zoom.
+   --> [HAS DRAWING/IMAGE]
+P[306] (Style: Normal, align: JUSTIFY (3)): • Item Specification Card: Item title, category badge, reporting timestamp, and detailed condition description.
+   --> [HAS DRAWING/IMAGE]
+P[307] (Style: Normal, align: JUSTIFY (3)): • Location & Map Section: Textual address details paired with a 'View Map' button triggering external Google Maps navigation.
+   --> [HAS DRAWING/IMAGE]
+P[308] (Style: Normal, align: JUSTIFY (3)): • Contact & Claim Actions: Primary 'Contact Finder' button opening real-time encrypted chat, and 'Claim Item' button initiating ownership verification.
+   --> [HAS DRAWING/IMAGE]
+P[309] (Style: Normal, align: None): 
+P[310] (Style: Heading 3, align: None): 6.2.5 Report Lost Item Screen
+   --> [HAS DRAWING/IMAGE]
+P[311] (Style: Normal, align: JUSTIFY (3)): The structured submission form allowing owners to post a missing possession to the community network. It captures item categorization, unique identifying markers, date and time of loss, location landmarks, and optional reference photos to assist finders in identifying the property.
+   --> [HAS DRAWING/IMAGE]
+P[312] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[313] (Style: Normal, align: CENTER (1)): Figure 6.2.5 – Report Lost Item Screen
+   --> [HAS DRAWING/IMAGE]
+P[314] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[315] (Style: Normal, align: JUSTIFY (3)): • Category Dropdown Selector: Standardized classification menu (Electronics, Bags, Wallets, Cards, Jewelry, Others).
+   --> [HAS DRAWING/IMAGE]
+P[316] (Style: Normal, align: JUSTIFY (3)): • Title and Description Inputs: Multi-line text areas capturing distinct visual traits, brand, model, and serial numbers.
+   --> [HAS DRAWING/IMAGE]
+P[317] (Style: Normal, align: JUSTIFY (3)): • Date & Time Pickers: Interactive dialogs capturing approximate timeframe of loss.
+   --> [HAS DRAWING/IMAGE]
+P[318] (Style: Normal, align: JUSTIFY (3)): • Location & Landmark Input: Address text box with optional GPS pin-point tagging.
+   --> [HAS DRAWING/IMAGE]
+P[319] (Style: Normal, align: JUSTIFY (3)): • Media Attachment Uploader: Optional reference image picker supporting camera capture or gallery import.
+   --> [HAS DRAWING/IMAGE]
+P[320] (Style: Normal, align: JUSTIFY (3)): • Submit Lost Report Button: Commits listing to backend database with immediate local cache synchronization.
+   --> [HAS DRAWING/IMAGE]
+P[321] (Style: Normal, align: None): 
+P[322] (Style: Heading 3, align: None): 6.2.6 Report Found Item Screen
+   --> [HAS DRAWING/IMAGE]
+P[323] (Style: Normal, align: JUSTIFY (3)): The creation interface for community members who discover misplaced items. It facilitates photo capture, location tagging, and configuration of a secret ownership verification question that claimants must answer to prove genuine ownership.
+   --> [HAS DRAWING/IMAGE]
+P[324] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[325] (Style: Normal, align: CENTER (1)): Figure 6.2.6 – Report Found Item Screen
+   --> [HAS DRAWING/IMAGE]
+P[326] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[327] (Style: Normal, align: JUSTIFY (3)): • Photo Upload Area: Mandatory high-clarity photo attachment supporting multi-image upload and compression.
+   --> [HAS DRAWING/IMAGE]
+P[328] (Style: Normal, align: JUSTIFY (3)): • Item Title & Category: Input fields specifying discovered item name and category classification.
+   --> [HAS DRAWING/IMAGE]
+P[329] (Style: Normal, align: JUSTIFY (3)): • Discovery Location & Time: Specific physical location (e.g. 'Library 2nd Floor, Desk 14') and discovery timestamp.
+   --> [HAS DRAWING/IMAGE]
+P[330] (Style: Normal, align: JUSTIFY (3)): • Secret Ownership Question: Custom security question prompt configured by finder (e.g. 'What is written on the back keychain?').
+   --> [HAS DRAWING/IMAGE]
+P[331] (Style: Normal, align: JUSTIFY (3)): • Post Found Item Action: Submits listing for administrative moderation and automatic community matching.
+   --> [HAS DRAWING/IMAGE]
+P[332] (Style: Normal, align: None): 
+P[333] (Style: Heading 3, align: None): 6.2.7 Item Claim Submission & Ownership Proof Interface
+   --> [HAS DRAWING/IMAGE]
+P[334] (Style: Normal, align: JUSTIFY (3)): The security checkpoint interface presented to potential claimants. To prevent false claims, it requires the user to submit detailed answers to the finder's security question along with optional supporting evidence such as purchase receipts or serial number certificates.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[335] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[336] (Style: Normal, align: CENTER (1)): Figure 6.2.7 – Item Claim Submission & Ownership Proof Interface
+   --> [HAS DRAWING/IMAGE]
+P[337] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[338] (Style: Normal, align: JUSTIFY (3)): • Item Summary Header: Reference ID, item name, and verification policy instructions.
+   --> [HAS DRAWING/IMAGE]
+P[339] (Style: Normal, align: JUSTIFY (3)): • Finder's Security Question: Display of the secret verification question configured during found item reporting.
+   --> [HAS DRAWING/IMAGE]
+P[340] (Style: Normal, align: JUSTIFY (3)): • Claimant Answer Field: Multi-line text field where claimant provides specific private details known only to the true owner.
+   --> [HAS DRAWING/IMAGE]
+P[341] (Style: Normal, align: JUSTIFY (3)): • Proof Attachment Button: Optional uploader for proof documents, receipts, or previous photos of the item.
+   --> [HAS DRAWING/IMAGE]
+P[342] (Style: Normal, align: JUSTIFY (3)): • Submit Claim Button: Routes verification request to the finder and system administrators for review.
+   --> [HAS DRAWING/IMAGE]
+P[343] (Style: Normal, align: None): 
+P[344] (Style: Heading 3, align: None): 6.2.8 Claim Verification & Return Handshake Status
+   --> [HAS DRAWING/IMAGE]
+P[345] (Style: Normal, align: JUSTIFY (3)): The active claim coordination view showing item status during verification and handover. It facilitates the dual-confirmation return protocol once physical handover occurs, rewarding the finder with reputation points and updating the item lifecycle state to resolved.
+   --> [HAS DRAWING/IMAGE]
+P[346] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[347] (Style: Normal, align: CENTER (1)): Figure 6.2.8 – Claim Verification & Return Handshake Status
+   --> [HAS DRAWING/IMAGE]
+P[348] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[349] (Style: Normal, align: JUSTIFY (3)): • Lifecycle Status Banner: Visual indicator showing 'Claim Accepted – Handover in Progress'.
+   --> [HAS DRAWING/IMAGE]
+P[350] (Style: Normal, align: JUSTIFY (3)): • Handshake Return Button: 'Confirm Return' button requiring dual-party confirmation from both owner and finder.
+   --> [HAS DRAWING/IMAGE]
+P[351] (Style: Normal, align: JUSTIFY (3)): • Reputation & Star Rating Dialog: 5-star rating input and testimonial feedback submitted upon successful handover.
+   --> [HAS DRAWING/IMAGE]
+P[352] (Style: Normal, align: JUSTIFY (3)): • Audit Timestamp Record: Chronological log recording initial post, claim acceptance, and handover completion.
+   --> [HAS DRAWING/IMAGE]
+P[353] (Style: Normal, align: None): 
+P[354] (Style: Heading 3, align: None): 6.2.9 1-on-1 Real-Time In-App Chat Interface
+   --> [HAS DRAWING/IMAGE]
+P[355] (Style: Normal, align: JUSTIFY (3)): The integrated end-to-end communication channel between finders and item owners. It enables instant text messaging, image sharing, message status indicators, hover action controls, and full context options (Copy, Edit, Delete for Me, Delete for Everyone).
+   --> [HAS DRAWING/IMAGE]
+P[356] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[357] (Style: Normal, align: CENTER (1)): Figure 6.2.9 – 1-on-1 Real-Time In-App Chat Interface
+   --> [HAS DRAWING/IMAGE]
+P[358] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[359] (Style: Normal, align: JUSTIFY (3)): • Top Conversation Toolbar: Profile avatar, participant display name, and contextual role badge ('Finder' / 'Owner').
+   --> [HAS DRAWING/IMAGE]
+P[360] (Style: Normal, align: JUSTIFY (3)): • Message Bubble Stream: Sent (purple) and received (dark surface) message bubbles with timestamps and '(Edited)' labels.
+   --> [HAS DRAWING/IMAGE]
+P[361] (Style: Normal, align: JUSTIFY (3)): • Context Bottom Sheet: Modal offering 'Copy Message', 'Edit Message', 'Delete for Me', and 'Delete for Everyone'.
+   --> [HAS DRAWING/IMAGE]
+P[362] (Style: Normal, align: JUSTIFY (3)): • Edit Mode Banner: Preview banner displaying original message text with a cancel (X) button above input field.
+   --> [HAS DRAWING/IMAGE]
+P[363] (Style: Normal, align: JUSTIFY (3)): • Input Bar & Attachments: Camera/gallery attachment button, multi-line text input field, and floating Send button.
+   --> [HAS DRAWING/IMAGE]
+P[364] (Style: Normal, align: None): 
+P[365] (Style: Heading 3, align: None): 6.2.10 Administrator Panel – Item Moderation Registry
+   --> [HAS DRAWING/IMAGE]
+P[366] (Style: Normal, align: JUSTIFY (3)): The desktop web console used by platform administrators to monitor, review, and moderate all submitted lost and found listings across the platform.
+   --> [HAS DRAWING/IMAGE]
+P[367] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[368] (Style: Normal, align: CENTER (1)): Figure 6.2.10 – Administrator Panel – Item Moderation Registry
+   --> [HAS DRAWING/IMAGE]
+P[369] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[370] (Style: Normal, align: JUSTIFY (3)): • Item Moderation Table: Tabular view displaying Item ID, Title, Category, Reporter Username, Report Type (Lost/Found), Timestamp, and Status.
+   --> [HAS DRAWING/IMAGE]
+P[371] (Style: Normal, align: JUSTIFY (3)): • Status Filter Tabs: Quick filters for 'Pending Review', 'Approved', 'Flagged', and 'Resolved' listings.
+   --> [HAS DRAWING/IMAGE]
+P[372] (Style: Normal, align: JUSTIFY (3)): • Search & Search Input: Global keyword search for locating specific reports or accounts.
+   --> [HAS DRAWING/IMAGE]
+P[373] (Style: Normal, align: JUSTIFY (3)): • Action Controls: Individual action buttons per listing ('View Detail', 'Approve', 'Flag / Reject').
+   --> [HAS DRAWING/IMAGE]
+P[374] (Style: Normal, align: None): 
+P[375] (Style: Heading 3, align: None): 6.2.11 Admin Item Detail & Ownership Verification View
+   --> [HAS DRAWING/IMAGE]
+P[376] (Style: Normal, align: JUSTIFY (3)): The in-depth administrative inspection view allowing moderators to examine uploaded evidence photos, claimant verification answers, and conflicting ownership claims to ensure fair dispute resolution.
+   --> [HAS DRAWING/IMAGE]
+P[377] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[378] (Style: Normal, align: CENTER (1)): Figure 6.2.11 – Admin Item Detail & Ownership Verification View
+   --> [HAS DRAWING/IMAGE]
+P[379] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[380] (Style: Normal, align: JUSTIFY (3)): • High-Resolution Proof Viewer: Full-size side-by-side inspection of found item photo and claimant proof submission.
+   --> [HAS DRAWING/IMAGE]
+P[381] (Style: Normal, align: JUSTIFY (3)): • Claimant & Finder Reputation Profile: Overview of user trust scores, account age, and return history.
+   --> [HAS DRAWING/IMAGE]
+P[382] (Style: Normal, align: JUSTIFY (3)): • Secret Question & Answer Comparison Box: Side-by-side display of finder's question and claimant's response for verification audit.
+   --> [HAS DRAWING/IMAGE]
+P[383] (Style: Normal, align: JUSTIFY (3)): • Dispute Resolution Override: Administrative override controls allowing direct approval or request for additional proof.
+   --> [HAS DRAWING/IMAGE]
+P[384] (Style: Normal, align: None): 
+P[385] (Style: Heading 3, align: None): 6.2.12 Admin Item Approval & Moderation Decision Workflow
+   --> [HAS DRAWING/IMAGE]
+P[386] (Style: Normal, align: JUSTIFY (3)): The decision execution interface where administrators finalize moderation actions, log regulatory notes, and broadcast approved listings to the community feed.
+   --> [HAS DRAWING/IMAGE]
+P[387] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[388] (Style: Normal, align: CENTER (1)): Figure 6.2.12 – Admin Item Approval & Moderation Decision Workflow
+   --> [HAS DRAWING/IMAGE]
+P[389] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[390] (Style: Normal, align: JUSTIFY (3)): • Moderation Decision Selector: Dropdown / radio options to set status to 'Approved', 'Under Review', or 'Rejected'.
+   --> [HAS DRAWING/IMAGE]
+P[391] (Style: Normal, align: JUSTIFY (3)): • Admin Reason / Notes Box: Mandatory explanation field for rejected or flagged listings sent directly to the user.
+   --> [HAS DRAWING/IMAGE]
+P[392] (Style: Normal, align: JUSTIFY (3)): • Save & Update Status Button: Commits changes to the database and broadcasts push notifications to matched users.
+   --> [HAS DRAWING/IMAGE]
+P[393] (Style: Normal, align: JUSTIFY (3)): • Audit Log: Timestamped log of previous administrative actions and moderator remarks.
+   --> [HAS DRAWING/IMAGE]
+P[394] (Style: Normal, align: None): 
+P[395] (Style: Heading 3, align: None): 6.2.13 Master Administration Dashboard & Platform Analytics
+   --> [HAS DRAWING/IMAGE]
+P[396] (Style: Normal, align: JUSTIFY (3)): The executive administrative dashboard presenting platform-wide metrics, user activity statistics, return success rates, reputation point economy analytics, and server health monitoring.
+   --> [HAS DRAWING/IMAGE]
+P[397] (Style: Normal, align: CENTER (1)): 
+   --> [HAS DRAWING/IMAGE]
+P[398] (Style: Normal, align: CENTER (1)): Figure 6.2.13 – Master Administration Dashboard & Platform Analytics
+   --> [HAS DRAWING/IMAGE]
+P[399] (Style: Normal, align: None): Key UI Elements:
+   --> [HAS DRAWING/IMAGE]
+P[400] (Style: Normal, align: JUSTIFY (3)): • KPI Summary Metric Cards: Total Registered Users, Active Lost Reports, Active Found Reports, Successful Returns, and Recovery Rate.
+   --> [HAS DRAWING/IMAGE]
+P[401] (Style: Normal, align: JUSTIFY (3)): • Real-Time Activity Stream: Live feed of recent registrations, claim submissions, and confirmed handovers.
+   --> [HAS DRAWING/IMAGE]
+P[402] (Style: Normal, align: JUSTIFY (3)): • System Health Monitor: API response latency, database connection pool, and storage utilization.
+   --> [HAS DRAWING/IMAGE]
+P[403] (Style: Normal, align: JUSTIFY (3)): • Navigation Sidebar: Direct access to User Accounts, Item Listings, Claims, Transactions, Notifications, and System Configuration.
+   --> [HAS DRAWING/IMAGE]
+P[404] (Style: Normal, align: None): 
+P[405] (Style: Heading 2, align: None): 6.3 Operational Workflow and Comprehensive User Guidelines
+   --> [HAS DRAWING/IMAGE]
+P[406] (Style: Normal, align: JUSTIFY (3)): Findora provides a unified, step-by-step workflow designed to streamline lost item recovery while eliminating fraud and maintaining complete transactional accountability. The end-to-end operational lifecycle spans eight primary phases:
+   --> [HAS DRAWING/IMAGE]
+P[407] (Style: Normal, align: JUSTIFY (3)): 1. User Registration & Security Onboarding: New users create a verified account with legal name, contact credentials, and avatar. Session tokens are securely cached for seamless app launches using EncryptedSharedPreferences and JWT tokens.
+   --> [HAS DRAWING/IMAGE]
+P[408] (Style: Normal, align: JUSTIFY (3)): 2. Reporting Lost Belongings: Owners document missing items by selecting category, entering distinct descriptive identifiers, setting loss date/time, providing location context, and uploading optional reference photos.
+   --> [HAS DRAWING/IMAGE]
+P[409] (Style: Normal, align: JUSTIFY (3)): 3. Posting Discovered Property: Finders photograph discovered items, specify the discovery location/time, and define a secret verification question that only the rightful owner can accurately answer.
+   --> [HAS DRAWING/IMAGE]
+P[410] (Style: Normal, align: JUSTIFY (3)): 4. Automated Matching & Community Discovery: The platform indexes active reports in real time, notifying owners when a matching found item is logged within the same spatial-temporal proximity.
+   --> [HAS DRAWING/IMAGE]
+P[411] (Style: Normal, align: JUSTIFY (3)): 5. Secure Ownership Claim Submission: Claimants review item details and submit private answers to the secret question along with optional evidence (purchase receipts or serial numbers).
+   --> [HAS DRAWING/IMAGE]
+P[412] (Style: Normal, align: JUSTIFY (3)): 6. 1-on-1 End-to-End Encrypted Coordination: Finders and owners communicate via real-time in-app chat to coordinate a safe public handover location without sharing private phone numbers.
+   --> [HAS DRAWING/IMAGE]
+P[413] (Style: Normal, align: JUSTIFY (3)): 7. Dual-Confirmation Handshake & Reputation Rating: Upon physical item return, both parties click 'Confirm Return'. The system marks the item resolved, awards community reputation points, and collects finder star ratings.
+   --> [HAS DRAWING/IMAGE]
+P[414] (Style: Normal, align: JUSTIFY (3)): 8. Administrative Oversight & Moderation: Platform moderators review flagged posts, audit disputed claims, verify proof documents, and manage community trust scores via the web admin console.
+   --> [HAS DRAWING/IMAGE]
+P[415] (Style: Normal, align: JUSTIFY (3)): 
+P[416] (Style: Normal, align: JUSTIFY (3)): 
+P[417] (Style: Normal, align: JUSTIFY (3)): 
+P[418] (Style: Normal, align: JUSTIFY (3)): 
+P[419] (Style: Normal, align: JUSTIFY (3)): 
+P[420] (Style: Normal, align: JUSTIFY (3)): 
+P[421] (Style: Normal, align: JUSTIFY (3)): 
+P[422] (Style: Normal, align: JUSTIFY (3)): 
+P[423] (Style: Normal, align: JUSTIFY (3)): 
+P[424] (Style: Normal, align: JUSTIFY (3)): 
+P[425] (Style: Normal, align: JUSTIFY (3)): 
+P[426] (Style: Normal, align: JUSTIFY (3)): 
+P[427] (Style: Normal, align: JUSTIFY (3)): 
+P[428] (Style: Normal, align: JUSTIFY (3)): 
+P[429] (Style: Normal, align: JUSTIFY (3)): 
+P[430] (Style: Normal, align: JUSTIFY (3)): 
+P[431] (Style: Normal, align: JUSTIFY (3)): 
+P[432] (Style: Normal, align: JUSTIFY (3)): 
+P[433] (Style: Normal, align: JUSTIFY (3)): 
+P[434] (Style: Normal, align: JUSTIFY (3)): 
+P[435] (Style: Normal, align: JUSTIFY (3)): 
+P[436] (Style: Normal, align: JUSTIFY (3)): 
+P[437] (Style: Normal, align: JUSTIFY (3)): 
+P[438] (Style: Heading 1, align: None): CHAPTER 7: CONCLUSION
+   --> [HAS DRAWING/IMAGE]
+P[439] (Style: Heading 2, align: None): 7.1 Conclusion
+   --> [HAS DRAWING/IMAGE]
+P[440] (Style: Normal, align: JUSTIFY (3)): Findora successfully solves the communication and verification gap in lost and found management. By establishing an organized, secure, and reward-driven digital platform, Findora empowers communities to recover lost belongings swiftly while safeguarding user privacy.
+   --> [HAS DRAWING/IMAGE]
+P[441] (Style: Heading 3, align: None): 7.1.1 Significance of the System
+   --> [HAS DRAWING/IMAGE]
+P[442] (Style: Normal, align: JUSTIFY (3)): The system's significance lies in its automated matching engine, secure claim validation, and community reputation incentives. Unlike chaotic social media channels, Findora provides structured accountability and verifiable records for every reported item.
+   --> [HAS DRAWING/IMAGE]
+P[443] (Style: Heading 2, align: None): 7.2 Limitations of the System
+   --> [HAS DRAWING/IMAGE]
+P[444] (Style: Normal, align: JUSTIFY (3)): Current limitations include reliance on user truthfulness for verification question evaluation, dependency on active internet connectivity, and the absence of computer-vision-based automatic image matching.
+   --> [HAS DRAWING/IMAGE]
+P[445] (Style: Heading 2, align: None): 7.3 Future Scope of the Project
+   --> [HAS DRAWING/IMAGE]
+P[446] (Style: Normal, align: JUSTIFY (3)): Future enhancements will incorporate: AI-powered image similarity matching using convolutional neural networks (CNNs); geolocation-based real-time proximity alerts using Geofencing; integration with campus smart card RFID readers; and automated SMS gateway notifications.
+   --> [HAS DRAWING/IMAGE]
+P[447] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[448] (Style: Heading 1, align: CENTER (1)): REFERENCES
+   --> [HAS DRAWING/IMAGE]
+P[449] (Style: Normal, align: JUSTIFY (3)): Note on Reference Formatting: In accordance with the Project Formatting Guidelines, all reference entries are organized alphabetically by the surnames of the first authors. Each entry includes the author name(s), year of publication, work title, source publication (journal/book/web in italics), and URL if obtained from digital source material (APA Style Standard).
+   --> [HAS DRAWING/IMAGE]
+P[450] (Style: Normal, align: JUSTIFY (3)): Django Software Foundation (2024). Django Web Framework Documentation (Version 4.2). Retrieved from https://docs.djangoproject.com/en/4.2/
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[451] (Style: Normal, align: JUSTIFY (3)): Fielding, Roy T. (2000). Architectural Styles and the Design of Network-based Software Architectures. Doctoral dissertation, University of California, Irvine.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[452] (Style: Normal, align: JUSTIFY (3)): Floyd, Pink (1995). Comfortably Numb – the effects. American Medical Journal, 76, 120-135.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[453] (Style: Normal, align: JUSTIFY (3)): Gamma, Erich, Helm, Richard, Johnson, Ralph, & Vlissides, John (1994). Design Patterns: Elements of Reusable Object-Oriented Software. Addison-Wesley Professional.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[454] (Style: Normal, align: JUSTIFY (3)): Google Developers (2024). Android Developers Guide and Kotlin Reference Documentation. Retrieved from https://developer.android.com/guide
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[455] (Style: Normal, align: JUSTIFY (3)): PostgreSQL Global Development Group (2024). PostgreSQL 14 Database Documentation and Reference Manual. Retrieved from https://www.postgresql.org/docs/14/
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[456] (Style: Normal, align: JUSTIFY (3)): Pressman, Roger S., & Maxim, Bruce R. (2020). Software Engineering: A Practitioner's Approach (9th ed.). McGraw-Hill Education.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[457] (Style: Normal, align: JUSTIFY (3)): Rose, Axel (2002 March). Appetite for Destruction. Retrieved from https://gnr.com/albums/allhits/10123
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[458] (Style: Normal, align: JUSTIFY (3)): Sommerville, Ian (2016). Software Engineering (10th ed.). Pearson Education Limited.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[459] (Style: Normal, align: JUSTIFY (3)): Two Scoops Press (2022). Two Scoops of Django 3.x: Best Practices for the Django Web Framework. Feldroy Publishing.
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+   --> [HAS DRAWING/IMAGE]
+P[460] (Style: Normal, align: None): 
+   --> [HAS DRAWING/IMAGE]
+P[461] (Style: Heading 1, align: CENTER (1)): APPENDIX: PROJECT FORMATTING AND SUBMISSION GUIDELINES
+   --> [HAS DRAWING/IMAGE]
+P[462] (Style: Normal, align: JUSTIFY (3)): This appendix provides the consolidated formatting rules, page setup rules, typography requirements, caption conventions, and binding regulations synthesized from Pokhara University and college project standards for the Bachelor of Computer Application (BCA) program.
+   --> [HAS DRAWING/IMAGE]
+P[463] (Style: Normal, align: CENTER (1)): Table A.1 – Consolidated Project Formatting and Submission Specifications
+   --> [HAS DRAWING/IMAGE]
+P[464] (Style: Normal, align: None): 
+
+--- TABLE 0 (2x2) ---
+  Row 0: Bivek Kafle [Symbol No: 22530190] | Signature: __________________
+  Row 1: Laxman Rawat [Symbol No: 22530204] | Signature: __________________
+
+--- TABLE 1 (2x2) ---
+  Row 0: ________________________ Anil Thapaliya Project Supervisor Date: __________________ | ________________________ Shiva Pathak Project Supervisor Date: __________________
+  Row 1:  | 
+
+--- TABLE 2 (1x3) ---
+  Row 0: ___________________ Supervisor Date: ______________ | ___________________ Examiner Date: ______________ | ___________________ Program Coordinator ………………, HOD Date: ______________
+
+--- TABLE 3 (28x2) ---
+  Row 0: Abbreviation | Full Form / Expansion
+  Row 1: API | Application Programming Interface
+  Row 2: BCA | Bachelor of Computer Application
+  Row 3: CRUD | Create, Read, Update, and Delete
+  Row 4: CSS | Cascading Style Sheets
+  Row 5: DBMS | Database Management System
+  Row 6: DFD | Data Flow Diagram
+  Row 7: ERD | Entity Relationship Diagram
+  Row 8: HOD | Head of Department
+  Row 9: HTML | HyperText Markup Language
+  Row 10: HTTP | Hypertext Transfer Protocol
+  Row 11: HTTPS | Hypertext Transfer Protocol Secure
+  Row 12: JSON | JavaScript Object Notation
+  Row 13: JWT | JSON Web Token
+  Row 14: MVC | Model-View-Controller
+  Row 15: MVT | Model-View-Template
+  Row 16: ORM | Object-Relational Mapping
+  Row 17: OS | Operating System
+  Row 18: PU | Pokhara University
+  Row 19: REST | Representational State Transfer
+  Row 20: SDK | Software Development Kit
+  Row 21: SQL | Structured Query Language
+  Row 22: UI | User Interface
+  Row 23: UML | Unified Modeling Language
+  Row 24: URI | Uniform Resource Identifier
+  Row 25: URL | Uniform Resource Locator
+  Row 26: UX | User Experience
+  Row 27: VM | Virtual Machine
+
+--- TABLE 4 (36x3) ---
+  Row 0: Figure No. | Figure Caption / Title | Page No.
+  Row 1: Figure 3.6.1 | Use Case Diagram of Findora System | 14
+  Row 2: Figure 3.6.2 | Data Flow Diagram (DFD Level 1) of Findora System | 15
+  Row 3: Figure 3.6.3 | Activity Diagram of Lost and Found Item Recovery Workflow | 16
+  Row 4: Figure 3.6.4 | Data Flow Diagram (Context Level 0) of Findora System | 17
+  Row 5: Figure 3.6.5 | System Flowchart for Item Owner Workflow | 18
+  Row 6: Figure 3.6.6 | System Flowchart for Item Finder Workflow | 19
+  Row 7: Figure 3.6.7 | Administrator Verification & Moderation Workflow Diagram | 20
+  Row 8: Figure 3.6.8 | 1-on-1 In-App Chat & Messaging Workflow Diagram | 21
+  Row 9: Figure 3.6.9 | Item Matching & Parent-Child Relationship Diagram | 22
+  Row 10: Figure 4.2.1 | System Architecture Diagram of Findora Platform | 24
+  Row 11: Figure 4.2.2 | Deployment Diagram of Findora Infrastructure | 25
+  Row 12: Figure 4.2.3 | UML Component Diagram of Findora System | 26
+  Row 13: Figure 4.3.1 | Entity-Relationship Diagram (ERD) of Findora Database | 28
+  Row 14: Figure 4.3.2 | State Machine Diagram for Item Lifecycle & Return Process | 29
+  Row 15: Figure 4.4.1 | Sequence Diagram: User Authentication & OTP Verification | 31
+  Row 16: Figure 4.4.2 | Sequence Diagram: Lost Item Reporting Workflow | 32
+  Row 17: Figure 4.4.3 | Sequence Diagram: Found Item Reporting & Linking | 33
+  Row 18: Figure 4.4.4 | Sequence Diagram: 1-on-1 In-App Chat & Secure Messaging | 34
+  Row 19: Figure 4.4.5 | Sequence Diagram: Dual-Confirmation Return Process | 35
+  Row 20: Figure 4.4.6 | Sequence Diagram: Finder Rating & Reputation Score Calculation | 36
+  Row 21: Figure 4.4.7 | Sequence Diagram: Multi-Criteria Item Search & Detail Retrieval | 37
+  Row 22: Figure 4.4.8 | Sequence Diagram: Notification Dispatch & Contextual Routing | 38
+  Row 23: Figure 6.2.1 | User Login & Authentication Interface | 36
+  Row 24: Figure 6.2.2 | User Registration & Onboarding Screen | 36
+  Row 25: Figure 6.2.3 | Finder Dashboard & Categorized Home Feed | 37
+  Row 26: Figure 6.2.4 | Item Details & Finder Action Overview | 37
+  Row 27: Figure 6.2.5 | Report Lost Item Screen | 38
+  Row 28: Figure 6.2.6 | Report Found Item Screen | 38
+  Row 29: Figure 6.2.7 | Item Claim Submission & Ownership Proof Interface | 39
+  Row 30: Figure 6.2.8 | Claim Verification & Return Handshake Status | 39
+  Row 31: Figure 6.2.9 | 1-on-1 Real-Time In-App Chat Interface | 40
+  Row 32: Figure 6.2.10 | Administrator Panel – Item Moderation Registry | 40
+  Row 33: Figure 6.2.11 | Admin Item Detail & Ownership Verification View | 41
+  Row 34: Figure 6.2.12 | Admin Item Approval & Moderation Decision Workflow | 41
+  Row 35: Figure 6.2.13 | Master Administration Dashboard & Platform Analytics | 42
+
+--- TABLE 5 (11x3) ---
+  Row 0: Table No. | Table Caption / Title | Page No.
+  Row 1: Table 2.3.1 | Comparison between Existing Systems and Findora | 8
+  Row 2: Table 3.3.1 | Project Timeline, Sprints, and Milestones | 11
+  Row 3: Table 3.4.1 | Hardware and Software Operating Specifications | 12
+  Row 4: Table 4.3.1 | Database Schema: Custom User Account Entity | 24
+  Row 5: Table 4.3.2 | Database Schema: Lost and Found Item Entity | 24
+  Row 6: Table 4.3.3 | Database Schema: Claim Request and Proof Entity | 25
+  Row 7: Table 4.3.4 | Database Schema: Reputation and Transaction Logs | 25
+  Row 8: Table 5.5.1 | Authentication and Access Control Test Cases | 32
+  Row 9: Table 5.5.2 | Item Reporting, Filtering, and Matching Test Cases | 33
+  Row 10: Table 5.5.3 | Claim Verification and Dispute Handling Test Cases | 34
+
+--- TABLE 6 (7x4) ---
+  Row 0: Feature / Dimension | Social Media Groups | Physical Lost Desks | Findora Platform
+  Row 1: Structured Categorization | No (Unstructured text) | Manual logbook | Yes (Multi-tiered categories)
+  Row 2: Automated Matching Engine | No | No | Yes (Real-time attribute matching)
+  Row 3: Proof-of-Ownership Verification | None (Direct messaging) | Manual physical check | Yes (Custom verification questions)
+  Row 4: User Privacy & Data Protection | Low (Public phone/email) | Medium (Staff-handled) | High (Masked contact until approval)
+  Row 5: Reputation & Reward Tracking | None | None | Yes (Built-in points & rewards)
+  Row 6: Accessibility & Availability | 24/7 but unorganized | Limited office hours | 24/7 Cross-Platform (Web/App)
+
+--- TABLE 7 (7x4) ---
+  Row 0: Phase / Sprint | Deliverables / Milestones | Duration | Status
+  Row 1: Phase 1: Inception | Feasibility study, requirements gathering, SRS document | Weeks 1–3 | Completed
+  Row 2: Phase 2: Architectural Design | Database schema, API contracts, UI wireframes | Weeks 4–6 | Completed
+  Row 3: Phase 3: Backend Development | Django REST models, serializers, views, JWT auth | Weeks 7–10 | Completed
+  Row 4: Phase 4: Client Development | Android UI, web interface, API integration | Weeks 11–13 | Completed
+  Row 5: Phase 5: Verification & Testing | Unit tests, integration tests, beta validation | Weeks 14–15 | Completed
+  Row 6: Phase 6: Final Documentation | Complete project report, black book preparation | Week 16 | Completed
+
+--- TABLE 8 (8x3) ---
+  Row 0: Category | Component / Specification | Minimum Requirement
+  Row 1: Server Hardware | Processor / RAM / Storage | Quad-Core CPU, 4 GB RAM, 50 GB SSD
+  Row 2: Client Hardware | Android / Web Devices | Android 8.0 (API 26) / 2 GB RAM / HTML5 Browser
+  Row 3: Backend Framework | Programming Language & Framework | Python 3.10+, Django 4.2+, Django REST Framework
+  Row 4: Database Engine | Relational DBMS | PostgreSQL 14+ (or SQLite for development)
+  Row 5: Mobile Client | Android SDK & Language | Kotlin 1.9+, Android Jetpack, Retrofit 2
+  Row 6: Frontend Web | Core Technologies | HTML5, CSS3, JavaScript (ES6+), Bootstrap/Vanilla
+  Row 7: Development Tools | IDE, Version Control, Testing | VS Code, Android Studio, Git, Postman
+
+--- TABLE 9 (8x4) ---
+  Row 0: Field Name | Data Type | Constraints | Description
+  Row 1: id | BigAutoField | Primary Key | Unique identifier for user account
+  Row 2: email | EmailField(255) | Unique, Not Null | User email address for login
+  Row 3: username | CharField(150) | Unique, Not Null | Public screen handle
+  Row 4: phone_number | CharField(20) | Nullable | Verified contact number
+  Row 5: reputation_points | IntegerField | Default = 0 | Accumulated community karma score
+  Row 6: is_verified | BooleanField | Default = False | Email/ID verification flag
+  Row 7: date_joined | DateTimeField | Auto-now-add | Account creation timestamp
+
+--- TABLE 10 (12x4) ---
+  Row 0: Field Name | Data Type | Constraints | Description
+  Row 1: id | BigAutoField | Primary Key | Unique identifier for item listing
+  Row 2: user_id | ForeignKey(User) | On Delete CASCADE | Author who posted the listing
+  Row 3: item_type | CharField(10) | LOST / FOUND | Listing classification
+  Row 4: category | CharField(50) | Indexed | Item taxonomy (Electronics, Wallet, etc.)
+  Row 5: title | CharField(200) | Not Null | Brief descriptive title
+  Row 6: description | TextField | Not Null | Detailed item features and marks
+  Row 7: location | CharField(255) | Not Null | Location where lost or discovered
+  Row 8: item_image | ImageField | Nullable | Uploaded photograph of the item
+  Row 9: verification_question | CharField(255) | Nullable | Secret question to verify ownership
+  Row 10: status | CharField(20) | OPEN/CLAIMED/CLOSED | Current lifecycle state
+  Row 11: created_at | DateTimeField | Auto-now-add | Listing submission timestamp
+
+--- TABLE 11 (8x5) ---
+  Row 0: TC ID | Test Description | Test Steps / Input | Expected Outcome | Status
+  Row 1: TC-01 | User Registration | Submit valid email & password | 201 Created & JWT token generated | Passed
+  Row 2: TC-02 | Duplicate Registration | Submit existing email | 400 Bad Request: Email exists | Passed
+  Row 3: TC-03 | Post Lost Item | Valid title, category, desc, photo | 201 Created; listing live in feed | Passed
+  Row 4: TC-04 | Invalid Item Image | Upload non-image file (.exe) | 400 Bad Request: Unsupported format | Passed
+  Row 5: TC-05 | Submit Item Claim | Provide proof answer for listing | 201 Created; notify item poster | Passed
+  Row 6: TC-06 | Accept Claim & Close | Poster clicks Accept Claim | Status -> RETURNED, Karma +50 | Passed
+  Row 7: TC-07 | Unauthorized Edit | Non-owner attempts item update | 403 Forbidden: Permission denied | Passed
+
+--- TABLE 12 (16x3) ---
+  Row 0: Parameter / Element | Specification / Requirement | Details & Examples
+  Row 1: Paper Size & Print | A4 Size White Paper | Print strictly on single side of the paper
+  Row 2: Page Margins | Left: 1.5", Right: 1.0", Top: 1.0", Bottom: 1.0" | 1.5 inches left margin allows for hard binding margin
+  Row 3: Font Family & Color | Times New Roman, Black (RGB 0,0,0) | Consistent across all text, headings, captions, and tables
+  Row 4: Heading 1 | 16 pt, Bold | Space Before: 12 pt, Space After: 12 pt, Centered/Left
+  Row 5: Heading 2 | 14 pt, Bold | Space Before: 12 pt, Space After: 12 pt, Left aligned
+  Row 6: Heading 3 | 12 pt, Bold | Space Before: 6 pt, Space After: 6 pt, Left aligned
+  Row 7: Heading 4 | 12 pt, Normal / Italic | Space Before: 6 pt, Space After: 6 pt, Left aligned
+  Row 8: Body Text | 12 pt, Normal, Justified | Line Spacing: 1.5, Italics/Bolds as necessary
+  Row 9: Page Numbering Position | Top-Right / Right side of page | Times New Roman, 10 pt, Black, Normal
+  Row 10: Preliminary Pagination | Roman numbering (i, ii, iii, ...) | Starts on Student Declaration, continues to Table of Contents
+  Row 11: Main Body Pagination | Natural numbers (1, 2, 3, ...) | Starts at 1 on Chapter 1 (Page 1) to end of report
+  Row 12: Table Labeling | Times New Roman, 10 pt, Normal, Center | Table Section No.Table No – Table Name (e.g., Table 3.4.1 – Table of data collection)
+  Row 13: Figure Labeling | Times New Roman, 10 pt, Normal, Center | Figure Section No.Figure No – Figure Name (e.g., Figure 3.9.7 – Data Flow Diagram)
+  Row 14: References Format | APA Style, Alphabetical by first author surname | Author name, year, source reference (in italics), URL if digital
+  Row 15: Binding & Submission | Hard cover black book binding | No tape or spiral binding. Total 3 copies (PU – 1, College – 1, Student – 1)

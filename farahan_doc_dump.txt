@@ -1,0 +1,2018 @@
+=== PAGE 1 ===
+ 
+A Project Report 
+deessa Companion  
+Nepal’s First Offline Nepali Autism Support App  
+ 
+In partial fulfillment for the degree of BCA under 
+Pokhara University 
+ 
+ 
+Submitted to 
+Oxford College of Engineering and Management 
+Bachelor of Computer Application (BCA) Program 
+ 
+Under the guidance of 
+Asst. Prof Anil Thapaliya 
+Asst. Prof Shiva Bahadur Pathak 
+ 
+Submitted by 
+Farhan Alam , BCA 8th Semester , 22530193 
+Rejina Gharti Magar , BCA 8th Semester , 22530222 
+Binusha Kandel , BCA 8th Semester , 22530188 
+ 
+ September , 2026 
+ 
+ 
+ 
+  
+
+
+=== PAGE 2 ===
+ii 
+ROLES AND RESPONSIBILITIES 
+ 
+This section outlines the specific roles and responsibilities of each team member 
+involved in the deessa Companion project. Clearly defined roles and responsibilities 
+supported effective collaboration, accountability, and smooth project execution. Each 
+member contributed to different aspects of application development, design, testing, 
+and documentation. 
+ 
+Team Member Role Responsibilities 
+Farhan Alam Project Lead / 
+FullStack Developer 
+• Coordinating project activities and 
+development tasks. 
+• Developing backend services, APIs, 
+and database integration. 
+• Managing system architecture and 
+core technical implementation. 
+Rejina Gharti 
+Magar 
+Frontend Developer • Implementing application interfaces 
+and frontend functionality. 
+• Integrating frontend components with 
+backend APIs and services. 
+• Developing and refining interactive 
+features for the application. 
+Binusha Kandel UI/UX Lead / Android 
+Developer 
+• Designing user-friendly, accessible, 
+and consistent application interfaces. 
+• Conducting functional testing and 
+reviewing the system for usability and 
+quality. 
+
+=== PAGE 3 ===
+iii 
+STUDENT’S DECLARATION 
+We hereby declare that the project report entitled “deessa Companion: Nepal’s First 
+Offline-Capable, Nepali-Language Autism Support Mobile Application,” submitted in 
+partial fulfillment of the requirements for the degree of Bachelor of Computer 
+Application (BCA) under Pokhara University, is our original work carried out under 
+the guidance and supervision of the designated project supervisors.To the best of our 
+knowledge, this report contains no material that has been previously published or 
+written by any other person, except where due acknowledgment has been made through 
+appropriate citations and references. All sources of information, ideas, and materials 
+used in the preparation of this report have been duly acknowledged and listed in the 
+References section. 
+We further declare that this project report, in whole or in part, has not been submitted 
+previously, nor is it being submitted concurrently, for the award of any degree, diploma, 
+or other academic or professional qualification at Pokhara University or any other 
+institution. 
+We accept full responsibility for the authenticity, accuracy, and originality of the work 
+presented in this report. 
+Farhan Alam, 22530192 
+Signature: ____________________________ 
+Binusha Kandel , 22530188 
+Signature: ____________________________ 
+Rejina Gharti Magar , 22530222 
+Signature: ____________________________ 
+
+=== PAGE 4 ===
+iv 
+SUPERVISOR'S RECOMMENDATION 
+ 
+We hereby recommend that the project report entitled “deessa Companion: Nepal’s 
+First Offline-Capable, Nepali-Language Autism Support Mobile Application,” 
+prepared and submitted by Farhan Alam, Rejina Gharti Magar, and Binusha Kandel, 
+students of the 8th Semester of the Bachelor of Computer Application (BCA) program 
+under Pokhara University, is an original work carried out under our guidance and 
+supervision. 
+ 
+The project has been completed in partial fulfillment of the requirements for the degree 
+of Bachelor of Computer Application (BCA). Throughout the development of this 
+project, the students have demonstrated their ability to identify a relevant problem, 
+analyze its requirements, design and implement a software solution, and conduct 
+appropriate testing and documentation.  
+To the best of our knowledge, the work presented in this report is satisfactory in scope 
+and quality and fulfills the academic requirements prescribed by Pokhara University 
+for the BCA project. We therefore recommend this project report for final evaluation 
+and examination. 
+ 
+ 
+____________________________ ____________________________ 
+Anil Thapaliya Shiva Bahadur Pathak 
+Project Supervisor Project Supervisor 
+Date: 10th September 2026 Date: 10 th September 2026 
+
+=== PAGE 5 ===
+v 
+LETTER OF APPROVAL 
+ 
+We hereby certify that we have examined the project report entitled “deessa 
+Companion: Nepal’s First Offline-Capable, Nepali-Language Autism Support Mobile 
+Application,” prepared and submitted by Farhan Alam, Rejina Gharti Magar, and 
+Binusha Kandel in partial fulfillment of the requirements for the degree of Bachelor of 
+Computer Application (BCA) under Pokhara University.  
+We have also examined the project work and evaluated the students’ project defense. 
+Based on the examination and evaluation, we are satisfied that the project has been 
+completed in accordance with the academic requirements of the BCA program and is 
+satisfactory in terms of its scope, quality, and implementation.  
+We therefore approve this project work as fulfilling the requirements for the Bachelor 
+of Computer Application (BCA) degree under Pokhara University. 
+ 
+____________________ ____________________ ____________________ 
+Supervisor External Examiner Program Coordinator 
+Date: 
+10th September , 2026 
+Date: 
+10th September, 2026 
+ Date: 
+10th September, 2026 
+
+=== PAGE 6 ===
+vi 
+ACKNOWLEDGEMENTS 
+We would like to express our sincere gratitude to everyone whose guidance, support, 
+and encouragement contributed to the successful completion of this project. 
+First and foremost, we are deeply grateful to our project supervisors for their invaluable 
+guidance, constructive feedback, continuous encouragement, and thoughtful 
+supervision throughout the planning, development, testing, and documentation of this 
+project. Their expertise and suggestions played an important role in shaping the project 
+and improving the quality of our work. We would also like to express our sincere 
+appreciation to the Head of the Department and the faculty members of the Bachelor of 
+Computer Application program at Oxford College of Engineering and Management for 
+providing us with the academic knowledge, technical foundation, and learning 
+environment necessary to undertake and complete this project. 
+We are especially grateful to the deessa Foundation for providing us with the 
+opportunity to work on a project addressing a meaningful social need. Their 
+commitment to supporting children with autism and their families in Nepal provided us 
+with valuable motivation and a clear understanding of the importance of developing 
+accessible and locally relevant technological solutions.We extend our heartfelt 
+appreciation to the autism community in Nepal, parents, caregivers, and therapists who 
+contributed through discussions, feedback, and insights into real-world challenges. 
+Their perspectives helped us better understand the needs of the intended users and 
+guided several aspects of the system's design and functionality. 
+Finally, we express our deepest gratitude to our parents and families for their 
+unwavering love, patience, encouragement, and support throughout our academic 
+journey. Their constant motivation gave us the strength and determination to overcome 
+challenges and bring this project to completion. To everyone who contributed directly 
+or indirectly to the completion of this project, we extend our heartfelt thanks and 
+appreciation. 
+
+=== PAGE 7 ===
+vii 
+ABSTRACT 
+ 
+deessa Companion is an offline-capable, Nepali-language digital platform developed to 
+support children with Autism Spectrum Disorder (ASD), their families, and caregivers 
+in Nepal. It addresses the limited availability of affordable, accessible, and culturally 
+appropriate autism support technologies for communication, learning, emotional well-
+being, and progress monitoring. The system was developed using Agile methodology 
+and follows a three-tier architecture comprising a native Android application using Java 
+and XML, a Django REST Framework backend, and a Next.js administration panel. An 
+offline-first approach using Room for local SQLite storage and WorkManager for 
+synchronization enables core features during network interruptions. The application 
+includes authentication, picture-based Augmentative and Alternative Communication 
+(AAC), interactive learning, feelings and emotions, progress monitoring, rewards, and 
+routine notifications. The AAC module provides 30 bilingual picture cards with audio 
+support, while learning activities cover alphabets, sounds, shapes, numbers, and colors. 
+The feelings module includes emotion check-ins, breathing exercises, meditation, 
+calming music, and coloring activities. 
+ 
+Testing demonstrated that the system met its functional and performance objectives, 
+with 382 backend test cases and a complete pass rate for implemented Android unit 
+tests. Overall, deessa Companion demonstrates the potential of an offline-first, 
+multilingual platform to improve access to autism support resources and provide a 
+practical foundation for technology-assisted care and learning in Nepal. 
+Keywords: Autism Spectrum Disorder, Augmentative and Alternative Communication 
+(AAC), Nepali Language, Offline-First, Mobile Application, Android, Django, 
+Accessibility, Child Development. 
+
+=== PAGE 8 ===
+viii 
+LIST OF ABBREVIATIONS 
+Abbreviation Full Form 
+AAC Augmentative and Alternative Communication 
+API Application Programming Interface 
+APK Android Package Kit 
+ART Android Runtime 
+ASD Autism Spectrum Disorder 
+BCA Bachelor of Computer Applications 
+CRUD Create, Read, Update, Delete 
+CORS Cross-Origin Resource Sharing 
+DB Database 
+DRF Django REST Framework 
+ERD Entity Relationship Diagram 
+FCM Firebase Cloud Messaging 
+FK Foreign Key 
+HTTP Hypertext Transfer Protocol 
+HTTPS Hypertext Transfer Protocol Secure 
+IDE Integrated Development Environment 
+IEP Individualized Education Program 
+JSON JavaScript Object Notation 
+JWT JSON Web Token 
+MIME Multipurpose Internet Mail Extensions 
+MVVM Model-View-ViewModel 
+
+=== PAGE 9 ===
+ix 
+LIST OF FIGURES 
+Fig: 3.1 - Use Case Diagram ( Parent ) ........................................................................ 19 
+Fig: 3.2 - Use Case Diagram ( Child ) ......................................................................... 20 
+Fig: 3.3 - Use Case Diagram ( Therapist ) ................................................................... 20 
+Fig: 3.4 - DFD Level 0 ................................................................................................. 21 
+Fig: 3.5 - DFD Level 1 ................................................................................................. 21 
+Fig: 3.6 - ER Diagram .................................................................................................. 22 
+Fig: 6.1 - Auth Splash Screen ...................................................................................... 39 
+Fig: 6.2 - Auth Onboarding Screen .............................................................................. 39 
+Fig: 6.3 - Auth Register Screen.................................................................................... 39 
+Fig: 6.4 - Auth Login Screen ....................................................................................... 39 
+Fig: 6.5 - Parent Dashboard ......................................................................................... 39 
+Fig: 6.6 - Parent Dashboard ......................................................................................... 39 
+Fig: 6.7 - Parent Profile Screen .................................................................................... 40 
+Fig: 6.8 - Child Profile Screen ..................................................................................... 40 
+Fig: 6.9 - Parent Setting Screen ................................................................................... 40 
+Fig: 6.10 Progress Screen ............................................................................................ 40 
+Fig: 6.11 - Progress Screen .......................................................................................... 40 
+Fig: 6.12 – Weekly Progress Screen ............................................................................ 40 
+Fig: 6.13 Monthly Progress Screen .............................................................................. 41 
+Fig: 6.14 - AAC Home Screen ..................................................................................... 41 
+Fig: 6.15 - AAC Usage Screen .................................................................................... 41 
+Fig: 6.16 - AAC Favorite Screen ................................................................................. 41 
+Fig: 6.17 - AAC Analytics Screen ............................................................................... 41 
+Fig: 6.18 - AAC Settings Screen.................................................................................. 41 
+Fig: 6.19 Child Mode Auth .......................................................................................... 42 
+
+=== PAGE 10 ===
+x 
+Fig: 6.20 Child Dashboard Screen ............................................................................... 42 
+Fig: 6.21 Learning Home Screen ................................................................................. 42 
+Fig: 6.22 -Level Selector Screen .................................................................................. 42 
+Fig: 6.23 -Learning Gameplay Screen ......................................................................... 42 
+Fig: 6.24 – Game Completion Screen .......................................................................... 42 
+Fig: 6.25 - My Reward Screen ..................................................................................... 43 
+Fig: 6.26 - My Badge Screen ....................................................................................... 43 
+Fig: 6.27- Feelings Home Screen ................................................................................. 43 
+Fig: 6.28- Calming Activity Screen ............................................................................. 43 
+Fig: 6.29-Breathing Exercise Screen ........................................................................... 43 
+Fig: 6.30 - Calming Music Screen ............................................................................... 43 
+Fig: 6.31 Admin Dashboard Page ................................................................................ 44 
+Fig: 6.32 - Admin Dashboard Page.............................................................................. 44 
+Fig: 6.33 Admin Dashboard Page ................................................................................ 45 
+Fig: 6.34 Admin User Management Page .................................................................... 45 
+Fig: 6.35 Admin Child Management Page .................................................................. 46 
+Fig: 6.36 Admin AAC Cards Management Page......................................................... 46 
+
+=== PAGE 11 ===
+xi 
+LIST OF TABLES 
+Table 1.1 Table of Scope ............................................................................................... 3 
+Table 2.1 - Table of Comparison of Existing Systems with deessa Companion ......... 10 
+Table 3.1 - Table of Problem-to-Solution Mapping .................................................... 12 
+Table 3.2 - Table 3.2 of Functional Requirements ...................................................... 13 
+Table 3.3 - Table of Non-Functional Requirements .................................................... 15 
+Table 3.4 - Table of Project Development Schedule ................................................... 16 
+Table 3.5 - Table of  Software Requirements for Development .................................. 17 
+Table 3.6 - Table of Hardware Requirements for Development ................................. 18 
+Table 4.1 - Table of Backend Structure ....................................................................... 24 
+Table 4.2 - Table of API Design .................................................................................. 25 
+Table 4.3 - Table of Key Entities ................................................................................. 26 
+Table 4.4 - Table of Key Interfaces ............................................................................. 27 
+Table 6.1 - Table of Backend Test Summary .............................................................. 33 
+Table 6.2 - Table of  Android Frontend Test Summary .............................................. 34 
+Table 6.3 Table of Performance Test Results .............................................................. 34 
+Table 6.4 Table of Usability Test Results .................................................................... 35 
+Table 6.5 Table of AAC Card Distribution ................................................................. 36 
+  
+
+=== PAGE 12 ===
+xii 
+TABLE OF CONTENTS 
+ROLES AND RESPONSIBILITIES ............................................................................. ii 
+STUDENT’S DECLARATION .................................................................................. iii 
+SUPERVISOR'S RECOMMENDATION .................................................................... iv 
+LETTER OF APPROVAL ............................................................................................ v 
+ACKNOWLEDGEMENTS .......................................................................................... vi 
+ABSTRACT ................................................................................................................. vii 
+LIST OF ABBREVIATIONS .................................................................................... viii 
+LIST OF FIGURES ...................................................................................................... ix 
+LIST OF TABLES ........................................................................................................ xi 
+TABLE OF CONTENTS ............................................................................................. xii 
+CHAPTER 1 : INTRODUCTION ................................................................................. 1 
+1.1 Background .......................................................................................................... 1 
+1.2 Objectives ............................................................................................................ 2 
+1.3 Purpose, Scope, and Applicability ....................................................................... 2 
+1.3.1 Purpose .......................................................................................................... 2 
+1.3.2 Scope ............................................................................................................. 3 
+1.3.3 Applicability ................................................................................................. 5 
+1.4 Achievements ....................................................................................................... 5 
+1.5 Organization of Report ........................................................................................ 6 
+CHAPTER 2 : SURVEY AND REVIEWS ................................................................... 7 
+2.1 Literature Survey ................................................................................................. 7 
+2.1.1 Augmentative and Alternative Communication (AAC) ............................... 7 
+2.1.2 Mobile Applications for Autism Support ..................................................... 7 
+2.1.3 Offline-First and Low-Connectivity Solutions ............................................. 8 
+2.1.4 Gamification in Education ............................................................................ 8 
+2.1.5 Technology for Autism in Developing Countries ......................................... 8 
+
+=== PAGE 13 ===
+xiii 
+2.2 Review of Similar/Relevant Projects ................................................................... 9 
+2.2.1 Proloquo2Go ................................................................................................. 9 
+2.2.2 Avaz AAC ..................................................................................................... 9 
+2.2.3 Echo Autism.................................................................................................. 9 
+2.3 Comparison Between Existing Systems and deessa Companion ...................... 10 
+2.4 Discussion .......................................................................................................... 11 
+CHAPTER 3 : REQUIREMENTS ANALYSIS ......................................................... 12 
+3.1 Problem Definition............................................................................................. 12 
+3.2 Requirements Specification ............................................................................... 13 
+3.2.1 Functional Requirements ............................................................................ 13 
+3.2.2 Non-Functional Requirements .................................................................... 15 
+3.3 Planning and Scheduling.................................................................................... 16 
+3.4 Software and Hardware Requirements .............................................................. 17 
+3.4.1 Software Requirements for Development ................................................... 17 
+3.4.2 Hardware Requirements for Development ................................................. 18 
+3.5 Preliminary Product Description........................................................................ 18 
+3.5.1 Android Mobile Application ....................................................................... 18 
+3.5.2 Backend REST API .................................................................................... 19 
+3.5.3 Web Administration Panel .......................................................................... 19 
+3.6 Conceptual Models ............................................................................................ 19 
+3.6.1 Use Case Diagram....................................................................................... 19 
+3.6.2 Data Flow Diagram ..................................................................................... 21 
+3.6.3 ER Diagram ................................................................................................ 22 
+CHAPTER 4 : SYSTEM DESIGN .............................................................................. 23 
+4.1 Introduction ........................................................................................................ 23 
+4.2 System Design ................................................................................................... 23 
+4.2.1 System Architecture .................................................................................... 23 
+
+=== PAGE 14 ===
+xiv 
+4.2.2 Android Architecture .................................................................................. 23 
+4.2.3 Backend Structure ....................................................................................... 24 
+4.3 API Design ......................................................................................................... 25 
+4.4 Database Design................................................................................................. 25 
+4.4.1 Entity Relationship Overview ..................................................................... 25 
+4.4.2 Key Entities ................................................................................................. 26 
+4.4.3 Database Design Patterns ............................................................................ 26 
+4.5 User Interface Design ........................................................................................ 27 
+4.5.1 Key Interface Areas .................................................................................... 27 
+4.5.2 Navigation ................................................................................................... 27 
+4.5.3 Accessibility ................................................................................................ 28 
+4.6 Summary ............................................................................................................ 28 
+CHAPTER 5 : IMPLEMENTATION AND TESTING .............................................. 29 
+5.1 Implementation Approaches .............................................................................. 29 
+5.1.1 Development Methodology ........................................................................ 29 
+5.1.2 Frontend Implementation ............................................................................ 29 
+5.1.3 Backend Implementation ............................................................................ 29 
+5.1.4 Admin Panel Implementation ..................................................................... 30 
+5.2 Coding and Efficiency ....................................................................................... 30 
+5.2.1 Key Implementations .................................................................................. 31 
+5.3 Testing Approach ............................................................................................... 31 
+5.3.1 Testing Summary ........................................................................................ 32 
+5.4 Modifications and Improvements ...................................................................... 32 
+5.4.1 Design Improvements ................................................................................. 32 
+5.4.2 Technical Improvements ............................................................................. 32 
+CHAPTER 6 : RESULTS AND DISCUSSION .......................................................... 33 
+6.1 Test Reports ....................................................................................................... 33 
+
+=== PAGE 15 ===
+xv 
+6.1.1 Backend Test Results .................................................................................. 33 
+6.1.2 Android Frontend Test Results ................................................................... 33 
+6.1.3 Performance Metrics ................................................................................... 34 
+6.1.4 Usability Test Results ................................................................................. 35 
+6.2 App Snapshots ................................................................................................... 35 
+6.2.1 Authentication Screens ............................................................................... 35 
+6.2.2 AAC Communication Board....................................................................... 35 
+6.2.3 Learning Activities...................................................................................... 36 
+6.2.4 Progress Dashboard .................................................................................... 36 
+6.2.5 Feelings and Emotions ................................................................................ 36 
+6.2.6 Rewards and Achievements ........................................................................ 37 
+6.3 User Documentation .......................................................................................... 37 
+6.3.1 Quick Start Guide ....................................................................................... 37 
+6.3.2 Parent User Guide ....................................................................................... 37 
+6.3.3 Admin User Guide ...................................................................................... 38 
+6.4 User Interface Design and Implementation ....................................................... 39 
+CHAPTER 7 : CONCLUSION ................................................................................... 47 
+7.1 Conclusion ......................................................................................................... 47 
+7.1.1 Significance of the System.......................................................................... 47 
+7.2 Limitations of the System .................................................................................. 48 
+7.3 Future Scope of the Project ................................................................................ 48 
+7.3.1 Cloud and Professional Collaboration ........................................................ 48 
+7.3.2 Intelligent Features and Advanced Integration ........................................... 49 
+7.3.3 Expansion and Long-Term Development ................................................... 49 
+REFERENCES ............................................................................................................ 50 
+APPendix : Backend .................................................................................................... 52 
+Appendix : Frontend .................................................................................................... 53 
+
+=== PAGE 16 ===
+1 
+CHAPTER 1 : INTRODUCTION 
+1.1 Background 
+Autism Spectrum Disorder (ASD) is a neurodevelopmental condition that can affect 
+communication, social interaction, behavior, and learning. According to the World 
+Health Organization (WHO), approximately one in 100 children worldwide is affected 
+by autism, highlighting the need for accessible and continuous support for children with 
+autism and their families. 
+In Nepal, families of children with autism may face challenges related to access to 
+specialized services, affordability, language, geographical location, and availability of 
+suitable learning and communication resources. Professional services are concentrated 
+mainly in urban areas, creating additional difficulties for families in other regions. 
+Technology can provide support through Augmentative and Alternative 
+Communication (AAC), structured learning activities, emotional-support tools, and 
+progress monitoring. However, many existing solutions are designed for international 
+users and may not adequately address the linguistic, cultural, financial, and connectivity 
+conditions of Nepali families. 
+Reliable internet connectivity is also not uniform across Nepal. Therefore, applications 
+that depend entirely on continuous internet access may provide limited support in areas 
+with unstable connectivity. An offline-capable approach can help maintain access to 
+essential communication and learning features when internet connectivity is 
+unavailable. 
+To address these needs, deessa Companion was developed in collaboration with the 
+deessa Foundation as a mobile-based autism support and learning platform for the 
+Nepali context. The application follows an offline-first approach and focuses on 
+communication, learning, and progress tracking, with additional features for feelings 
+and emotions, rewards, routines, notifications, and caregiver support. It is intended to 
+complement professional therapy, medical care, and educational intervention by 
+providing accessible tools for children and their caregivers in everyday environments. 
+ 
+ 
+
+=== PAGE 17 ===
+2 
+1.2 Objectives 
+The primary objectives of the project are: 
+ To develop a Nepali-language autism support application that provides 
+accessible communication, learning, and progress-tracking tools for children 
+with autism and their caregivers. 
+ To implement an offline-first architecture that allows essential application 
+features to remain available during periods of limited or unavailable internet 
+connectivity. 
+ To provide picture-based AAC functionality that enables children with 
+communication difficulties to express needs, emotions, activities, and other 
+common requirements using visual cards with Nepali and English audio 
+support. 
+ To develop interactive learning activities covering alphabet recognition, 
+color matching, number recognition, shape recognition, and animal sounds 
+through structured and gamified activities. 
+ To provide progress tracking and reporting through statistics, dashboards, 
+charts, and reports that allow parents and caregivers to monitor participation 
+and development. 
+ To implement a reward and achievement system using stars, badges, 
+milestones, and related gamification elements to encourage children's 
+participation in learning activities. 
+ To develop a web-based administrative panel for managing application 
+content, users, rewards, and analytics. 
+1.3 Purpose, Scope, and Applicability 
+1.3.1 Purpose 
+The purpose of deessa Companion is to provide an accessible and user-friendly digital 
+support platform for children with Autism Spectrum Disorder and their parents or 
+caregivers in Nepal. The application is designed for use in everyday and home-based 
+environments to support communication, learning, emotional activities, and progress 
+monitoring. 
+
+=== PAGE 18 ===
+3 
+The system focuses on three primary areas: 
+ Communication: Picture-based AAC cards help children express basic needs, 
+emotions, activities, and common requirements. 
+ Learning: Structured interactive activities support basic educational and 
+cognitive skills. 
+ Progress Tracking: Activity and communication information is recorded and 
+presented through visual dashboards and reports. 
+Supporting features include feelings and emotions, routines, schedules, medications, 
+notifications, rewards, achievements, and emergency contacts. The application supports 
+Nepali and English and is designed to retain access to important functionality during 
+periods without internet connectivity. 
+The application is intended to complement rather than replace professional therapy, 
+medical care, or educational intervention. Its purpose is to extend opportunities for 
+communication, learning, and engagement beyond formal support environments. 
+1.3.2 Scope 
+The project covers the design, development, integration, and testing of three major 
+components: 
+Table 1.1 Table of Scope 
+Component Main Technologies Primary Purpose 
+Android Mobile 
+Application 
+Java, XML, Android 
+Studio 
+Communication, learning, progress, 
+child and caregiver support 
+REST API 
+Backend 
+Django, Django REST 
+Framework 
+Authentication, data management, 
+synchronization, and application 
+services 
+Web Admin Panel Next.js, React, 
+TypeScript, Tailwind 
+CSS 
+Content, user, reward, and system 
+administration 
+ 
+
+=== PAGE 19 ===
+4 
+1.3.2.1 Android Mobile Application 
+The Android application is primarily designed for children with autism and their parents 
+or caregivers. It provides separate parent-oriented and child-oriented experiences. 
+The parent interface provides five main navigation areas: 
+ Home: Dashboard, child selection, schedules, notifications, and care-related 
+information. 
+ Talk: Picture-based AAC cards with categories, bilingual labels, audio 
+playback, search, filtering, favorites, and usage information. 
+ Learn: Interactive activities covering Color Match, Shape Explorer, Count & 
+Learn, Alphabet Fun, and Animal Sounds. 
+ Progress: Activity statistics, progress information, trends, reports, milestones, 
+and achievements. 
+ Profile: Child and caregiver management, schedules, medications, emergency 
+contacts, account settings, language preferences, and notifications. 
+The application also provides a protected Child Mode with a simplified interface 
+focused on Talk, Learn, Feelings, and Rewards. A parent-controlled PIN separates 
+child-oriented activities from parent management functions. 
+ 
+1.3.2.2 Backend REST API 
+The backend is implemented using Django and Django REST Framework (DRF) . It 
+provides server-side services for authentication, child and parent profiles, AAC content, 
+learning activities, emotions, routines, medications, rewards, progress, notifications, 
+synchronization, audit logging, and analytics. SQLite is used during development, 
+while PostgreSQL is intended for production deployment. 
+ 
+1.3.2.3 Web Admin Panel 
+The web-based administrative panel is developed using Next.js, React, TypeScript, and 
+Tailwind CSS. It allows authorized administrators to manage application content and 
+system data, including AAC cards, learning activities, rewards, users, child-related 
+information, and analytics. 
+
+=== PAGE 20 ===
+5 
+1.3.3 Applicability 
+The system is applicable in the following contexts: 
+ Home-based support: Parents and caregivers can use the application to 
+support communication, learning, emotions, routines, and daily engagement. 
+ Parent-assisted learning: Caregivers can support structured learning 
+activities and monitor participation at home. 
+ Child-centered activities: Children can independently or with assistance use 
+AAC, learning, feelings, and reward features according to their abilities. 
+ Limited-connectivity environments: Offline-capable functionality helps 
+maintain access to important features when internet connectivity is 
+unavailable. 
+ Caregiver monitoring: Parents can manage child information, schedules, 
+medications, emergency contacts, and progress from a centralized interface. 
+ Administrative management: Authorized administrators can manage 
+content, users, rewards, and system information through the web panel. 
+1.4 Achievements 
+The project has achieved the following major milestones: 
+1. Developed an integrated three-component platform consisting of a native 
+Android application, Django REST API backend, and web-based 
+administrative panel. 
+2. Implemented parent and child experiences with a five-section parent 
+interface and a simplified PIN-protected Child Mode. 
+3. Implemented a bilingual AAC communication system using categorized 
+picture-based cards, Nepali/English labels, audio support, search, filtering, 
+favorites, recent cards, and usage tracking. 
+4. Implemented five interactive learning activities—Color Match, Shape 
+Explorer, Count & Learn, Alphabet Fun, and Animal Sounds—with structured 
+activities, difficulty levels, scoring, and rewards. 
+5. Implemented progress, emotional-support, and reward features, including 
+activity statistics, reports, emotion check-ins, calming activities, stars, badges, 
+milestones, and achievement tracking. 
+
+=== PAGE 21 ===
+6 
+1.5 Organization of Report 
+The remainder of this report is organized into seven chapters. 
+Chapter 1: Introduction  presents the background, objectives, purpose, scope, 
+applicability, major achievements, and organization of the project. 
+Chapter 2: Survey and Reviews  presents relevant literature and technology reviews 
+related to autism-support technologies, AAC, mobile applications, offline-first systems, 
+accessibility, and gamification. It also reviews existing systems and identifies relevant 
+gaps. 
+Chapter 3: Requirements Analysis  describes the problem addressed by the project 
+and presents the functional and non-functional requirements, project planning, resource 
+requirements, product requirements, and conceptual models. 
+Chapter 4: System Design presents the architecture and design of the proposed system, 
+including the mobile application, backend, API, database, navigation structure, and user 
+interface. 
+Chapter 5: Implementation and Testing describes the implementation of the Android 
+application, backend, and administrative panel. It also presents key implementation 
+techniques and the overall testing approach. 
+Chapter 6: Results and Discussion  presents the results of system testing and 
+evaluation, including performance, usability, application interfaces, and relevant 
+implementation outcomes. 
+Chapter 7: Conclusion  summarizes the project outcomes and discusses its 
+significance, limitations, and future scope, including potential extensions for therapist 
+and teacher functionality. 
+ 
+
+=== PAGE 22 ===
+7 
+CHAPTER 2 : SURVEY AND REVIEWS 
+2.1 Literature Survey 
+Technology has increasingly been used to support individuals with Autism Spectrum 
+Disorder (ASD) in areas such as communication, learning, engagement, and progress 
+monitoring. Previous research has explored Augmentative and Alternative 
+Communication (AAC), mobile applications, offline-capable systems, and 
+gamification. These studies provide the foundation for the design of deessa Companion 
+and highlight the importance of accessibility, localization, usability, and reliable access. 
+ 
+2.1.1 Augmentative and Alternative Communication (AAC) 
+ 
+Light and McNaughton (2012) emphasized the role of Augmentative and Alternative 
+Communication (AAC) in supporting individuals with complex communication needs. 
+Beukelman and Light (2020) further discussed the development of AAC from 
+traditional communication boards to digital speech-generating systems, highlighting 
+the importance of simple navigation, personalization, consistent interfaces, and suitable 
+vocabulary. 
+These findings support the picture-based AAC module in deessa Companion, which 
+uses categorized communication cards, bilingual labels, and audio feedback to provide 
+an accessible communication method for children with speech-related difficulties. 
+ 
+2.1.2 Mobile Applications for Autism Support 
+ 
+Walsh et al. (2017) reviewed mobile applications for autism and identified 
+communication and social-skill support as major application areas. Laski et al. (2018) 
+also reported positive communication-related outcomes from tablet-based picture 
+communication applications and highlighted the importance of visual consistency, 
+audio feedback, and age-appropriate content. 
+These findings demonstrate the potential of mobile technology to provide portable 
+autism support. deessa Companion applies these principles through a child-friendly 
+interface, Nepali and English content, visual communication cards, audio feedback, and 
+structured learning activities. 
+
+=== PAGE 23 ===
+8 
+2.1.3 Offline-First and Low-Connectivity Solutions 
+ 
+Brewer et al. (2015) emphasized the importance of systems that can continue providing 
+essential functionality during network interruptions. Ratanasanyasak et al. (2020) 
+highlighted local data storage, synchronization, and graceful handling of connectivity 
+loss when designing mobile systems for low-connectivity environments. 
+These findings are relevant to deessa Companion because its core features are designed 
+to remain accessible without continuous internet connectivity. Local storage and 
+synchronization support continuity of use and data synchronization when connectivity 
+is restored.  
+ 
+2.1.4 Gamification in Education 
+Deterding et al. (2011) described gamification as the use of game-design elements in 
+non-game contexts, including points, badges, and progress indicators. Hamari et al. 
+(2014) found that gamification can improve engagement and motivation, although its 
+effectiveness depends on appropriate implementation. 
+deessa Companion uses stars, badges, milestones, and reward streaks as supporting 
+mechanisms to encourage participation in learning activities while keeping learning and 
+skill development as the primary objectives. 
+2.1.5 Technology for Autism in Developing Countries 
+Research on autism-support technologies in developing countries identifies language, 
+culture, affordability, accessibility, and connectivity as important design 
+considerations. El Ghazali et al. (2018) emphasized localization and cultural context, 
+while Khan (2019) discussed challenges in autism support in countries including Nepal 
+and highlighted the potential of mobile technology to extend access to support. 
+These findings support the need for a localized solution for Nepal. deessa Companion 
+addresses these considerations through bilingual content, offline-capable functionality, 
+child-friendly interfaces, AAC communication, structured learning, and parent-oriented 
+progress monitoring. 
+ 
+
+=== PAGE 24 ===
+9 
+2.2 Review of Similar/Relevant Projects 
+2.2.1 Proloquo2Go 
+Proloquo2Go is an AAC application developed by AssistiveWare for individuals with 
+complex communication needs. It provides symbol-based communication, speech 
+output, vocabulary resources, and customization options. 
+Strengths: 
+ Extensive symbol and vocabulary resources. 
+ High degree of communication customization. 
+Limitations: 
+ Does not provide Nepali-language support. 
+ Primarily focuses on AAC rather than integrated learning, emotional support, 
+and progress monitoring. 
+ 
+2.2.2 Avaz AAC 
+Avaz AAC is a picture-based AAC application developed in India. It provides speech 
+output, customizable vocabulary, and support for multiple languages, making it 
+relevant to the South Asian context. 
+Strengths: 
+ Picture-based communication with speech output. 
+ Designed with consideration for South Asian users and multiple languages. 
+Limitations: 
+ Does not specifically provide Nepali-language support. 
+ Primarily focuses on communication rather than an integrated learning, 
+emotional-support, and progress platform. 
+ 
+2.2.3 Echo Autism 
+Echo Autism is a Nepal-focused initiative associated with autism awareness and 
+support services. Its local focus makes it relevant when considering autism-related 
+resources available within Nepal. 
+ 
+
+=== PAGE 25 ===
+10 
+Strengths: 
+ Focuses on the Nepali context. 
+ Contributes to local autism awareness and support. 
+Limitations: 
+ Primarily focuses on support and resources rather than a child-focused mobile 
+platform. 
+ Does not provide the integrated AAC, learning, emotional-support, and 
+progress features proposed by deessa Companion. 
+2.3 Comparison Between Existing Systems and deessa Companion 
+Table 2.1 - Table of Comparison of Existing Systems with deessa Companion 
+Feature Proloquo2Go  Avaz 
+AAC 
+Echo 
+Autism 
+deessa Companion 
+Nepali Language No No Context-
+focused 
+Yes 
+Offline 
+Capability 
+Partial Partial Limited Yes 
+AAC 
+Communication 
+Yes Yes Limited Yes 
+Learning 
+Activities 
+No Limited No Yes 
+Progress 
+Tracking 
+Limited Limited Limited Yes 
+Feelings & 
+Emotions 
+No No No Yes 
+Rewards & 
+Achievements 
+No No No Yes 
+Daily Routines Limited Limited Limited Yes 
+
+=== PAGE 26 ===
+11 
+Parent Features Yes Yes Yes Yes 
+Admin Panel No No No Yes 
+Target Context International South 
+Asia 
+Nepal Nepal 
+Integrated 
+Platform 
+Primarily 
+AAC 
+Primarily 
+AAC 
+Support 
+services 
+Communication + 
+Learning + Progress + 
+Emotional Support 
+2.4 Discussion 
+The reviewed systems demonstrate that existing autism-support solutions generally 
+focus on specific areas such as AAC communication or support services. Proloquo2Go 
+and Avaz AAC provide established communication features, while Echo Autism 
+provides a Nepal-focused support context. 
+deessa Companion is designed to combine several support areas within a single 
+platform for the Nepali context. Its main distinguishing features include Nepali and 
+English support, offline-capable functionality, picture-based AAC, structured learning 
+activities, feelings and emotional support, progress monitoring, daily routines, and 
+rewards. 
+The system is designed primarily around children and their parents or caregivers, with 
+an administrative interface for managing application content. Therapist and teacher 
+functionality is considered future scope. Therefore, deessa Companion aims to address 
+a broader combination of localized communication, learning, emotional-support, and 
+progress-monitoring needs rather than focusing on a single support area. 
+
+=== PAGE 27 ===
+12 
+CHAPTER 3 : REQUIREMENTS ANALYSIS 
+3.1 Problem Definition 
+Families of children with Autism Spectrum Disorder (ASD) in Nepal face difficulties 
+in accessing affordable, localized, and accessible digital support for communication, 
+learning, emotional well-being, and progress monitoring. Existing solutions often focus 
+on specific areas, provide limited Nepali-language support, or depend on continuous 
+internet connectivity. 
+The major problems identified are: 
+ Communication and language gap: Children who are non-verbal or 
+minimally verbal may have difficulty expressing needs, emotions, and 
+preferences. Affordable picture-based AAC resources with Nepali support are 
+limited. 
+ Limited localized learning and emotional support: Parents and caregivers 
+need structured learning, emotional-support, and calming activities that can be 
+used at home and are appropriate for the local context. 
+ Connectivity and accessibility constraints: Uneven internet availability and 
+the cost or geographical limitations of specialized services can reduce access 
+to continuous support. 
+ Progress and caregiver management gap: Caregivers need convenient tools 
+to monitor learning and emotional progress while managing routines, 
+schedules, medications, and other everyday needs. 
+Problem-to-Solution Direction 
+The identified problems are addressed through the following major capabilities: 
+Table 3.1 - Table of Problem-to-Solution Mapping 
+Identified Problem Proposed System Response 
+Communication 
+difficulties 
+Picture-based AAC through the Talk module 
+Limited Nepali resources Nepali and English language support 
+Unreliable connectivity Offline-capable application architecture 
+
+=== PAGE 28 ===
+13 
+Limited home-based 
+learning 
+Five structured learning modules 
+Emotional-support needs Feelings and calming activities 
+Lack of progress 
+monitoring 
+Progress dashboard, analytics, and reports 
+Need for motivation Stars, badges, milestones, and reward streaks 
+Caregiver management 
+needs 
+Child profiles, schedules, medications, and emergency 
+contacts 
+3.2 Requirements Specification 
+3.2.1 Functional Requirements 
+ 
+Table 3.2 - Table of Functional Requirements 
+FR 
+ID 
+Module Requirement Priority 
+FR-
+01 
+Authentication Users can register, log in, reset passwords, and 
+access features according to their roles. 
+Must 
+Have 
+FR-
+02 
+Child 
+Management 
+Parents can create, view, edit, and manage 
+child profiles. 
+Must 
+Have 
+FR-
+03 
+AAC / Talk Users can view categorized picture-based 
+communication cards and hear phrases in 
+Nepali or English. 
+Must 
+Have 
+FR-
+04 
+AAC / Talk Users can create custom cards, mark favorites, 
+and access recently used cards. 
+Should 
+Have 
+FR-
+05 
+Learning Children can access five structured learning 
+activities with multiple difficulty levels. 
+Must 
+Have 
+
+=== PAGE 29 ===
+14 
+FR-
+06 
+Learning Learning activities provide visual/audio 
+feedback and award stars based on 
+performance. 
+Must 
+Have 
+FR-
+07 
+Progress Parents can view child progress, milestones, 
+achievements, and periodic reports. 
+Must 
+Have 
+FR-
+08 
+Feelings Children can perform emotion check-ins and 
+access breathing, meditation, music, and other 
+calming activities. 
+Must 
+Have 
+FR-
+09 
+Feelings Parents can review the child's mood history. Should 
+Have 
+FR-
+10 
+Rewards Children can view stars, badges, 
+achievements, and milestone-based rewards. 
+Must 
+Have 
+FR-
+11 
+Routines Parents can manage schedules, medications, 
+reminders, and emergency contacts. 
+Must 
+Have 
+FR-
+12 
+Notifications Users can receive relevant activity, schedule, 
+and reminder notifications. 
+Must 
+Have 
+FR-
+13 
+Offline & Sync Core locally available features remain usable 
+offline and synchronize data when 
+connectivity is restored. 
+Must 
+Have 
+FR-
+14 
+Child Mode Children can access a simplified child 
+interface protected by the configured access 
+mechanism. 
+Must 
+Have 
+FR-
+15 
+Administration Authorized administrators can manage 
+application content, users, and relevant system 
+data. 
+Must 
+Have 
+ 
+ 
+ 
+
+=== PAGE 30 ===
+15 
+3.2.2 Non-Functional Requirements 
+ 
+Table 3.3 - Table of Non-Functional Requirements 
+NFR 
+ID 
+Category Requirement Priority 
+NFR-
+01 
+Performance Application should launch within approximately 
+3 seconds under normal conditions. 
+Must 
+Have 
+NFR-
+02 
+Performance Common interactions should respond within 
+approximately 500 ms under normal conditions. 
+Must 
+Have 
+NFR-
+03 
+Usability The interface should be simple enough for parents 
+and caregivers with basic smartphone skills. 
+Must 
+Have 
+NFR-
+04 
+Reliability Core features and locally available content should 
+remain accessible without continuous internet 
+connectivity. 
+Must 
+Have 
+NFR-
+05 
+Security Authentication and protected resources should use 
+secure token-based access and role-based 
+authorization. 
+Must 
+Have 
+NFR-
+06 
+Compatibility The Android application should support Android 
+9.0 (API Level 28) and above and different 
+supported screen sizes. 
+Must 
+Have 
+NFR-
+07 
+Accessibility The interface should provide suitable touch 
+targets, visual contrast, and child-friendly 
+interaction patterns. 
+Must 
+Have 
+NFR-
+08 
+Localization The application should support Nepali and 
+English languages. 
+Must 
+Have 
+ 
+
+=== PAGE 31 ===
+16 
+3.3 Planning and Scheduling 
+The project was planned over a four-month period beginning in June 2026 using an 
+Agile development approach. Development was divided into iterative phases covering 
+planning, backend development, Android development, integration, testing, and 
+documentation. 
+Table 3.4 - Table of Project Development Schedule 
+Phase Period Major Activities 
+Phase 1: Planning and 
+Design 
+June 1–15, 
+2026 
+Requirements analysis, architecture, database 
+design, UI/UX design, technology selection 
+Phase 2: Backend 
+Development 
+June 16–July 
+15, 2026 
+Django setup, authentication, REST APIs, 
+database models, Swagger documentation, 
+testing 
+Phase 3: Android 
+Development 
+July 16–August 
+15, 2026 
+Authentication, AAC, learning, progress, 
+feelings, rewards, parent/child features, API 
+integration 
+Phase 4: Admin & 
+Integration 
+August 16–31, 
+2026 
+Next.js admin panel, content management, 
+system integration, testing, bug fixing, UI 
+refinement 
+Phase 5: Testing & 
+Documentation 
+September 1–5, 
+2026 
+Additional testing, optimization, 
+documentation updates, and final report 
+preparation 
+
+=== PAGE 32 ===
+17 
+3.4 Software and Hardware Requirements 
+3.4.1 Software Requirements for Development 
+ 
+Table 3.5 - Table of  Software Requirements for Development 
+Component Technology / Software 
+Development Environment Android Studio, Visual Studio Code / PyCharm 
+Android Development Java, XML, Android SDK 
+Android Architecture MVVM, Room, Retrofit, WorkManager 
+Backend Python, Django, Django REST Framework 
+Admin Panel Next.js, React, TypeScript, Tailwind CSS 
+Database SQLite for development, PostgreSQL for production 
+API Documentation Swagger / OpenAPI 
+Version Control Git 
+UI/UX Design Figma 
+Operating System Windows 10/11, 64-bit 
+  
+
+=== PAGE 33 ===
+18 
+3.4.2 Hardware Requirements for Development 
+ 
+Table 3.6 - Table of Hardware Requirements for Development 
+Component Minimum Requirement Recommended Requirement 
+Processor Intel Core i5 or equivalent Intel Core i7 or equivalent 
+RAM 8 GB 16 GB or higher 
+Storage 20 GB available 50 GB or more 
+Display 1366 × 768 1920 × 1080 or higher 
+Android Device Android 9.0+, 2 GB RAM Android 12+, 4 GB RAM 
+Internet Required for development and 
+synchronization 
+Stable broadband connection 
+3.5 Preliminary Product Description 
+deessa Companion is a multi-component autism-support system consisting of an 
+Android mobile application, a Django REST API backend, and a Next.js administration 
+panel. 
+3.5.1 Android Mobile Application 
+The Android application is the primary user-facing component and is developed using 
+Java and XML. It provides parent/caregiver and child experiences and includes: 
+ Authentication and child management 
+ Picture-based AAC communication 
+ Structured learning activities 
+ Feelings and calming activities 
+ Progress monitoring 
+ Rewards and achievements 
+ Schedules and medication reminders 
+ Emergency contacts and notifications 
+ Child Mode 
+ Nepali and English language support 
+The application follows the MVVM architecture and uses Room for local storage and 
+Retrofit for API communication. Its offline-capable design allows locally available core 
+content and functionality to remain accessible without continuous internet connectivity. 
+
+=== PAGE 34 ===
+19 
+3.5.2 Backend REST API 
+The backend is developed using Django and Django REST Framework. It provides 
+authentication, child management, AAC content, learning activities, progress, rewards, 
+emotions, routines, notifications, synchronization, and administrative services. 
+SQLite is used during development, with PostgreSQL supported for production 
+deployment. 
+3.5.3 Web Administration Panel 
+The administration panel is developed using Next.js, React, TypeScript, and Tailwind 
+CSS. It provides authorized administrators with interfaces for managing users, AAC 
+content, learning content, rewards, and other application data through the REST API. 
+3.6 Conceptual Models 
+3.6.1 Use Case Diagram 
+ 
+ 
+Fig: 3.1 - Use Case Diagram ( Parent ) 
+
+
+=== PAGE 35 ===
+20 
+ 
+Fig: 3.2 - Use Case Diagram ( Child ) 
+ 
+Fig: 3.3 - Use Case Diagram ( Therapist ) 
+
+
+=== PAGE 36 ===
+21 
+3.6.2 Data Flow Diagram 
+3.6.2.1 Level 0 (Context Diagram): 
+ 
+Fig: 3.4 - DFD Level 0 
+3.6.2.2 Level 1 (Major Processes): 
+ 
+ 
+Fig: 3.5 - DFD Level 1 
+
+
+=== PAGE 37 ===
+22 
+3.6.3 ER Diagram 
+ 
+ 
+Fig: 3.6 - ER Diagram 
+
+
+=== PAGE 38 ===
+23 
+CHAPTER 4 : SYSTEM DESIGN 
+4.1 Introduction 
+This chapter presents the system design of deessa Companion. The system consists of 
+three main components: the Android mobile application, Django REST API backend, 
+and Next.js admin panel. The design supports modular development, offline-first 
+operation, secure communication, and easy maintenance. 
+4.2 System Design 
+4.2.1 System Architecture 
+deessa Companion follows a three-tier architecture consisting of the presentation, 
+business logic, and data layers. 
+Layer Technologies Main Responsibility 
+Presentation Android Java/XML, MVVM, 
+Material Design 
+User interface and interaction 
+Business 
+Logic 
+Django, Django REST 
+Framework, JWT 
+Authentication, application 
+logic and APIs 
+Data Room/SQLite, PostgreSQL Local and server-side data 
+storage 
+The Android application communicates with the Django backend through REST APIs. 
+Local data is stored using Room/SQLite to support offline functionality, while 
+synchronization is performed when network connectivity is available. The Next.js 
+admin panel uses the same backend APIs for content and system management. 
+4.2.2 Android Architecture 
+The Android application follows the MVVM architecture pattern. 
+ Model: Handles local data, entities, DAOs and repositories. 
+ ViewModel: Manages UI-related data and communication with repositories. 
+ View: Activities and Fragments display data and handle user interaction. 
+Room is used for local persistence, Retrofit for API communication, and WorkManager 
+for background synchronization. 
+
+=== PAGE 39 ===
+24 
+4.2.3 Backend Structure 
+The Django backend is divided into modular applications according to system 
+functionality. 
+Table 4.1 - Table of Backend Structure 
+Module Main Responsibility 
+Authentication Registration, login, verification and JWT authentication 
+Profiles Parent and child profile management 
+Communication AAC cards and communication data 
+Learning Activities, questions, scoring and progress 
+Rewards Stars, badges and achievements 
+Emotions Emotion records and statistics 
+Routines Schedules and routine completion 
+Reports Progress reports and PDF generation 
+Notifications User notifications and FCM integration 
+Synchronization Offline data synchronization 
+Analytics Usage and progress statistics 
+Administration User, media and system management 
+Audit Activity and system logging 
+Core Shared utilities and common functionality 
+The backend uses role-based access control to restrict resources according to user 
+permissions. Therapist-related functionality is reserved for future development and is 
+not part of the current Parent and Child implementation. 
+ 
+
+=== PAGE 40 ===
+25 
+4.3 API Design 
+The backend provides a versioned RESTful API under the /api/v1/ namespace. APIs 
+are organized according to the major features of the application. 
+Table 4.2 - Table of API Design 
+Module Main Operations Purpose 
+Authentication Register, Login, Refresh User authentication 
+Profiles Create, Read, Update, Delete Manage child profiles 
+AAC List, Create, Update Manage communication cards  
+Learning Activities, Questions, Progress  Learning functionality 
+Emotions Record, History, Statistics Emotion tracking 
+Rewards Stars, Badges, Achievements Gamification 
+Routines Schedule, Completion Daily routine management 
+Reports Generate, View, Download Progress reporting 
+Notifications List, Read, Preferences User notifications 
+Synchronization Upload, Download, Sync Offline data synchronization 
+Analytics Statistics, Trends Usage and progress analysis 
+Administration Users, Content, Settings System administration 
+Authentication and authorization are applied to protected resources. Detailed endpoint 
+documentation is maintained through Swagger UI and ReDoc. 
+4.4 Database Design 
+4.4.1 Entity Relationship Overview 
+The database is designed using relational database principles and normalization. The 
+backend database contains entities for users, child profiles, AAC cards, learning 
+activities, activity progress, emotions, routines, rewards, notifications and related 
+system functions. 
+
+=== PAGE 41 ===
+26 
+The database contains 24 tables with relationships between users, children and 
+application activities. Foreign keys are used to maintain relationships and data integrity. 
+The Entity Relationship Diagram (ERD) illustrates the relationships among the major 
+entities of the system. 
+4.4.2 Key Entities 
+Table 4.3 - Table of Key Entities 
+Entity Purpose 
+User Stores parent and other account information 
+ChildProfile Stores child-related information 
+AAC Card Stores bilingual communication cards 
+Activity Defines learning activities 
+Activity Progress Records learning performance 
+Emotion Stores emotion and mood records 
+Routine Stores scheduled activities 
+Star Records earned rewards 
+Badge Defines achievements 
+ChildBadge Links children with earned badges 
+Notification Stores user notifications 
+4.4.3 Database Design Patterns 
+The database applies several common design patterns: 
+ Soft deletion is used where records may need to be recovered without 
+permanently removing them. 
+ Timestamp fields record creation and modification times. 
+ Bilingual fields support English and Nepali content. 
+ JSON fields are used for flexible data such as activity responses and badge 
+criteria. 
+ UUIDs are used for selected entities to provide unique identifiers suitable for 
+distributed and offline operations. 
+
+=== PAGE 42 ===
+27 
+4.5 User Interface Design 
+The user interface is designed around the principle of “Calm Clarity with Playful 
+Purpose,” providing a simple and child-friendly experience while keeping caregiver 
+functions easy to access. 
+The primary navigation consists of five sections: 
+Home → Talk → Learn → Progress → Profile 
+The interface uses an ocean-blue visual theme with supporting accent colors and clear 
+typography. Consistent spacing, large touch targets, simple layouts and recognizable 
+visual elements are used throughout the application. 
+4.5.1 Key Interface Areas 
+Table 4.4 - Table of Key Interfaces 
+Section Main Functions 
+Home Child overview, schedules, quick actions and notifications 
+Talk AAC categories, communication cards, favorites and custom cards 
+Learn Learning activities, instructions, questions and rewards 
+Progress Activity performance, communication statistics and reports 
+Profile Parent and child management, settings, medication and emergency 
+contacts 
+Child-facing screens use simplified layouts, visual communication, audio feedback and 
+reward elements to support engagement. 
+4.5.2 Navigation 
+The application uses bottom navigation for the five primary sections. Top app bars 
+provide screen titles, back navigation and contextual actions. Dialogs and bottom sheets 
+are used for secondary operations such as editing information, selecting options and 
+confirming actions. 
+ 
+
+=== PAGE 43 ===
+28 
+4.5.3 Accessibility 
+Accessibility considerations include: 
+ Large and easily identifiable touch targets 
+ Clear visual hierarchy 
+ Picture-based communication 
+ Audio feedback 
+ Nepali and English language support 
+ Simple instructions and labels 
+ Consistent navigation 
+ Reduced visual complexity on child-facing screens 
+Detailed interface screenshots and implemented screens are presented in Section 6.4. 
+4.6 Summary 
+This chapter presented the system design of deessa Companion. The system uses a 
+three-tier architecture consisting of an Android application, Django REST API 
+backend, and Next.js admin panel. The Android application follows MVVM and uses 
+Room, Retrofit and WorkManager to support local storage, API communication and 
+synchronization. 
+The database is organized around the major entities of the application and applies 
+normalization, relationships, bilingual fields, timestamps and UUID-based 
+identification. The REST API provides modular access to authentication, 
+communication, learning, emotions, rewards, routines, progress and administration. 
+The interface follows a simple child-friendly design with five primary navigation 
+sections and accessibility-focused features. Detailed implementation and interface 
+screenshots are presented in the following chapters. 
+
+=== PAGE 44 ===
+29 
+CHAPTER 5 : IMPLEMENTATION AND TESTING 
+5.1 Implementation Approaches 
+5.1.1 Development Methodology 
+The deessa Companion project followed the Agile software development methodology, 
+using iterative development cycles to progressively design, implement, test, and refine 
+the system. 
+The major development activities included requirement analysis, UI/UX design, 
+backend development, Android development, system integration, and testing. The 
+iterative approach allowed individual modules to be developed and evaluated 
+progressively, enabling improvements based on identified issues and feedback. 
+ 
+5.1.2 Frontend Implementation 
+The Android application was developed using Java and XML following a modular 
+MVVM-based architecture. 
+Common resources such as colors, dimensions, strings, themes, and reusable UI 
+components were established first. The authentication flow was then implemented, 
+followed by the major parent and child modules including AAC communication, 
+learning, feelings and emotions, progress, rewards, routines, and profile management. 
+Room was integrated for local data persistence to support the offline-first approach, 
+while Retrofit was used for communication with the Django REST API. WorkManager 
+was used for background synchronization when network connectivity became 
+available.  
+A simplified child mode with PIN-based access was also implemented to provide a 
+more accessible interface for child users. 
+ 
+5.1.3 Backend Implementation 
+The backend was developed using Django and Django REST Framework with a 
+modular application structure. Major functional areas such as authentication, child 
+profiles, AAC, learning, emotions, rewards, routines, notifications, progress, and 
+synchronization were organized into separate Django applications. 
+
+=== PAGE 45 ===
+30 
+The backend provides RESTful APIs for communication with the Android application 
+and handles authentication, data management, business logic, and synchronization. 
+JWT-based authentication was implemented for secure API access, while 
+Swagger/OpenAPI was integrated for API documentation. 
+Initial application content, including AAC cards, learning activities, difficulty levels, 
+and rewards, was also prepared for system use and testing. 
+ 
+5.1.4 Admin Panel Implementation 
+The administrative panel was developed using Next.js, React, TypeScript, and Tailwind 
+CSS. It provides centralized management of application content and administrative data 
+through reusable components and structured API services. The panel includes 
+management functionality for users, AAC cards, learning activities, rewards, and 
+related content, along with dashboard-based statistics. 
+Dedicated therapist and teacher portals were not included in the current implementation 
+and remain part of the proposed future scope. 
+5.2 Coding and Efficiency 
+The system was implemented across three major components: the Android mobile 
+application, Django REST API backend, and Next.js administration panel. 
+Several practices were used to improve maintainability and performance: 
+ MVVM architecture was used to separate UI, business logic, and data access. 
+ Reusable components were used across Android and web interfaces to reduce 
+code duplication. 
+ RecyclerView and DiffUtil were used for efficient dynamic list rendering. 
+ Room provided structured local data storage for offline functionality. 
+ WorkManager handled background synchronization tasks. 
+ Database indexing, pagination, and query optimization  were applied where 
+appropriate in the backend. 
+ Select Related and Prefetch Related  were used to reduce unnecessary 
+database queries. 
+ TypeScript and reusable React components  improved reliability and 
+maintainability of the admin panel. 
+ 
+ 
+
+=== PAGE 46 ===
+31 
+5.2.1 Key Implementations 
+ Offline-First Data Management :  Room was used to store essential 
+application data locally, allowing supported features to remain available during 
+network interruptions. Data generated during offline use can be synchronized 
+with the backend when connectivity is restored. 
+ 
+ AAC Communication : The AAC module provides picture-based 
+communication cards with Nepali and English labels and audio playback. 
+Selecting a card allows the corresponding phrase to be communicated through 
+visual and audio support. 
+ 
+ Learning and Rewards :  The learning module evaluates user responses and 
+calculates activity performance. Completed activities update progress and may 
+provide stars or rewards according to the defined rules. 
+ 
+ Authentication :  JWT-based authentication was implemented for secure 
+communication between the Android application and Django REST API. 
+Access and refresh tokens are used to maintain authenticated sessions. 
+5.3 Testing Approach 
+Testing was conducted throughout development to verify the functionality, integration, 
+reliability, and usability of the system. 
+The main testing levels were: 
+ Unit Testing:  Individual models, serializers, ViewModels, repositories, 
+utilities, and business logic were tested independently. 
+ 
+ Integration Testing:  Communication between the Android application, 
+backend API, local database, and admin panel was verified. 
+ 
+ Functional Testing:  Major workflows such as authentication, AAC 
+communication, learning, emotions, rewards, progress, child management, and 
+offline functionality were tested. 
+ 
+ User-Oriented Testing: The application was evaluated from the perspective of 
+intended parent and child users to identify usability and navigation issues. 
+ 
+Testing focused on ensuring that the major implemented modules operated according 
+to their defined requirements. 
+ 
+ 
+
+=== PAGE 47 ===
+32 
+5.3.1 Testing Summary 
+The major application workflows were successfully verified, including authentication, 
+child management, AAC communication, learning activities, feelings and emotions, 
+progress tracking, rewards, routines, and offline-supported functionality. 
+Issues identified during testing were addressed through iterative improvements to the 
+interface, database operations, API communication, navigation, and application logic. 
+This process improved the reliability and usability of the final system. 
+5.4 Modifications and Improvements 
+5.4.1 Design Improvements 
+Several design iterations were performed to improve accessibility, usability, and 
+consistency. 
+The major improvements included: 
+ Color and Visual Refinement: The interface color palette and visual hierarchy 
+were refined for better readability and consistency. 
+ Touch Target Optimization:  Interactive elements were designed with 
+appropriate touch areas, particularly for child users. 
+ Simplified Navigation:  Parent navigation was organized into five primary 
+sections: Home, Talk, Learn, Progress, and Profile. 
+ Child Mode: A simplified child-oriented interface was introduced with reduced 
+navigation complexity. 
+ Audio Feedback: Audio feedback was incorporated into communication and 
+learning interactions. 
+ Bilingual Support: Nepali and English support was incorporated across major 
+user-facing features. 
+5.4.2 Technical Improvements 
+The main technical improvements included: 
+ Introduction of Room-based local storage for offline functionality. 
+ Implementation of background synchronization for offline-generated data. 
+ Optimization of image loading and caching. 
+ Application of database indexing and query optimization. 
+ Improved management of audio and image resources. 
+ Increased use of reusable components to reduce duplication and improve 
+maintainability. 
+These modifications were introduced progressively during development based on 
+testing results and identified usability or technical issues. 
+
+=== PAGE 48 ===
+33 
+CHAPTER 6 : RESULTS AND DISCUSSION 
+6.1 Test Reports 
+Testing was performed to verify the functionality, reliability, performance, and 
+usability of the deessa Companion system. Testing covered the backend, Android 
+application, performance, and major user workflows. 
+6.1.1 Backend Test Results 
+The Django backend was tested across its major functional areas, including 
+authentication, child profiles, communication, learning, emotions, rewards, routines, 
+notifications, synchronization, reporting, and related services. 
+A total of 382 backend test cases  were executed, with all implemented test cases 
+passing successfully. 
+Table 6.1 - Table of Backend Test Summary 
+Metric Result 
+Total Test Cases 382 
+Passed 382 
+Failed 0 
+Pass Rate 100% 
+The results indicate that the major backend components and REST API operations 
+functioned according to their defined requirements. 
+ 
+6.1.2 Android Frontend Test Results 
+Android unit and instrumented tests were performed using JUnit and Mockito. Testing 
+focused on authentication, ViewModels, repositories, data models, caching, 
+notifications, rewards, progress management, and application logic. 
+A total of 32 implemented test cases were executed, with all tests passing successfully. 
+ 
+ 
+
+=== PAGE 49 ===
+34 
+Table 6.2 - Table of  Android Frontend Test Summary 
+Metric Result 
+Test Cases 32 
+Passed 32 
+Failed 0 
+Pass Rate 100% 
+The results demonstrate that the tested Android components operated correctly under 
+the defined test conditions. 
+ 
+6.1.3 Performance Metrics 
+Performance testing was conducted to evaluate application responsiveness and backend 
+performance. 
+Table 6.3 Table of Performance Test Results 
+Metric Target Achieved 
+Application Launch < 3 s 2.1 s 
+AAC Card Response < 500 ms 180 ms 
+Learning Activity Load < 2 s 1.4 s 
+API Response < 1 s 0.6 s 
+Database Query < 100 ms 45 ms 
+Image Load < 1 s 0.7 s 
+Memory Usage < 150 MB 120 MB 
+APK Size < 30 MB 24 MB 
+The results show that the application achieved the defined performance targets under 
+the tested conditions. 
+
+=== PAGE 50 ===
+35 
+6.1.4 Usability Test Results 
+Usability testing was conducted with five parent-child pairs  to evaluate navigation, 
+task completion, ease of use, and overall satisfaction. 
+Table 6.4 Table of Usability Test Results 
+Task Success Rate Satisfaction 
+Registration and Login 100% 4.5/5 
+AAC Communication 100% 4.8/5 
+Learning Activity 100% 4.6/5 
+View Progress 100% 4.3/5 
+Emotion Check-in 100% 4.7/5 
+Module Navigation 100% 4.4/5 
+All evaluated tasks achieved a 100% completion rate, with an average satisfaction score 
+of approximately 4.55/5. The results indicate that the tested users were able to complete 
+the major application tasks successfully. 
+6.2 App Snapshots 
+This section presents screenshots of the major implemented interfaces of the deessa 
+Companion application. 
+6.2.1 Authentication Screens 
+The authentication flow includes the splash screen, onboarding, login, registration, and 
+verification interfaces. The screens follow the application's consistent visual design and 
+support the primary user authentication workflow. 
+6.2.2 AAC Communication Board 
+The AAC communication board provides picture-based communication through four 
+main categories: Needs, Emotions, Activities, and People. 
+Each communication card contains a visual representation with Nepali and English 
+labels and provides audio feedback when selected. 
+The application includes 30 AAC cards distributed as follows: 
+
+=== PAGE 51 ===
+36 
+Table 6.5 Table of AAC Card Distribution 
+Category Cards 
+Needs 10 
+Emotions 8 
+Activities 8 
+People 4 
+Total 30 
+The interface uses large visual elements to make communication easier for child users. 
+6.2.3 Learning Activities 
+The learning module contains five activity categories: 
+ Alphabet 
+ Sound 
+ Shape 
+ Number 
+ Color 
+Activities provide instructions, questions, feedback, and completion results. Children 
+receive performance feedback after completing an activity. 
+6.2.4 Progress Dashboard 
+The progress dashboard presents the child's learning and activity information through 
+visual summaries such as progress charts, activity history, and achievement 
+information. 
+6.2.5 Feelings and Emotions 
+The feelings and emotions module provides activities designed to support emotional 
+awareness and self-regulation. These include: 
+ Emotion check-in 
+ Breathing exercises 
+ Guided meditation 
+ Calming music 
+ Digital coloring 
+ 
+
+=== PAGE 52 ===
+37 
+6.2.6 Rewards and Achievements 
+The rewards module displays earned stars, badges, and achievement information. 
+Gamification elements provide visual feedback to encourage continued participation in 
+learning activities. 
+6.3 User Documentation 
+User documentation was prepared to provide guidance for operating and managing the 
+deessa Companion system. 
+6.3.1 Quick Start Guide 
+The Quick Start Guide provides new users with a simple overview of the application 
+and its basic workflow. It covers: 
+ Installation and Initial Setup: Install the application and complete the required 
+initial configuration.  
+ Account Registration and Login:  Create an account and securely access the 
+application.  
+ Child Profile Management: Create, select, and manage child profiles.  
+ Application Navigation: Navigate between the main modules and features.  
+ AAC Communication: Use picture-based communication cards to support the 
+child’s communication needs.  
+ Learning Activities: Access and complete interactive learning activities.  
+ Feelings and Emotions:  Record emotions and access calming and breathing 
+activities.  
+ Progress and Rewards: Review learning progress, achievements, and earned 
+rewards.  
+ Routines: View and manage daily routines, schedules, and reminders. 
+ 
+6.3.2 Parent User Guide 
+The parent guide explains the main features available to parents, including child 
+management, AAC communication, learning activities, progress monitoring, emotions, 
+rewards, routines, and application settings. 
+ 
+ Child Management: Add, select, and manage child profiles.  
+ AAC Communication: Use picture-based communication cards and audio 
+support.  
+ Learning Activities: Access and support children during different learning 
+activities.  
+ Progress Monitoring: View learning progress, activity completion, and 
+performance.  
+
+=== PAGE 53 ===
+38 
+ Feelings and Emotions: Record emotions and access breathing, meditation, 
+and calming activities.  
+ Rewards: View earned stars, badges, and achievements.  
+ Routines: Manage daily routines, schedules, and reminders.  
+ Application Settings: Configure available preferences and account-related 
+settings. 
+ 
+6.3.3 Admin User Guide 
+The administrator guide explains the management of application users and content 
+through the web-based administration panel. It covers user management, AAC cards, 
+learning activities, rewards, application content, analytics, notifications, and system 
+activity. The documentation is intended to provide practical guidance for the intended 
+users and administrators while avoiding unnecessary technical complexity. 
+The administrator user guide covers the following functions: 
+ User Management:  View and manage registered users and child-related 
+information.  
+ AAC Management:  Add, edit, and manage communication cards and their 
+content.  
+ Learning Management:  Manage learning activities, question sets, levels, 
+instructions, and options.  
+ Rewards Management: Configure and maintain rewards and achievements.  
+ Content Management:  Maintain application content used by the mobile 
+application.  
+ Analytics: Review relevant usage and activity information.  
+ Notifications: Manage application notifications and related content.  
+ System Activity: Review relevant administrative and system activities. 
+ 
+
+=== PAGE 54 ===
+39 
+6.4 User Interface Design and Implementation 
+ 
+Fig: 6.1 - Auth Splash Screen 
+ 
+Fig: 6.2 - Auth Onboarding Screen 
+ 
+Fig: 6.3 - Auth Register Screen 
+ 
+Fig: 6.4 - Auth Login Screen 
+ 
+Fig: 6.5 - Parent Dashboard 
+ 
+Fig: 6.6 - Parent Dashboard  
+
+
+=== PAGE 55 ===
+40 
+Fig: 6.7 - Parent Profile Screen Fig: 6.8 - Child Profile Screen Fig: 6.9 - Parent Setting Screen 
+Fig: 6.10 Progress Screen Fig: 6.11 - Progress Screen Fig: 6.12 – Weekly Progress 
+Screen  
+
+
+=== PAGE 56 ===
+41 
+Fig: 6.13 Monthly Progress Screen Fig: 6.14 - AAC Home Screen Fig: 6.15 - AAC Usage Screen 
+Fig: 6.16 - AAC Favorite Screen Fig: 6.17 - AAC Analytics Screen Fig: 6.18 - AAC Settings Screen 
+
+
+=== PAGE 57 ===
+42 
+Fig: 6.19 Child Mode Auth Fig: 6.20 Child Dashboard Screen Fig: 6.21 Learning Home Screen 
+Fig: 6.22 -Level Selector Screen Fig: 6.23 -Learning Gameplay 
+Screen 
+Fig: 6.24 – Game Completion 
+Screen 
+
+
+=== PAGE 58 ===
+43 
+Fig: 6.25 - My Reward Screen Fig: 6.26 - My Badge Screen Fig: 6.27- Feelings Home Screen 
+Fig: 6.28- Calming Activity Screen Fig: 6.29-Breathing Exercise 
+Screen 
+Fig: 6.30 - Calming Music Screen 
+
+
+=== PAGE 59 ===
+44 
+ 
+Fig: 6.31 Admin Dashboard Page 
+ 
+Fig: 6.32 - Admin Dashboard Page 
+
+
+=== PAGE 60 ===
+45 
+ 
+ 
+Fig: 6.33 Admin Dashboard Page 
+ 
+Fig: 6.34 Admin User Management Page 
+
+
+=== PAGE 61 ===
+46 
+ 
+ 
+ 
+Fig: 6.35 Admin Child Management Page 
+ 
+ 
+ 
+Fig: 6.36 Admin AAC Cards Management Page 
+ 
+
+
+=== PAGE 62 ===
+47 
+CHAPTER 7 : CONCLUSION 
+7.1 Conclusion 
+The deessa Companion project developed a mobile-based support system for children 
+with Autism Spectrum Disorder (ASD) and their parents or caregivers in the Nepali 
+context. The system integrates AAC communication, learning activities, feelings and 
+emotional-support tools, progress monitoring, routines, and rewards within a single 
+platform. 
+The system consists of three main components: a native Android application for 
+children and parents, a Django REST API backend for application data and services, 
+and a Next.js administration panel for managing users and application content. 
+The project emphasizes Nepali and English language support, offline-capable 
+functionality, child-friendly interaction, and parent-centered management. The 
+completed implementation provides a practical foundation for localized digital autism 
+support while allowing future expansion through additional content, services, and 
+integrations. 
+7.1.1 Significance of the System 
+The significance of deessa Companion can be summarized as follows: 
+ Linguistic Accessibility:  Supports both Nepali and English for improved 
+accessibility.  
+ Offline-Capable Design: Allows important locally stored features to remain 
+available without continuous internet connectivity.  
+ Integrated Support: Combines communication, learning, emotional support, 
+progress tracking, routines, and rewards in one platform.  
+ Parent-Centered Management:  Provides tools for managing child profiles, 
+routines, medications, emergency information, and related activities.  
+ Child-Friendly Interaction:  Provides a simplified Child Mode with Talk, 
+Learn, Feelings, and Rewards features.  
+ Progress and Motivation:  Uses progress information, activity history, stars, 
+and badges to support monitoring and positive reinforcement.  
+ Extensible Architecture: The modular architecture provides a foundation for 
+future content, synchronization, professional collaboration, and additional 
+languages.  
+Overall, the project provides a functional and localized foundation for digital autism 
+support, with further improvement possible through continued testing, content 
+expansion, and additional services. 
+
+=== PAGE 63 ===
+48 
+7.2 Limitations of the System 
+The current implementation has the following limitations: 
+ Cloud Synchronization:  Comprehensive cloud backup and cross-device 
+synchronization are not fully implemented.  
+ Limited AAC Content: The current AAC library provides a basic vocabulary 
+and does not yet include advanced sentence-building capabilities.  
+ Limited Learning Content:  The system currently provides five primary 
+learning activity types, with scope for additional subjects and adaptive 
+difficulty.  
+ Multi-Device Support:  Seamless access to the same child's data across 
+multiple devices is not currently available.  
+ Offline Export:  Comprehensive offline data export and external sharing 
+features are not currently available.  
+ Language Limitation: The application currently supports Nepali and English 
+only.  
+ Basic Analytics: Current analytics focus mainly on activity completion, scores, 
+usage, and milestones rather than advanced predictive analysis.  
+ Professional Integration:  Dedicated therapist and teacher interfaces are not 
+part of the current implementation.  
+ Community Features: Parent-to-parent social and community features are not 
+currently provided. 
+7.3 Future Scope of the Project 
+Future development can extend the current system in the following areas: 
+7.3.1 Cloud and Professional Collaboration 
+ Cloud Synchronization:  Add secure backup and synchronization for multi-
+device access.  
+ Therapist Dashboard:  Provide authorized therapists with tools to review 
+progress and collaborate with parents.  
+ Teacher Support:  Introduce features for educational environments and 
+classroom-based support.  
+ Enhanced AAC:  Expand vocabulary and introduce personalized 
+communication boards and sentence construction.  
+ Parent Community: Provide a moderated platform for parents and caregivers 
+to share resources and experiences.  
+ 
+ 
+ 
+ 
+
+=== PAGE 64 ===
+49 
+7.3.2 Intelligent Features and Advanced Integration 
+ AI-Assisted Recommendations:  Provide personalized activity 
+recommendations based on interaction and progress data.  
+ Advanced Analytics: Introduce detailed trends and insights into activity and 
+progress patterns.  
+ Wearable Integration:  Explore integration with wearable devices for 
+additional activity information, subject to privacy and reliability considerations.  
+ Teletherapy Support: Enable secure communication and remote consultation 
+with qualified professionals.  
+7.3.3 Expansion and Long-Term Development 
+ Multi-Language Support:  Add additional regional languages to improve 
+accessibility across Nepal.  
+ Research and Evaluation:  Provide tools for structured data collection and 
+research, subject to appropriate ethical and privacy requirements.  
+ Institutional Collaboration:  Explore collaboration with educational, 
+healthcare, nonprofit, and government organizations.  
+ Community Development:  Consider open-source components to encourage 
+further localization and collaboration.  
+ International Adaptation: Adapt the platform for other regions with similar 
+language, connectivity, and accessibility challenges.  
+The deessa Companion project establishes a foundation for a localized digital support 
+platform focused on children with autism and their families. Future development can 
+progressively expand its content, professional collaboration, analytics, synchronization, 
+and language support while maintaining its focus on accessibility, usability, and 
+practical support. 
+
+=== PAGE 65 ===
+50 
+REFERENCES 
+Alzrayer, N., Banda, D. R., & Koul, R. K. (2014). Use of iPad/iPods with individuals 
+with autism and other developmental disabilities: A meta-analysis of communication 
+interventions. Review Journal of Autism and Developmental Disorders, 1(3), 179–
+191. https://doi.org/10.1007/s40489-014-0018-5 
+Android Developers. (n.d.). Room persistence library. 
+https://developer.android.com/training/data-storage/room 
+AssistiveWare. (n.d.). Proloquo2Go. 
+https://www.assistiveware.com/products/proloquo2go 
+Aydin, O., & Diken, I. H. (2020). Studies comparing augmentative and alternative 
+communication systems (AAC) applications for individuals with autism spectrum 
+disorder: A systematic review and meta-analysis. Education and Training in Autism 
+and Developmental Disabilities, 55(2), 119–141. 
+https://doi.org/10.1177/215416472005500202 
+Beukelman, D. R., & Light, J. C. (2020). Augmentative and alternative 
+communication: Supporting children and adults with complex communication needs 
+(5th ed.). Paul H. Brookes Publishing. 
+Deesa Foundation. (n.d.). About Deesa Foundation.  
+Deterding, S., Dixon, D., Khaled, R., & Nacke, L. (2011). From game design 
+elements to gamefulness: Defining “gamification.” In Proceedings of the 15th 
+International Academic MindTrek Conference: Envisioning future media 
+environments (pp. 9–15). Association for Computing Machinery. 
+https://doi.org/10.1145/2181037.2181040 
+Django REST Framework. (n.d.). Django REST framework documentation. 
+https://www.django-rest-framework.org/ 
+Django Software Foundation. (n.d.). Django documentation. 
+https://docs.djangoproject.com/ 
+
+=== PAGE 66 ===
+51 
+Firebase. (n.d.). Firebase Cloud Messaging documentation. 
+https://firebase.google.com/docs/cloud-messaging 
+Ganz, J. B., Earles-Vollrath, T. L., Heath, A. K., Parker, R. I., Rispoli, M. J., & 
+Duran, J. B. (2012). A meta-analysis of single-case research studies on aided 
+augmentative and alternative communication systems with individuals with autism 
+spectrum disorders. Journal of Autism and Developmental Disorders, 42, 60–74. 
+https://doi.org/10.1007/s10803-011-1212-2 
+Grynszpan, O., Weiss, P. L., Perez-Diaz, F., & Gal, E. (2014). Innovative technology-
+based interventions for autism spectrum disorders: A meta-analysis. Autism, 18(4), 
+346–361. https://doi.org/10.1177/1362361313476767 
+Hamari, J., Koivisto, J., & Sarsa, H. (2014). Does gamification work? A literature 
+review of empirical studies on gamification. In 2014 47th Hawaii International 
+Conference on System Sciences (pp. 3025–3034). IEEE. 
+https://doi.org/10.1109/HICSS.2014.377 
+Light, J., & McNaughton, D. (2012). The changing face of augmentative and 
+alternative communication: Past, present, and future challenges. Augmentative and 
+Alternative Communication, 28(4), 197–204. 
+https://doi.org/10.3109/07434618.2012.737024 
+Lorah, E. R., Holyfield, C., Griffen, B., & Caldwell, N. (2024). A systematic review 
+of evidence-based instruction for individuals with autism using mobile augmentative 
+and alternative communication technology. Review Journal of Autism and 
+Developmental Disorders, 11, 210–224. https://doi.org/10.1007/s40489-022-00334-6 
+McNaughton, D., & Light, J. (2013). The iPad and mobile technology revolution: 
+Benefits and challenges for individuals who require augmentative and alternative 
+communication. Augmentative and Alternative Communication, 29(2), 107–116. 
+https://doi.org/10.3109/07434618.2013.784930 
+Next.js. (n.d.). Next.js documentation. https://nextjs.org/docs 
+ 
+
+=== PAGE 67 ===
+52 
+APPENDIX : BACKEND 
+@action(detail=True, methods=['post']) 
+def complete(self, request, pk=None): 
+    progress = self.get_object() 
+    if progress.status != 'in_progress': 
+        raise ValidationError('Activity is not in progress.') 
+    serializer = ActivityProgressCompleteSerializer(data=request.data) 
+    serializer.is_valid(raise_exception=True) 
+    questions = list(activity.questions.all()) 
+    questions_by_id = {str(q.id): q for q in questions} 
+    answer_results = [] 
+ 
+    for item in serializer.validated_data.get('answers', []): 
+        question = questions_by_id.get(str(item['question_id'])) 
+        if not question: continue 
+        correct = ScoringEngine.check_answer(question, item.get('answer','')) 
+        answer_results.append({'question_id': str(item['question_id']), 
+            'answer': item.get('answer'), 'correct': correct}) 
+    result = ScoringEngine.evaluate_completion( 
+        progress, questions, answer_results, 
+        time_spent=serializer.validated_data.get('time_spent')) 
+    progress.score = result['score'] 
+    progress.correct_answers = result['correct_answers'] 
+    progress.total_questions = result['total_questions'] 
+    progress.save() 
+ 
+    stars_earned = result['stars_earned'] 
+    if stars_earned > 0: 
+        existing = ActivityProgress.objects.filter( 
+            child=progress.child, activity=activity, 
+            status='completed', passed=True 
+        ).exclude(pk=progress.pk).order_by('-score').first() 
+        if existing and result['score'] <= existing.score: 
+            stars_earned = 0 
+ 
+    return Response({'id': str(progress.id), 'score': progress.score, 
+        'passed': progress.passed, 'stars_earned': stars_earned, 
+        'badges_earned': [{'badge_id': str(cb.badge_id), 
+            'badge_name': cb.badge.name_en} for cb in badges_earned]}) 
+
+=== PAGE 68 ===
+53 
+APPENDIX : FRONTEND 
+public LiveData<Resource<BaseResponse>> verifyChildModePin( 
+        ChildModePinVerifyRequest request) { 
+    MutableLiveData<Resource<BaseResponse>> liveData = new 
+MutableLiveData<>(); 
+    liveData.setValue(Resource.loading()); 
+    apiService.verifyChildModePin(request).enqueue(new Callback<>() { 
+        public void onResponse(Call c, Response r) { 
+            if (r.isSuccessful()) { 
+                cachePinHashLocally(request.getPin()); 
+                liveData.setValue(Resource.success(r.body())); 
+            } else liveData.setValue(Resource.error("Invalid PIN")); 
+        } 
+    }); 
+    return liveData; 
+} 
+ 
+private void verifyPinOffline(String pin, 
+        MutableLiveData<Resource<BaseResponse>> liveData) { 
+    executor.execute(() -> { 
+        SharedPreferences prefs = ctx.getSharedPreferences( 
+            "DeessaPrefs", MODE_PRIVATE); 
+        long lockout = prefs.getLong("pin_lockout_until", 0); 
+        if (System.currentTimeMillis() < lockout) { 
+            long mins = (lockout-System.currentTimeMillis())/60000; 
+            post(liveData, Resource.error("Locked "+mins+" min")); 
+            return; 
+        } 
+ 
+        int attempts = prefs.getInt("offline_pin_attempts", 0); 
+        if (attempts >= MAX_ATTEMPTS) { 
+            prefs.edit().putLong("pin_lockout_until", 
+                System.currentTimeMillis()+LOCKOUT_MS).apply(); 
+            post(liveData, Resource.error("Locked 30 minutes")); 
+            return; 
+        } 
+ 
+        String hash = prefs.getString("cached_pin_hash", null); 
+        if (hash == null) { 
+
+=== PAGE 69 ===
+54 
+            post(liveData, Resource.error("Verify online first")); 
+            return; 
+        } 
+            prefs.edit().putInt("offline_pin_attempts",0).apply(); 
+        } else { 
+            prefs.edit().putInt("offline_pin_attempts", 
+                attempts+1).apply(); 
+            post(liveData, Resource.error( 
+                (MAX_ATTEMPTS-attempts-1)+" tries left")); 
+        } 
+    }); 
+
